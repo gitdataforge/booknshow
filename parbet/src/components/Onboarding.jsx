@@ -56,18 +56,25 @@ export default function Onboarding() {
     };
 
     return (
-        <div className="fixed inset-0 bg-brand-bg flex flex-col justify-between p-8 z-50">
-            <div className="flex-1 flex flex-col justify-center">
+        <div className="relative w-full max-w-[400px] mx-auto h-screen bg-brand-bg flex flex-col justify-between p-8 z-50 items-center text-center overflow-hidden">
+            <div className="flex-1 flex flex-col justify-center items-center w-full">
                 <AnimatePresence mode="wait">
-                    <motion.div key={index} initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }} transition={{ duration: 0.3 }}>
+                    <motion.div 
+                        key={index} 
+                        initial={{ opacity: 0, x: 50 }} 
+                        animate={{ opacity: 1, x: 0 }} 
+                        exit={{ opacity: 0, x: -50 }} 
+                        transition={{ duration: 0.3 }}
+                        className="flex flex-col items-center w-full"
+                    >
                         {slides[index].graphic}
                         <h1 className="text-4xl font-bold whitespace-pre-line mt-8 leading-tight">{slides[index].title}</h1>
-                        <p className="text-brand-muted mt-4 text-sm leading-relaxed max-w-sm">{slides[index].desc}</p>
+                        <p className="text-brand-muted mt-4 text-sm leading-relaxed max-w-sm mx-auto">{slides[index].desc}</p>
                     </motion.div>
                 </AnimatePresence>
             </div>
             
-            <div className="flex justify-between items-center pb-8">
+            <div className="flex justify-between items-center pb-8 w-full">
                 <div className="flex space-x-2">
                     {slides.map((_, i) => (
                         <div key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i === index ? 'w-6 bg-brand-primary' : 'w-2 bg-brand-cardHover'}`} />
