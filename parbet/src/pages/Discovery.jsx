@@ -1,0 +1,1 @@
+import React from 'react'; export default function Discovery() { return <div className='p-6 text-white'>Discovery Page</div>; }

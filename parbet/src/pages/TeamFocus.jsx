@@ -1,0 +1,1 @@
+import React from 'react'; export default function TeamFocus() { return <div className='p-6 text-white'>Team Focus Page</div>; }
