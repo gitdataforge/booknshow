@@ -1,54 +1,72 @@
 import React from 'react';
+import { useAppStore } from '../../store/useStore';
+import { Wallet, Send, ArrowDownToLine, Grid, User } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { Settings, MoreVertical, Calendar } from 'lucide-react';
 
 export default function Home() {
+    const { balance } = useAppStore();
+
     return (
-        <div className="h-full bg-brand-light overflow-y-auto pb-32 hide-scrollbar animate-fade-in">
+        <div className="p-6 md:p-10 animate-fade-in w-full max-w-4xl mx-auto">
             {/* Header */}
-            <div className="px-6 pt-12 pb-6 flex justify-between items-center">
-                <h1 className="text-2xl font-bold text-black">Schedule</h1>
-                <div className="flex space-x-2">
-                    <button className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center bg-white"><Settings size={14} className="text-gray-500"/></button>
-                    <button className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center bg-white"><MoreVertical size={14} className="text-gray-500"/></button>
+            <div className="flex justify-between items-center mb-8">
+                <div>
+                    <p className="text-sm text-brand-muted">Hello!</p>
+                    <h1 className="text-xl font-bold">Brooklyn Simmons</h1>
                 </div>
+                <div className="w-12 h-12 rounded-full bg-brand-card border border-white/10 flex items-center justify-center overflow-hidden"><User size={20} className="text-brand-muted"/></div>
+            </div>
+
+            {/* Wallet Card */}
+            <motion.div whileHover={{ scale: 0.98 }} className="w-full bg-gradient-to-br from-brand-primaryLight to-brand-primary rounded-[32px] p-6 mb-8 shadow-[0_15px_40px_rgba(29,122,242,0.3)] relative overflow-hidden">
+                <div className="absolute right-[-20px] top-[-20px] w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
+                <div className="flex justify-between items-start mb-6 relative z-10">
+                    <p className="text-white/80 font-medium">Betting Wallet</p>
+                    <div className="flex -space-x-2">
+                        <div className="w-6 h-6 rounded-full bg-white/30 backdrop-blur"></div>
+                        <div className="w-6 h-6 rounded-full bg-white/50 backdrop-blur"></div>
+                    </div>
+                </div>
+                <h2 className="text-4xl font-black tracking-tight mb-8 relative z-10">$ {balance.toFixed(3)}</h2>
+                <div className="flex justify-between items-center text-sm font-mono text-white/80 relative z-10">
+                    <span>**** **** **** 7890</span>
+                    <span>08/28</span>
+                </div>
+            </motion.div>
+
+            {/* Quick Actions */}
+            <div className="grid grid-cols-4 gap-4 mb-10">
+                {[ { icon: <Wallet/>, label: 'Deposit' }, { icon: <Send/>, label: 'Transfer' }, { icon: <ArrowDownToLine/>, label: 'Withdraw' }, { icon: <Grid/>, label: 'More' } ].map((btn, i) => (
+                    <div key={i} className="flex flex-col items-center space-y-3 cursor-pointer group">
+                        <div className="w-14 h-14 rounded-full border border-white/10 flex items-center justify-center bg-brand-card group-hover:bg-white/5 transition-colors">
+                            {React.cloneElement(btn.icon, { size: 20, className: "text-white" })}
+                        </div>
+                        <span className="text-[11px] text-brand-muted font-medium">{btn.label}</span>
+                    </div>
+                ))}
+            </div>
+
+            {/* Recent Bets / Matches */}
+            <div className="flex justify-between items-center mb-6">
+                <h2 className="text-lg font-bold">Recent Bets</h2>
+                <select className="bg-transparent text-sm text-brand-muted outline-none cursor-pointer"><option>Last Week</option></select>
             </div>
             
-            {/* Month Selector */}
-            <div className="px-6 mb-6 flex justify-between items-center">
-                <h2 className="text-sm font-medium text-gray-500">February</h2>
-                <button className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center bg-white"><Calendar size={14} className="text-gray-500"/></button>
-            </div>
-
-            {/* Date Pill Scroller */}
-            <div className="mb-8 bg-white mx-6 rounded-[32px] p-4 shadow-sm flex justify-between items-center">
-                {['M','T','W','T','F','S','S'].map((day, i) => {
-                    const isActive = i === 3;
-                    return (
-                        <div key={i} className="flex flex-col items-center">
-                            <div className={`w-1 h-1 rounded-full mb-1 ${isActive ? 'bg-brand-primary' : 'bg-transparent'}`}></div>
-                            <span className="text-[10px] text-gray-400 mb-2 font-medium">{day}</span>
-                            <div className={`w-8 h-8 flex items-center justify-center rounded-full text-xs font-bold transition-colors ${isActive ? 'bg-brand-primary text-white shadow-md shadow-blue-500/30' : 'bg-[#F4F7FB] text-gray-600'}`}>
-                                {10 + i}
+            <div className="space-y-4">
+                {[
+                    { name: 'Champions League', desc: 'Real Madrid vs PSG', amount: -50.00, color: 'text-brand-red' },
+                    { name: 'NBA Finals', desc: 'Lakers Spread +5.5', amount: +249.00, color: 'text-brand-green' },
+                    { name: 'Esports Major', desc: 'CS:GO Fnatic Win', amount: -15.00, color: 'text-brand-red' }
+                ].map((item, i) => (
+                    <div key={i} className="flex items-center justify-between p-4 bg-brand-card rounded-2xl border border-white/5 hover:bg-brand-cardHover transition-colors cursor-pointer">
+                        <div className="flex items-center space-x-4">
+                            <div className="w-10 h-10 rounded-full bg-brand-bg flex items-center justify-center border border-white/5 text-xs font-bold">{item.name[0]}</div>
+                            <div>
+                                <p className="font-bold text-sm">{item.name}</p>
+                                <p className="text-xs text-brand-muted mt-0.5">{item.desc}</p>
                             </div>
                         </div>
-                    )
-                })}
-            </div>
-
-            {/* Tasks List */}
-            <div className="px-6 space-y-6">
-                {[1,2,3].map((item, i) => (
-                    <div key={i}>
-                        <p className="text-[10px] text-center text-gray-400 mb-2 font-medium">08:36</p>
-                        <motion.div whileHover={{ scale: 0.98 }} className={`p-5 rounded-[24px] relative overflow-hidden shadow-sm border border-gray-100 ${i === 0 ? 'bg-brand-secondary' : 'bg-white'}`}>
-                            <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${i === 0 ? 'bg-brand-primary' : 'bg-brand-secondary'}`}></div>
-                            <div className="flex justify-between items-start mb-2 ml-2">
-                                <h3 className="font-bold text-sm text-black">Student Write Notes :</h3>
-                                <button className="p-1"><MoreVertical size={14} className="text-gray-400"/></button>
-                            </div>
-                            <p className="text-xs text-gray-500 leading-relaxed ml-2 pr-4">We need to coordinate a call with managment to understand how can start wireframes.</p>
-                        </motion.div>
+                        <span className={`font-bold text-sm ${item.color}`}>{item.amount > 0 ? '+' : ''}$ {Math.abs(item.amount)}</span>
                     </div>
                 ))}
             </div>

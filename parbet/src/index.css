@@ -4,17 +4,21 @@
 @tailwind utilities;
 
 body {
-  background-color: #E5E7EB; /* Desktop background */
-  color: #111111;
+  background-color: #0A0B0D;
+  color: #FFFFFF;
   margin: 0;
   font-family: 'Plus Jakarta Sans', sans-serif;
   overflow-x: hidden;
 }
 
-.hide-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.hide-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Custom graphics for onboarding rings */
+.ring-graphic {
+  position: absolute;
+  border-radius: 50%;
+  border: 40px solid;
+  opacity: 0.8;
+  filter: blur(2px);
 }
