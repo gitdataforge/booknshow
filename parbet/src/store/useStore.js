@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { fetchRealUpcomingMatches } from '../services/oddsApi';
 
 export const useAppStore = create((set) => ({
     user: null, 
@@ -7,6 +8,12 @@ export const useAppStore = create((set) => ({
     hasOnboarded: localStorage.getItem('parbet_onboarded') === 'true',
     isAuthenticated: false,
     isAuthModalOpen: false,
+    
+    // Real Data States
+    liveMatches: [],
+    isLoadingMatches: true,
+    apiError: null,
+
     setOnboarded: () => { 
         localStorage.setItem('parbet_onboarded', 'true'); 
         set({ hasOnboarded: true }); 
@@ -16,4 +23,15 @@ export const useAppStore = create((set) => ({
     setWallet: (balance, diamonds) => set({ balance, diamonds }),
     openAuthModal: () => set({ isAuthModalOpen: true }),
     closeAuthModal: () => set({ isAuthModalOpen: false }),
+
+    // Async action to trigger real-time fetch
+    fetchLiveMatches: async () => {
+        set({ isLoadingMatches: true, apiError: null });
+        try {
+            const matches = await fetchRealUpcomingMatches();
+            set({ liveMatches: matches, isLoadingMatches: false });
+        } catch (error) {
+            set({ apiError: error.message, isLoadingMatches: false });
+        }
+    }
 }));
