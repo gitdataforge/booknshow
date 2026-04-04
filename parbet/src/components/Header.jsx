@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, User, Menu } from 'lucide-react';
 import { useAppStore } from '../store/useStore';
 import SearchDropdown from './SearchDropdown';
+import NavHoverMenu from './NavHoverMenu';
 
 export default function Header() {
     const navigate = useNavigate();
@@ -16,6 +17,8 @@ export default function Header() {
         setExploreCategory
     } = useAppStore();
 
+    const [hoveredCategory, setHoveredCategory] = useState(null);
+
     // Centralized navigation guard for protected routes
     const handleNavigation = (path) => {
         if (isAuthenticated) {
@@ -24,6 +27,13 @@ export default function Header() {
             openAuthModal();
         }
     };
+
+    const topNavLinks = [
+        { name: 'Sports', category: 'Sports' },
+        { name: 'Concerts', category: 'Concerts' },
+        { name: 'Theatre', category: 'Theater' }, // Matches global store category
+        { name: 'Top Cities', category: null }
+    ];
 
     return (
         <header className="w-full bg-white border-b border-brand-border sticky top-0 z-40">
@@ -44,10 +54,36 @@ export default function Header() {
                             parbet
                         </h1>
                         <nav className="hidden lg:flex items-center space-x-6 text-sm font-medium text-brand-text">
-                            <button onClick={() => { setExploreCategory('Sports'); navigate('/explore'); }} className="hover:text-brand-primary transition-colors cursor-pointer">Sports</button>
-                            <button onClick={() => { setExploreCategory('Concerts'); navigate('/explore'); }} className="hover:text-brand-primary transition-colors cursor-pointer">Concerts</button>
-                            <button onClick={() => { setExploreCategory('Theater'); navigate('/explore'); }} className="hover:text-brand-primary transition-colors cursor-pointer">Theatre</button>
-                            <button className="hover:text-brand-primary transition-colors cursor-pointer">Top Cities</button>
+                            {topNavLinks.map((link) => (
+                                <div 
+                                    key={link.name}
+                                    className="relative py-2" // Padding extends hover bridge slightly
+                                    onMouseEnter={() => setHoveredCategory(link.category)}
+                                    onMouseLeave={() => setHoveredCategory(null)}
+                                >
+                                    <button 
+                                        onClick={() => { 
+                                            if (link.category) {
+                                                setExploreCategory(link.category); 
+                                                navigate('/explore'); 
+                                            }
+                                        }} 
+                                        className={`transition-colors cursor-pointer ${hoveredCategory === link.category ? 'text-brand-primary' : 'hover:text-brand-primary'}`}
+                                    >
+                                        {link.name}
+                                    </button>
+                                    
+                                    {/* Mount the interactive hover dropdown dynamically */}
+                                    {link.category && (
+                                        <NavHoverMenu 
+                                            isOpen={hoveredCategory === link.category} 
+                                            category={link.category}
+                                            onMouseEnter={() => setHoveredCategory(link.category)}
+                                            onMouseLeave={() => setHoveredCategory(null)}
+                                        />
+                                    )}
+                                </div>
+                            ))}
                         </nav>
                     </div>
                     <div className="md:hidden flex items-center space-x-4">

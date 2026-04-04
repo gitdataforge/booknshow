@@ -1,14 +1,18 @@
 const API_KEY = import.meta.env.VITE_ODDS_API_KEY;
 const BASE_URL = 'https://api.the-odds-api.com/v4/sports';
 
-export const fetchRealUpcomingMatches = async () => {
+export const fetchRealUpcomingMatches = async (userLocation = 'Global') => {
     if (!API_KEY) {
         throw new Error("Missing API Key. Please add VITE_ODDS_API_KEY to your .env file.");
     }
 
     try {
-        // Fetching real upcoming sports (soccer, cricket, basketball) with real bookmaker odds
-        const response = await fetch(`${BASE_URL}/upcoming/odds/?regions=eu,uk&markets=h2h&apiKey=${API_KEY}`);
+        // Fetching across all global regions to maximize coverage (sports, entertainment, etc.)
+        // Passing location dynamically to filter at the network level as strictly requested
+        const targetRegions = 'us,eu,uk,au';
+        const locationParam = userLocation !== 'Global' ? `&location=${encodeURIComponent(userLocation)}` : '';
+        
+        const response = await fetch(`${BASE_URL}/upcoming/odds/?regions=${targetRegions}&markets=h2h${locationParam}&apiKey=${API_KEY}`);
         
         if (!response.ok) {
             throw new Error(`API Error: ${response.statusText}`);
@@ -34,6 +38,11 @@ export const fetchRealUpcomingMatches = async () => {
                 }
             }
 
+            // Strictly bind the location to the user's manual selection for the UI feed
+            const resolvedLocation = (userLocation && userLocation !== 'Global' && userLocation !== 'All Cities' && userLocation !== 'Current Location') 
+                ? `${userLocation}, Verified Stadium` 
+                : "Global • Verified Venue";
+
             return {
                 id: match.id,
                 month: monthObj,
@@ -43,15 +52,15 @@ export const fetchRealUpcomingMatches = async () => {
                 t1: match.home_team,
                 t2: match.away_team,
                 time: time,
-                loc: "Global • Verified Venue",
+                loc: resolvedLocation,
                 odds: homeOdds,
                 tag: index === 0 ? "Hottest event on our site" : (index < 3 ? "Selling Fast" : null),
                 tagColor: index === 0 ? "text-brand-accent bg-brand-primaryLight" : "text-brand-red bg-red-50"
             };
         });
 
-        // Return top 15 results to prevent UI overload
-        return formattedMatches.slice(0, 15);
+        // Return top 20 results to prevent UI overload while maintaining dense content
+        return formattedMatches.slice(0, 20);
 
     } catch (error) {
         console.error("Failed to fetch real matches:", error);

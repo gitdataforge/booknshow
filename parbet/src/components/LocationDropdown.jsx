@@ -8,7 +8,7 @@ export default function LocationDropdown() {
         isLocationDropdownOpen, 
         setLocationDropdownOpen, 
         requestDeviceLocation,
-        setSearchQuery 
+        fetchLocationAndMatches 
     } = useAppStore();
     
     const [localInput, setLocalInput] = useState('');
@@ -37,9 +37,11 @@ export default function LocationDropdown() {
 
     // Handle manual search submit (Hitting Enter)
     const handleSearchSubmit = (e) => {
-        if (e.key === 'Enter') {
-            setSearchQuery(localInput);
+        if (e.key === 'Enter' && localInput.trim() !== '') {
+            // Trigger the global async fetch explicitly using the manual city string
+            fetchLocationAndMatches(localInput.trim());
             setLocationDropdownOpen(false);
+            setLocalInput(''); // Clear local state after submission
         }
     };
 

@@ -28,10 +28,17 @@ export const useAppStore = create((set, get) => ({
     apiError: null,
     userCity: 'Loading...',
 
+    // Recent Searches (Persisted)
+    recentSearches: JSON.parse(localStorage.getItem('parbet_recent_searches')) || [],
+
     // Marketplace Flow States
     activeEvent: null,
     eventListings: [],
     isCheckingOut: false,
+
+    // Ticket Selection States
+    isTicketQuantityModalOpen: false,
+    selectedTicketQuantity: 2, // Defaults to 2 mimicking the Viagogo standard
 
     // UI & Interactive States
     isLocationDropdownOpen: false,
@@ -67,6 +74,22 @@ export const useAppStore = create((set, get) => ({
     setExploreDateFilter: (dateFilter) => set({ exploreDateFilter: dateFilter }),
     setExplorePriceFilter: (priceFilter) => set({ explorePriceFilter: priceFilter }),
 
+    // Ticket Selection Setters
+    setTicketQuantityModalOpen: (isOpen) => set({ isTicketQuantityModalOpen: isOpen }),
+    setSelectedTicketQuantity: (qty) => set({ selectedTicketQuantity: qty }),
+
+    // Recent Searches Actions
+    addRecentSearch: (query) => set((state) => {
+        if (!query || !query.trim()) return state;
+        const updatedSearches = [query, ...state.recentSearches.filter(q => q.toLowerCase() !== query.toLowerCase())].slice(0, 5);
+        localStorage.setItem('parbet_recent_searches', JSON.stringify(updatedSearches));
+        return { recentSearches: updatedSearches };
+    }),
+    clearRecentSearches: () => set(() => {
+        localStorage.removeItem('parbet_recent_searches');
+        return { recentSearches: [] };
+    }),
+
     // Logic to extract unique performers from real API data
     updateTrendingPerformers: (matches) => {
         const performers = Array.from(new Set(matches.flatMap(m => [m.t1, m.t2])))
@@ -74,14 +97,15 @@ export const useAppStore = create((set, get) => ({
         set({ trendingPerformers: performers });
     },
 
-    // Combined Async action for IP Location + Odds (Initial Load)
-    fetchLocationAndMatches: async () => {
+    // Combined Async action for IP/Manual Location + Odds (Initial Load & Updates)
+    fetchLocationAndMatches: async (manualCity = null) => {
         set({ isLoadingMatches: true, apiError: null });
         try {
-            const [city, matches] = await Promise.all([
-                fetchUserCity(),
-                fetchRealUpcomingMatches()
-            ]);
+            // Resolve city: use manual input if provided, else auto-detect via IP
+            const city = manualCity || await fetchUserCity();
+
+            // Pass the resolved location directly into the Odds API fetcher
+            const matches = await fetchRealUpcomingMatches(city);
             
             // Calculate unique performers from real results
             const performers = Array.from(new Set(matches.flatMap(m => [m.t1, m.t2])))
@@ -94,7 +118,7 @@ export const useAppStore = create((set, get) => ({
                 isLoadingMatches: false 
             });
         } catch (error) {
-            set({ apiError: error.message, isLoadingMatches: false, userCity: "Global" });
+            set({ apiError: error.message, isLoadingMatches: false, userCity: manualCity || "Global" });
         }
     },
 
@@ -181,7 +205,12 @@ export const useAppStore = create((set, get) => ({
                 try {
                     const response = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`);
                     const data = await response.json();
-                    set({ userCity: data.city || data.locality || "Current Location" });
+                    
+                    const resolvedCity = data.city || data.locality || "Current Location";
+                    set({ userCity: resolvedCity });
+                    
+                    // Trigger the global fetch to update API data with the new GPS-based city
+                    get().fetchLocationAndMatches(resolvedCity);
                 } catch (err) {
                     console.error("Reverse geocode failed:", err);
                     set({ userCity: "Precise Location Found" });
