@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { fetchRealUpcomingMatches } from '../services/oddsApi';
+import { fetchUserCity } from '../services/locationApi';
 
 export const useAppStore = create((set) => ({
     user: null, 
@@ -13,6 +14,7 @@ export const useAppStore = create((set) => ({
     liveMatches: [],
     isLoadingMatches: true,
     apiError: null,
+    userCity: 'Loading...',
 
     setOnboarded: () => { 
         localStorage.setItem('parbet_onboarded', 'true'); 
@@ -24,14 +26,18 @@ export const useAppStore = create((set) => ({
     openAuthModal: () => set({ isAuthModalOpen: true }),
     closeAuthModal: () => set({ isAuthModalOpen: false }),
 
-    // Async action to trigger real-time fetch
-    fetchLiveMatches: async () => {
+    // Combined Async action for Location + Odds
+    fetchLocationAndMatches: async () => {
         set({ isLoadingMatches: true, apiError: null });
         try {
-            const matches = await fetchRealUpcomingMatches();
-            set({ liveMatches: matches, isLoadingMatches: false });
+            // Fetch IP location and API Matches in parallel
+            const [city, matches] = await Promise.all([
+                fetchUserCity(),
+                fetchRealUpcomingMatches()
+            ]);
+            set({ userCity: city, liveMatches: matches, isLoadingMatches: false });
         } catch (error) {
-            set({ apiError: error.message, isLoadingMatches: false });
+            set({ apiError: error.message, isLoadingMatches: false, userCity: "Global" });
         }
     }
 }));
