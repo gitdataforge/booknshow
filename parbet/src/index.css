@@ -1,10 +1,8 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-body { background-color: #0E1015; color: #FFFFFF; margin: 0; font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }
+body { background-color: #FFFFFF; color: #212529; margin: 0; font-family: 'Inter', sans-serif; overflow-x: hidden; }
 .hide-scrollbar::-webkit-scrollbar { display: none; }
 .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-.odds-btn { @apply bg-[#2A2D35] hover:bg-brand-primary hover:text-white transition-colors rounded text-xs font-bold flex justify-between items-center px-2 py-1.5 w-full; }
-.odds-val { @apply text-brand-neon; }

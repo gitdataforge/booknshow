@@ -9,7 +9,7 @@ def write_file(filepath, content):
     print(f"Created: {filepath}")
 
 def main():
-    print("🚀 Generating Parbet React Architecture (Pro Sportsbook Theme & 2FA Flow)...")
+    print("🚀 Generating Parbet React Architecture (Viagogo-Style Light Theme & 2FA Flow)...")
 
     # ==========================================
     # 1. ENV VARIABLES
@@ -42,19 +42,18 @@ export default {
     extend: {
       colors: {
         brand: {
-          bg: '#0E1015',
-          panel: '#16181D',
-          card: '#1E2026',
-          primary: '#1D7AF2',
-          accent: '#7000FF',
-          text: '#FFFFFF',
-          muted: '#8E8E93',
-          green: '#22C55E',
-          neon: '#D9F950',
-          red: '#FF3B30'
+          bg: '#FFFFFF',
+          panel: '#F8F9FA',
+          primary: '#114C2A', // Viagogo Dark Green
+          primaryLight: '#E6F2D9', // Viagogo Soft Green Background
+          accent: '#458731', // Viagogo Button Green
+          text: '#212529',
+          muted: '#6C757D',
+          border: '#DEE2E6',
+          red: '#DC3545'
         }
       },
-      fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
+      fontFamily: { sans: ['"Inter"', 'sans-serif'] },
       animation: { 'fade-in': 'fadeIn 0.5s ease-out' },
       keyframes: { fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } } }
     },
@@ -65,16 +64,14 @@ export default {
     write_file('tailwind.config.js', tailwind_config)
 
     index_css = """
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-body { background-color: #0E1015; color: #FFFFFF; margin: 0; font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }
+body { background-color: #FFFFFF; color: #212529; margin: 0; font-family: 'Inter', sans-serif; overflow-x: hidden; }
 .hide-scrollbar::-webkit-scrollbar { display: none; }
 .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-.odds-btn { @apply bg-[#2A2D35] hover:bg-brand-primary hover:text-white transition-colors rounded text-xs font-bold flex justify-between items-center px-2 py-1.5 w-full; }
-.odds-val { @apply text-brand-neon; }
 """
     write_file('src/index.css', index_css)
 
@@ -84,24 +81,21 @@ body { background-color: #0E1015; color: #FFFFFF; margin: 0; font-family: 'Plus 
     store_js = """
 import { create } from 'zustand';
 export const useAppStore = create((set) => ({
-    user: null, balance: 0, diamonds: 0, matches: [],
+    user: null, balance: 0, diamonds: 0,
     hasOnboarded: localStorage.getItem('parbet_onboarded') === 'true',
     isAuthenticated: false,
-    betslip: [],
     setOnboarded: () => { localStorage.setItem('parbet_onboarded', 'true'); set({ hasOnboarded: true }); },
     setAuth: (status) => set({ isAuthenticated: status }),
     setUser: (user) => set({ user }),
     setWallet: (balance, diamonds) => set({ balance, diamonds }),
-    addToBetslip: (bet) => set((state) => ({ betslip: [...state.betslip, bet] })),
-    clearBetslip: () => set({ betslip: [] })
 }));
 """
     write_file('src/store/useStore.js', store_js)
 
     firebase_js = """
 import { initializeApp } from 'firebase/app';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-import { getFirestore, doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
+import { getFirestore, collection, doc, updateDoc, increment, addDoc, serverTimestamp } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -135,7 +129,7 @@ export const sendVerificationEmail = async (email, code) => {
     write_file('src/lib/email.js', email_js)
 
     # ==========================================
-    # 4. AUTH FLOW (Email OTP + Password + TOTP 2FA)
+    # 4. AUTH FLOW (Email OTP -> Password -> 2FA -> Login)
     # ==========================================
     authflow_jsx = """
 import React, { useState } from 'react';
@@ -151,7 +145,7 @@ import { motion } from 'framer-motion';
 
 export default function AuthFlow() {
     const setAuth = useAppStore(state => state.setAuth);
-    const [step, setStep] = useState('select'); // select, signup_email, verify_email, setup_pass, setup_2fa, login, verify_2fa
+    const [step, setStep] = useState('select');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [generatedCode, setGeneratedCode] = useState('');
@@ -161,7 +155,6 @@ export default function AuthFlow() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
-    // SIGNUP FLOW
     const handleSendEmailCode = async () => {
         setLoading(true); setError('');
         const code = Math.floor(1000 + Math.random() * 9000).toString();
@@ -169,7 +162,7 @@ export default function AuthFlow() {
         const res = await sendVerificationEmail(email, code);
         setLoading(false);
         if (res.success) setStep('verify_email');
-        else setError('Failed to send email. Check EmailJS config.');
+        else setError('Failed to send email. Check EmailJS configuration.');
     };
 
     const handleVerifyEmail = () => {
@@ -181,12 +174,10 @@ export default function AuthFlow() {
         setLoading(true); setError('');
         try {
             const userCred = await createUserWithEmailAndPassword(auth, email, password);
-            // Generate 2FA Secret
             const secret = new OTPAuth.Secret({ size: 20 });
             const totp = new OTPAuth.TOTP({ issuer: 'Parbet', label: email, algorithm: 'SHA1', digits: 6, period: 30, secret });
             setTotpSecret(secret.base32);
             setTotpUri(totp.toString());
-            // Save initial user doc
             await setDoc(doc(db, 'users', userCred.user.uid), { email, mfaSecret: secret.base32, balance: 1999.98 });
             setStep('setup_2fa');
         } catch (err) { setError(err.message); }
@@ -199,7 +190,6 @@ export default function AuthFlow() {
         else setError('Invalid 2FA code.');
     };
 
-    // LOGIN FLOW
     const handleLogin = async () => {
         setLoading(true); setError('');
         try {
@@ -220,64 +210,64 @@ export default function AuthFlow() {
     };
 
     return (
-        <div className="min-h-screen bg-brand-bg flex items-center justify-center p-4">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-brand-panel p-8 rounded-3xl w-full max-w-md shadow-2xl border border-white/5">
+        <div className="min-h-screen bg-brand-panel flex items-center justify-center p-4">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white p-8 rounded-2xl w-full max-w-md shadow-xl border border-brand-border">
                 <div className="flex justify-center mb-6"><ShieldCheck size={48} className="text-brand-primary" /></div>
-                <h2 className="text-2xl font-bold text-center mb-8">Secure Access</h2>
+                <h2 className="text-2xl font-bold text-center text-brand-text mb-8">Secure Access</h2>
                 
                 {error && <div className="bg-brand-red/10 text-brand-red p-3 rounded-lg text-sm mb-4 text-center">{error}</div>}
 
                 {step === 'select' && (
                     <div className="space-y-4">
-                        <button onClick={() => setStep('login')} className="w-full bg-brand-primary text-white py-3 rounded-xl font-bold">Login to Account</button>
-                        <button onClick={() => setStep('signup_email')} className="w-full bg-brand-card text-white py-3 rounded-xl border border-white/10 font-bold hover:bg-white/5">Create New Account</button>
+                        <button onClick={() => setStep('login')} className="w-full bg-brand-primary text-white py-3 rounded-xl font-bold hover:bg-brand-primary/90 transition-colors">Sign In to Account</button>
+                        <button onClick={() => setStep('signup_email')} className="w-full bg-white text-brand-primary py-3 rounded-xl border border-brand-border font-bold hover:bg-brand-panel transition-colors">Create New Account</button>
                     </div>
                 )}
 
                 {step === 'signup_email' && (
                     <div className="space-y-4">
-                        <div className="flex items-center bg-brand-card rounded-xl px-4 py-3 border border-white/5"><Mail size={18} className="text-brand-muted mr-3"/><input type="email" placeholder="Enter Email" value={email} onChange={e=>setEmail(e.target.value)} className="bg-transparent outline-none flex-1 text-sm text-white"/></div>
-                        <button onClick={handleSendEmailCode} disabled={loading} className="w-full bg-brand-primary text-white py-3 rounded-xl font-bold">{loading ? 'Sending...' : 'Send Code'}</button>
+                        <div className="flex items-center bg-white rounded-xl px-4 py-3 border border-brand-border"><Mail size={18} className="text-brand-muted mr-3"/><input type="email" placeholder="Enter Email Address" value={email} onChange={e=>setEmail(e.target.value)} className="bg-transparent outline-none flex-1 text-sm text-brand-text"/></div>
+                        <button onClick={handleSendEmailCode} disabled={loading} className="w-full bg-brand-primary text-white py-3 rounded-xl font-bold hover:bg-brand-primary/90 transition-colors">{loading ? 'Sending...' : 'Send Verification Code'}</button>
                     </div>
                 )}
 
                 {step === 'verify_email' && (
                     <div className="space-y-4">
                         <p className="text-sm text-brand-muted text-center">Enter the 4-digit code sent to {email}</p>
-                        <input type="text" placeholder="0000" maxLength="4" value={inputCode} onChange={e=>setInputCode(e.target.value)} className="w-full bg-brand-card rounded-xl px-4 py-3 text-center tracking-[1em] text-xl font-bold outline-none border border-white/5 focus:border-brand-primary" />
-                        <button onClick={handleVerifyEmail} className="w-full bg-brand-primary text-white py-3 rounded-xl font-bold">Verify Email</button>
+                        <input type="text" placeholder="0000" maxLength="4" value={inputCode} onChange={e=>setInputCode(e.target.value)} className="w-full bg-white rounded-xl px-4 py-3 text-center tracking-[1em] text-xl font-bold outline-none border border-brand-border focus:border-brand-primary text-brand-text" />
+                        <button onClick={handleVerifyEmail} className="w-full bg-brand-primary text-white py-3 rounded-xl font-bold hover:bg-brand-primary/90 transition-colors">Verify Email</button>
                     </div>
                 )}
 
                 {step === 'setup_pass' && (
                     <div className="space-y-4">
-                        <div className="flex items-center bg-brand-card rounded-xl px-4 py-3 border border-white/5"><Key size={18} className="text-brand-muted mr-3"/><input type="password" placeholder="Create Password" value={password} onChange={e=>setPassword(e.target.value)} className="bg-transparent outline-none flex-1 text-sm text-white"/></div>
-                        <button onClick={handleSetupPassword} disabled={loading} className="w-full bg-brand-primary text-white py-3 rounded-xl font-bold">{loading ? 'Saving...' : 'Set Password'}</button>
+                        <div className="flex items-center bg-white rounded-xl px-4 py-3 border border-brand-border"><Key size={18} className="text-brand-muted mr-3"/><input type="password" placeholder="Create Password" value={password} onChange={e=>setPassword(e.target.value)} className="bg-transparent outline-none flex-1 text-sm text-brand-text"/></div>
+                        <button onClick={handleSetupPassword} disabled={loading} className="w-full bg-brand-primary text-white py-3 rounded-xl font-bold hover:bg-brand-primary/90 transition-colors">{loading ? 'Saving...' : 'Set Password & Continue'}</button>
                     </div>
                 )}
 
                 {step === 'setup_2fa' && (
                     <div className="space-y-4 flex flex-col items-center">
-                        <p className="text-sm text-brand-muted text-center">Scan this QR code with Google Authenticator or Authy to enable Real 2FA.</p>
-                        <div className="bg-white p-4 rounded-xl"><QRCodeSVG value={totpUri} size={150} /></div>
-                        <input type="text" placeholder="Enter 6-digit TOTP" maxLength="6" value={inputCode} onChange={e=>setInputCode(e.target.value)} className="w-full bg-brand-card rounded-xl px-4 py-3 text-center tracking-widest text-lg font-bold outline-none border border-white/5" />
-                        <button onClick={handleVerify2FASetup} className="w-full bg-brand-primary text-white py-3 rounded-xl font-bold">Enable 2FA & Complete</button>
+                        <p className="text-sm text-brand-muted text-center">Scan this QR code with Google Authenticator or Authy to enable strictly required 2FA.</p>
+                        <div className="bg-white p-4 rounded-xl border border-brand-border shadow-sm"><QRCodeSVG value={totpUri} size={150} /></div>
+                        <input type="text" placeholder="Enter 6-digit TOTP" maxLength="6" value={inputCode} onChange={e=>setInputCode(e.target.value)} className="w-full bg-white rounded-xl px-4 py-3 text-center tracking-widest text-lg font-bold outline-none border border-brand-border text-brand-text focus:border-brand-primary" />
+                        <button onClick={handleVerify2FASetup} className="w-full bg-brand-accent text-white py-3 rounded-xl font-bold hover:bg-brand-accent/90 transition-colors">Enable 2FA & Complete</button>
                     </div>
                 )}
 
                 {step === 'login' && (
                     <div className="space-y-4">
-                        <div className="flex items-center bg-brand-card rounded-xl px-4 py-3 border border-white/5"><Mail size={18} className="text-brand-muted mr-3"/><input type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} className="bg-transparent outline-none flex-1 text-sm text-white"/></div>
-                        <div className="flex items-center bg-brand-card rounded-xl px-4 py-3 border border-white/5"><Lock size={18} className="text-brand-muted mr-3"/><input type="password" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} className="bg-transparent outline-none flex-1 text-sm text-white"/></div>
-                        <button onClick={handleLogin} disabled={loading} className="w-full bg-brand-primary text-white py-3 rounded-xl font-bold">{loading ? 'Authenticating...' : 'Login'}</button>
+                        <div className="flex items-center bg-white rounded-xl px-4 py-3 border border-brand-border"><Mail size={18} className="text-brand-muted mr-3"/><input type="email" placeholder="Email Address" value={email} onChange={e=>setEmail(e.target.value)} className="bg-transparent outline-none flex-1 text-sm text-brand-text"/></div>
+                        <div className="flex items-center bg-white rounded-xl px-4 py-3 border border-brand-border"><Lock size={18} className="text-brand-muted mr-3"/><input type="password" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} className="bg-transparent outline-none flex-1 text-sm text-brand-text"/></div>
+                        <button onClick={handleLogin} disabled={loading} className="w-full bg-brand-primary text-white py-3 rounded-xl font-bold hover:bg-brand-primary/90 transition-colors">{loading ? 'Authenticating...' : 'Sign In'}</button>
                     </div>
                 )}
 
                 {step === 'verify_2fa' && (
                     <div className="space-y-4">
                         <p className="text-sm text-brand-muted text-center">Enter the 6-digit code from your Authenticator App</p>
-                        <input type="text" placeholder="000 000" maxLength="6" value={inputCode} onChange={e=>setInputCode(e.target.value)} className="w-full bg-brand-card rounded-xl px-4 py-3 text-center tracking-[0.5em] text-xl font-bold outline-none border border-white/5 focus:border-brand-primary" />
-                        <button onClick={handleVerifyLogin2FA} className="w-full bg-brand-primary text-white py-3 rounded-xl font-bold flex justify-center items-center">Unlock Wallet <ArrowRight size={16} className="ml-2"/></button>
+                        <input type="text" placeholder="000 000" maxLength="6" value={inputCode} onChange={e=>setInputCode(e.target.value)} className="w-full bg-white rounded-xl px-4 py-3 text-center tracking-[0.5em] text-xl font-bold outline-none border border-brand-border text-brand-text focus:border-brand-primary" />
+                        <button onClick={handleVerifyLogin2FA} className="w-full bg-brand-primary text-white py-3 rounded-xl font-bold flex justify-center items-center hover:bg-brand-primary/90 transition-colors">Unlock Account <ArrowRight size={16} className="ml-2"/></button>
                     </div>
                 )}
             </motion.div>
@@ -288,7 +278,7 @@ export default function AuthFlow() {
     write_file('src/components/AuthFlow.jsx', authflow_jsx)
 
     # ==========================================
-    # 5. ONBOARDING (8 SLIDES)
+    # 5. ONBOARDING (8 SLIDES - Light/Green Theme)
     # ==========================================
     onboarding_jsx = """
 import React, { useState } from 'react';
@@ -296,21 +286,21 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowRight, Play } from 'lucide-react';
 import { useAppStore } from '../store/useStore';
 
-const SVGShape = ({ children, color }) => (
+const SVGShape = ({ children }) => (
     <motion.svg viewBox="0 0 200 200" className="w-64 h-64 overflow-visible" animate={{ rotate: 360 }} transition={{ duration: 40, repeat: Infinity, ease: "linear" }}>
         {children}
     </motion.svg>
 );
 
 const slides = [
-    { title: "Pro Sportsbook\\nArchitecture", desc: "Experience a dense, trading-grade interface designed for high-volume bettors.", graphic: <SVGShape><motion.circle cx="100" cy="100" r="70" fill="none" stroke="#1D7AF2" strokeWidth="12" className="drop-shadow-[0_0_30px_rgba(29,122,242,0.6)]" animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 4, repeat: Infinity }} /></SVGShape> },
-    { title: "Real-Time\\nLive Odds Grid", desc: "Instantaneous updates for Asian Handicaps and Over/Under lines.", graphic: <SVGShape><motion.path d="M 20 150 L 70 90 L 110 110 L 170 40" fill="none" stroke="#22C55E" strokeWidth="10" className="drop-shadow-[0_0_25px_rgba(34,197,94,0.8)]" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 2, repeat: Infinity }} /></SVGShape> },
-    { title: "Mollybet\\nTrade Engine", desc: "Mirrored functionality of the world's leading sports trading software.", graphic: <SVGShape><motion.polygon points="100,20 180,180 20,180" fill="none" stroke="#D9F950" strokeWidth="10" className="drop-shadow-[0_0_30px_rgba(217,249,80,0.8)]" animate={{ rotate: -360 }} transition={{ duration: 10, repeat: Infinity, ease: "linear" }} /></SVGShape> },
-    { title: "Bank-Grade\\n2FA Security", desc: "Secured via strict Firebase rules and OTPAuth TOTP authentication.", graphic: <SVGShape><motion.circle cx="100" cy="100" r="50" fill="none" stroke="#7000FF" strokeWidth="16" className="drop-shadow-[0_0_40px_rgba(112,0,255,0.8)]" animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 2, repeat: Infinity }} /></SVGShape> },
-    { title: "Lightning Fast\\nExecution", desc: "One-click bet placement with zero latency via global edge routing.", graphic: <SVGShape><motion.path d="M 100 0 L 100 200 M 0 100 L 200 100" stroke="#FF3B30" strokeWidth="8" className="drop-shadow-[0_0_20px_rgba(255,59,48,0.8)]" animate={{ rotate: 45 }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }} /></SVGShape> },
-    { title: "Global\\nLiquidity", desc: "Aggregated odds from top global bookmakers in one interface.", graphic: <SVGShape><motion.ellipse cx="100" cy="100" rx="90" ry="30" fill="none" stroke="#1D7AF2" strokeWidth="6" animate={{ ry: [30, 90, 30] }} transition={{ duration: 4, repeat: Infinity }} /></SVGShape> },
-    { title: "Customizable\\nDashboards", desc: "Tailor your layout, timezone, and price formats perfectly.", graphic: <SVGShape><motion.rect x="40" y="40" width="120" height="120" fill="none" stroke="#22C55E" strokeWidth="10" animate={{ rotate: 90 }} transition={{ duration: 3, repeat: Infinity }} /></SVGShape> },
-    { title: "Secure Your\\nBankroll", desc: "Sign up now and lock down your account with real 2-Factor Authentication.", graphic: <SVGShape><motion.circle cx="100" cy="100" r="80" fill="none" stroke="#D9F950" strokeWidth="8" animate={{ opacity: [0.5, 1, 0.5], scale: [0.9, 1.1, 0.9] }} transition={{ duration: 2, repeat: Infinity }} /><circle cx="100" cy="100" r="10" fill="#FFF"/></SVGShape> }
+    { title: "Welcome to Parbet\\nPremium Sports", desc: "Experience a clean, seamless betting interface inspired by global ticketing platforms.", graphic: <SVGShape><motion.circle cx="100" cy="100" r="70" fill="none" stroke="#114C2A" strokeWidth="12" animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 4, repeat: Infinity }} /><motion.circle cx="100" cy="100" r="90" fill="none" stroke="#E6F2D9" strokeWidth="6" /></SVGShape> },
+    { title: "Live Odds &\\nMarket Trends", desc: "Track Asian Handicaps and Over/Under lines with real-time updates.", graphic: <SVGShape><motion.path d="M 20 150 L 70 90 L 110 110 L 170 40" fill="none" stroke="#458731" strokeWidth="10" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 2, repeat: Infinity }} /></SVGShape> },
+    { title: "Bank-Grade\\n2FA Security", desc: "Your wallet is locked down with mandatory TOTP authentication logic.", graphic: <SVGShape><motion.circle cx="100" cy="100" r="50" fill="none" stroke="#114C2A" strokeWidth="16" animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 2, repeat: Infinity }} /></SVGShape> },
+    { title: "Lightning Fast\\nExecution", desc: "Place orders instantly with one tap via our global edge network.", graphic: <SVGShape><motion.path d="M 100 0 L 100 200 M 0 100 L 200 100" stroke="#E6F2D9" strokeWidth="8" animate={{ rotate: 45 }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }} /><circle cx="100" cy="100" r="20" fill="#458731" /></SVGShape> },
+    { title: "Top Global\\nLeagues", desc: "From the Indian Premier League to the UEFA Champions League.", graphic: <SVGShape><motion.ellipse cx="100" cy="100" rx="90" ry="30" fill="none" stroke="#114C2A" strokeWidth="6" animate={{ ry: [30, 90, 30] }} transition={{ duration: 4, repeat: Infinity }} /></SVGShape> },
+    { title: "Secure Payouts\\nWorldwide", desc: "Withdraw your winnings safely directly to your preferred bank.", graphic: <SVGShape><motion.polygon points="100,20 180,180 20,180" fill="none" stroke="#458731" strokeWidth="10" animate={{ rotate: -360 }} transition={{ duration: 10, repeat: Infinity, ease: "linear" }} /></SVGShape> },
+    { title: "Responsive Across\\nAll Devices", desc: "Flawless trading experience whether on mobile or wide desktop.", graphic: <SVGShape><motion.rect x="40" y="40" width="120" height="120" rx="20" fill="none" stroke="#114C2A" strokeWidth="10" animate={{ rotate: 90 }} transition={{ duration: 3, repeat: Infinity }} /></SVGShape> },
+    { title: "Ready to\\nGet Started?", desc: "Create your account securely and verify your email to unlock your wallet.", graphic: <SVGShape><motion.circle cx="100" cy="100" r="80" fill="none" stroke="#458731" strokeWidth="8" animate={{ opacity: [0.5, 1, 0.5], scale: [0.9, 1.1, 0.9] }} transition={{ duration: 2, repeat: Infinity }} /><circle cx="100" cy="100" r="10" fill="#114C2A"/></SVGShape> }
 ];
 
 export default function Onboarding() {
@@ -323,7 +313,7 @@ export default function Onboarding() {
                 <AnimatePresence mode="wait">
                     <motion.div key={index} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.1 }} transition={{ duration: 0.3 }} className="flex flex-col items-center w-full">
                         <div className="w-full flex justify-center mb-8 h-64">{slides[index].graphic}</div>
-                        <h1 className="text-4xl font-black whitespace-pre-line mt-8 leading-tight tracking-tight text-white">{slides[index].title}</h1>
+                        <h1 className="text-4xl font-black whitespace-pre-line mt-8 leading-tight tracking-tight text-brand-text">{slides[index].title}</h1>
                         <p className="text-brand-muted mt-4 text-sm leading-relaxed max-w-xs mx-auto">{slides[index].desc}</p>
                     </motion.div>
                 </AnimatePresence>
@@ -331,14 +321,14 @@ export default function Onboarding() {
             
             <div className="w-full max-w-md pb-8">
                 <div className="flex justify-center space-x-2 mb-8">
-                    {slides.map((_, i) => (<div key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i === index ? 'w-8 bg-brand-primary' : 'w-2 bg-brand-panel border border-white/10'}`} />))}
+                    {slides.map((_, i) => (<div key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i === index ? 'w-8 bg-brand-primary' : 'w-2 bg-brand-border'}`} />))}
                 </div>
                 {index < slides.length - 1 ? (
-                    <button onClick={() => setIndex(i => i + 1)} className="w-full bg-brand-panel border border-white/10 text-white font-bold py-4 rounded-xl flex items-center justify-center hover:bg-white/5 transition-colors">
+                    <button onClick={() => setIndex(i => i + 1)} className="w-full bg-brand-panel border border-brand-border text-brand-text font-bold py-4 rounded-xl flex items-center justify-center hover:bg-gray-100 transition-colors">
                         <span>Continue</span><ArrowRight size={18} className="ml-2 text-brand-muted" />
                     </button>
                 ) : (
-                    <button onClick={() => setOnboarded()} className="w-full bg-brand-neon text-black font-black py-4 rounded-xl flex items-center justify-center hover:scale-[1.02] transition-transform shadow-[0_0_30px_rgba(217,249,80,0.3)]">
+                    <button onClick={() => setOnboarded()} className="w-full bg-brand-primary text-white font-black py-4 rounded-xl flex items-center justify-center hover:scale-[1.02] transition-transform shadow-lg">
                         <Play size={18} className="mr-2" fill="currentColor" /><span>GET STARTED</span>
                     </button>
                 )}
@@ -350,7 +340,7 @@ export default function Onboarding() {
     write_file('src/components/Onboarding.jsx', onboarding_jsx)
 
     # ==========================================
-    # 6. APP LAYOUT (Sidebar, Center Grid, Betslip)
+    # 6. APP LAYOUT (Viagogo Style Desktop/Mobile)
     # ==========================================
     app_jsx = """
 import React, { useEffect, useState } from 'react';
@@ -359,67 +349,46 @@ import { auth, db } from './lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { useAppStore } from './store/useStore';
-import { Trophy, Activity, Settings, AlignLeft, ShieldCheck, Search, Download } from 'lucide-react';
+import { Search, User, Menu, Heart, Ticket } from 'lucide-react';
 
 import Onboarding from './components/Onboarding';
 import AuthFlow from './components/AuthFlow';
 import Home from './pages/Home';
 
-function Sidebar() {
+function DesktopNav() {
     const navigate = useNavigate();
     return (
-        <div className="hidden lg:flex w-64 h-screen bg-brand-panel border-r border-white/5 flex-col shrink-0">
-            <div className="p-4 border-b border-white/5 flex items-center justify-between">
-                <h1 className="text-xl font-black tracking-tight text-white flex items-center"><Trophy size={18} className="mr-2 text-brand-neon"/> PARBET</h1>
-            </div>
-            <div className="p-4 overflow-y-auto flex-1 hide-scrollbar">
-                <p className="text-[10px] font-bold text-brand-muted mb-2 uppercase tracking-wider">Top Leagues</p>
-                <div className="space-y-1 mb-6">
-                    {['Premier League', 'La Liga', 'NBA', 'ATP Championship'].map(l => (
-                        <button key={l} className="w-full text-left px-3 py-2 text-xs font-medium text-white hover:bg-white/5 rounded-lg flex items-center"><div className="w-4 h-4 rounded bg-brand-card mr-3"></div> {l}</button>
-                    ))}
+        <div className="w-full bg-white border-b border-brand-border sticky top-0 z-50">
+            <div className="max-w-6xl mx-auto px-4 h-20 flex items-center justify-between">
+                <div className="flex items-center space-x-6">
+                    <h1 onClick={()=>navigate('/')} className="text-2xl font-black tracking-tighter text-brand-text cursor-pointer">parbet</h1>
+                    <div className="hidden md:flex items-center bg-white border border-brand-border rounded-full px-4 py-2.5 w-96 shadow-sm">
+                        <Search size={18} className="text-brand-muted mr-3"/>
+                        <input type="text" placeholder="Search events, teams and more" className="bg-transparent outline-none flex-1 text-sm text-brand-text placeholder-brand-muted"/>
+                    </div>
+                </div>
+                <div className="hidden md:flex items-center space-x-6 text-sm font-bold text-brand-text">
+                    <button onClick={()=>navigate('/')} className="hover:text-brand-primary transition-colors">Explore</button>
+                    <button className="hover:text-brand-primary transition-colors">Sell</button>
+                    <button className="hover:text-brand-primary transition-colors">Favourites</button>
+                    <button className="hover:text-brand-primary transition-colors">My Bets</button>
+                    <div className="flex items-center space-x-3 cursor-pointer border-l border-brand-border pl-6">
+                        <span>Profile</span>
+                        <div className="w-8 h-8 rounded-full bg-brand-primary flex items-center justify-center"><User size={16} className="text-white"/></div>
+                    </div>
+                </div>
+                {/* Mobile Hamburger */}
+                <div className="md:hidden flex items-center space-x-4">
+                    <div className="w-8 h-8 rounded-full bg-brand-primary flex items-center justify-center"><User size={16} className="text-white"/></div>
+                    <Menu size={24} className="text-brand-text"/>
                 </div>
             </div>
-            <div className="p-4 border-t border-white/5">
-                <button onClick={() => navigate('/settings')} className="w-full flex items-center px-3 py-2 text-xs text-brand-muted hover:text-white"><Settings size={14} className="mr-3"/> Settings</button>
-            </div>
-        </div>
-    );
-}
-
-function Betslip() {
-    const { betslip, balance } = useAppStore();
-    return (
-        <div className="hidden xl:flex w-80 h-screen bg-brand-panel border-l border-white/5 flex-col shrink-0">
-            <div className="p-4 border-b border-white/5 flex justify-between items-center">
-                <div className="flex space-x-1 bg-brand-card p-1 rounded-lg">
-                    <button className="px-4 py-1 text-xs font-bold bg-brand-bg rounded text-white shadow">Betslip</button>
-                    <button className="px-4 py-1 text-xs font-bold text-brand-muted">Recent</button>
+            {/* Mobile Search Bar below header */}
+            <div className="md:hidden px-4 pb-4">
+                <div className="flex items-center bg-white border border-brand-border rounded-full px-4 py-2.5 w-full shadow-sm">
+                    <Search size={18} className="text-brand-muted mr-3"/>
+                    <input type="text" placeholder="Search events, teams..." className="bg-transparent outline-none flex-1 text-sm text-brand-text placeholder-brand-muted"/>
                 </div>
-            </div>
-            <div className="p-4 flex-1 overflow-y-auto">
-                {betslip.length === 0 ? (
-                    <div className="text-center mt-10">
-                        <AlignLeft size={32} className="mx-auto text-brand-muted/30 mb-3" />
-                        <p className="text-xs text-brand-muted">Betslip is empty</p>
-                    </div>
-                ) : (
-                    <div className="space-y-3">
-                        {betslip.map((b, i) => (
-                            <div key={i} className="bg-brand-card p-3 rounded-xl border border-white/5">
-                                <div className="flex justify-between items-start mb-2"><span className="text-xs font-bold">{b.team}</span><span className="text-brand-neon font-bold text-xs">{b.odds}</span></div>
-                                <p className="text-[10px] text-brand-muted">{b.market}</p>
-                            </div>
-                        ))}
-                        <div className="pt-4 border-t border-white/5 mt-4">
-                            <button className="w-full bg-brand-primary text-white font-bold py-3 rounded-lg text-sm hover:bg-brand-primaryLight transition-colors shadow-[0_0_15px_rgba(29,122,242,0.3)]">PLACE ORDER</button>
-                        </div>
-                    </div>
-                )}
-            </div>
-            <div className="p-4 border-t border-white/5 bg-brand-card flex justify-between items-center">
-                <span className="text-xs text-brand-muted">Balance</span>
-                <span className="text-sm font-bold text-brand-neon">€ {balance.toFixed(2)}</span>
             </div>
         </div>
     );
@@ -427,26 +396,13 @@ function Betslip() {
 
 function MainLayout() {
     return (
-        <div className="flex w-full h-screen bg-brand-bg overflow-hidden">
-            <Sidebar />
-            <main className="flex-1 h-full overflow-y-auto hide-scrollbar flex flex-col relative">
-                {/* Top Nav */}
-                <div className="h-14 border-b border-white/5 bg-brand-panel flex items-center justify-between px-4 sticky top-0 z-20">
-                    <div className="flex space-x-4">
-                        <button className="text-xs font-bold text-brand-primary flex items-center"><Activity size={14} className="mr-2"/> SPORTBOOK</button>
-                        <button className="text-xs font-bold text-brand-muted hover:text-white">TRADE</button>
-                        <button className="text-xs font-bold text-brand-muted hover:text-white">MY ORDERS</button>
-                    </div>
-                    <div className="flex items-center space-x-4">
-                        <button className="bg-brand-green/20 text-brand-green px-3 py-1.5 rounded-full text-[10px] font-bold flex items-center"><Download size={12} className="mr-1"/> DEPOSIT</button>
-                        <Search size={16} className="text-brand-muted cursor-pointer"/>
-                    </div>
-                </div>
-                <div className="p-2 md:p-4 flex-1">
-                    <Routes><Route path="/" element={<Home />} /></Routes>
-                </div>
+        <div className="flex flex-col w-full min-h-screen bg-brand-bg text-brand-text">
+            <DesktopNav />
+            <main className="flex-1 w-full max-w-6xl mx-auto p-4 md:p-8">
+                <Routes>
+                    <Route path="/" element={<Home />} />
+                </Routes>
             </main>
-            <Betslip />
         </div>
     );
 }
@@ -458,7 +414,6 @@ export default function App() {
     useEffect(() => {
         const unsubAuth = onAuthStateChanged(auth, async (user) => {
             if (user) {
-                // Note: user is Firebase authenticated, but 2FA state (isAuthenticated) must be verified via AuthFlow.
                 const userRef = doc(db, 'users', user.uid);
                 const unsubWallet = onSnapshot(userRef, (docSnap) => {
                     if (docSnap.exists()) setWallet(docSnap.data().balance, 0);
@@ -486,89 +441,96 @@ export default function App() {
     write_file('src/main.jsx', "import React from 'react'; import ReactDOM from 'react-dom/client'; import App from './App.jsx'; import './index.css'; ReactDOM.createRoot(document.getElementById('root')).render(<App />);")
 
     # ==========================================
-    # 7. SPORTSBOOK HOME PAGE (Dense Mollybet UI)
+    # 7. HOME PAGE (Viagogo Ticket Style but Parimatch Logic)
     # ==========================================
     home_jsx = """
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Star, ChevronRight } from 'lucide-react';
-import { useAppStore } from '../../store/useStore';
+import { MapPin, Calendar, Heart, ShieldCheck } from 'lucide-react';
 
 const matches = [
-    { id: 1, time: "64'", league: "UEFA Champions League", t1: "Paris St. Germain", t2: "FC Barcelona", s1: 2, s2: 1, odds: { o1: 2.315, ox: 4.851, o2: 4.001, ah1: 1.101, ah2: 9.216, o_ou: 1.5, u_ou: 8.214 } },
-    { id: 2, time: "19:00", league: "UEFA Champions League", t1: "Manchester City", t2: "Chelsea", s1: 0, s2: 0, odds: { o1: 1.954, ox: 3.200, o2: 4.500, ah1: 1.850, ah2: 1.950, o_ou: 2.5, u_ou: 1.850 } },
-    { id: 3, time: "88'", league: "Serie A", t1: "Fiorentina", t2: "AC Milan", s1: 3, s2: 1, odds: { o1: 1.050, ox: 15.00, o2: 55.00, ah1: "-", ah2: "-", o_ou: 4.5, u_ou: 1.100 } },
-    { id: 4, time: "45'", league: "Premier League", t1: "Liverpool", t2: "Arsenal", s1: 1, s2: 1, odds: { o1: 2.500, ox: 3.100, o2: 2.800, ah1: 1.900, ah2: 1.950, o_ou: 3.5, u_ou: 2.100 } }
+    { id: 1, month: "Apr", day: "4", dow: "Sat", league: "Indian Premier League", t1: "Delhi Capitals", t2: "Mumbai Indians", time: "3:30 PM", loc: "Delhi, India • Arun Jaitley Stadium", odds: "1.85", tag: "Hottest event on our site", tagColor: "text-brand-accent bg-brand-primaryLight" },
+    { id: 2, month: "Apr", day: "4", dow: "Sat", league: "Indian Premier League", t1: "Gujarat Titans", t2: "Rajasthan Royals", time: "7:30 PM", loc: "Ahmedabad, India • Narendra Modi Stadium", odds: "2.10", tag: "Today", tagColor: "text-brand-muted bg-brand-panel" },
+    { id: 3, month: "Apr", day: "5", dow: "Sun", league: "Indian Premier League", t1: "Sunrisers Hyderabad", t2: "Lucknow Super Giants", time: "3:30 PM", loc: "Hyderabad, India • Rajiv Gandhi Stadium", odds: "1.95", tag: "Tomorrow", tagColor: "text-brand-muted bg-brand-panel" },
+    { id: 4, month: "Apr", day: "5", dow: "Sun", league: "Indian Premier League", t1: "Royal Challengers Bengaluru", t2: "Chennai Super Kings", time: "7:30 PM", loc: "Bengaluru, India • M. Chinnaswamy Stadium", odds: "1.75", tag: "Selling Fast", tagColor: "text-brand-red bg-red-50" }
 ];
 
 export default function Home() {
-    const addToBetslip = useAppStore(state => state.addToBetslip);
-
-    const handleOddsClick = (team, oddsVal, market) => {
-        if(oddsVal !== "-") addToBetslip({ team, odds: oddsVal, market });
-    };
-
     return (
-        <div className="animate-fade-in w-full max-w-[1200px] mx-auto">
+        <div className="animate-fade-in w-full pb-20">
+            {/* Title Section */}
+            <div className="flex justify-between items-end mb-6">
+                <h1 className="text-4xl md:text-5xl font-black text-brand-text leading-tight">Indian Premier<br/>League Betting</h1>
+                <button className="w-10 h-10 rounded-full border border-brand-border flex items-center justify-center hover:bg-brand-panel transition-colors"><Heart size={18} className="text-brand-muted"/></button>
+            </div>
+
             {/* Filters Row */}
-            <div className="flex space-x-2 mb-4 overflow-x-auto hide-scrollbar pb-2">
-                <button className="bg-brand-primary text-white px-4 py-1.5 rounded-full text-xs font-bold flex items-center whitespace-nowrap"><div className="w-2 h-2 bg-white rounded-full mr-2 animate-pulse"></div> Live events</button>
-                {['Football', 'Basketball', 'Tennis', 'American Football', 'E-Sports'].map(s => (
-                    <button key={s} className="bg-brand-card border border-white/5 text-brand-muted hover:text-white px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors">{s}</button>
-                ))}
+            <div className="flex space-x-3 mb-8 overflow-x-auto hide-scrollbar">
+                <button className="bg-brand-text text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center whitespace-nowrap"><MapPin size={16} className="mr-2"/> Pune</button>
+                <button className="bg-white border border-brand-border text-brand-text px-4 py-2 rounded-xl text-sm font-bold flex items-center whitespace-nowrap"><Calendar size={16} className="mr-2"/> All dates</button>
+                <button className="bg-white border border-brand-border text-brand-text px-4 py-2 rounded-xl text-sm font-bold flex items-center whitespace-nowrap">Price</button>
             </div>
 
-            {/* Match Grid Header */}
-            <div className="bg-[#1A1C23] rounded-t-xl border border-white/5 p-3 flex text-[10px] font-bold text-brand-muted uppercase tracking-wider sticky top-0 z-10">
-                <div className="w-2/5">Match</div>
-                <div className="w-3/5 grid grid-cols-7 gap-1 text-center items-center">
-                    <div>1</div><div>X</div><div>2</div>
-                    <div className="col-span-2">A/1 &nbsp;&nbsp;&nbsp; A/2</div>
-                    <div className="col-span-2">O &nbsp;&nbsp;&nbsp; U</div>
+            {/* Hero Banner (Green Patterned) */}
+            <div className="w-full h-64 md:h-80 bg-brand-primary rounded-3xl overflow-hidden mb-10 relative flex items-center shadow-lg">
+                <div className="absolute inset-0 opacity-20 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4MCIgaGVpZ2h0PSI4MCI+CjxyZWN0IHdpZHRoPSI4MCIgaGVpZ2h0PSI4MCIgZmlsbD0ibm9uZSIvPgo8cGF0aCBkPSJNMCAwbDQwIDQwbC00MCA0MHoiIGZpbGw9IiM0NTg3MzEiLz4KPHBhdGggZD0iTTQwIDBsNDAgNDBsLTQwIDQweiIgZmlsbD0iI0U2RjJEOSIvPgo8L3N2Zz4=')]"></div>
+                <div className="relative z-10 p-8 md:p-12 w-full flex justify-between items-center">
+                    <div>
+                        <h2 className="text-5xl md:text-7xl font-black text-white mb-4 tracking-tighter">WORLD<br/>CUP</h2>
+                        <button className="border border-white/30 text-white hover:bg-white/10 px-6 py-2.5 rounded-xl font-bold text-sm transition-colors">See Markets</button>
+                    </div>
                 </div>
+                <button className="absolute top-6 right-6 w-10 h-10 bg-black/30 rounded-full flex items-center justify-center hover:bg-black/50 transition-colors z-20"><Heart size={18} className="text-white"/></button>
             </div>
 
-            {/* Match List */}
-            <div className="space-y-1">
+            <h3 className="font-bold text-lg mb-4">63 events available</h3>
+
+            {/* Viagogo Style Match List */}
+            <div className="space-y-4 mb-12">
                 {matches.map(m => (
-                    <div key={m.id} className="bg-brand-card hover:bg-[#1E2129] border border-white/5 rounded-lg p-3 flex items-center transition-colors group">
-                        {/* Match Info */}
-                        <div className="w-2/5 flex pr-4">
-                            <div className="flex flex-col items-center justify-center mr-3 w-8">
-                                <Star size={12} className="text-brand-muted/30 hover:text-brand-neon cursor-pointer mb-1"/>
-                                <span className={`text-[10px] font-bold ${m.time.includes("'") ? 'text-brand-red animate-pulse' : 'text-brand-muted'}`}>{m.time}</span>
+                    <motion.div whileHover={{ scale: 1.01 }} key={m.id} className="bg-white border border-brand-border rounded-2xl p-4 md:p-5 flex flex-col md:flex-row md:items-center hover:shadow-md transition-all cursor-pointer">
+                        {/* Desktop Layout Inner Flex */}
+                        <div className="flex flex-1 items-center">
+                            {/* Date Block */}
+                            <div className="flex flex-col items-center justify-center pr-4 md:pr-6 border-r border-brand-border min-w-[70px]">
+                                <span className="text-sm font-bold text-brand-muted">{m.month}</span>
+                                <span className="text-2xl font-black text-brand-text my-0.5">{m.day}</span>
+                                <span className="text-xs text-brand-muted">{m.dow}</span>
                             </div>
-                            <div className="flex-1">
-                                <p className="text-[9px] text-brand-muted mb-1 flex items-center">{m.league} <ChevronRight size={10} className="mx-1"/> </p>
-                                <div className="flex justify-between items-center"><span className="text-xs font-bold text-white">{m.t1}</span><span className="text-brand-neon text-xs font-bold">{m.s1}</span></div>
-                                <div className="flex justify-between items-center mt-1"><span className="text-xs font-bold text-white">{m.t2}</span><span className="text-brand-neon text-xs font-bold">{m.s2}</span></div>
+                            
+                            {/* Match Info */}
+                            <div className="pl-4 md:pl-6 flex-1">
+                                <h3 className="text-lg font-bold text-brand-text leading-tight mb-1">{m.t1} vs {m.t2}</h3>
+                                <p className="text-sm text-brand-muted mb-2">{m.time} • {m.loc}</p>
+                                <div className="flex space-x-2">
+                                    {m.tag && <span className={`text-[10px] font-bold px-2 py-1 rounded-md ${m.tagColor}`}>{m.tag}</span>}
+                                </div>
                             </div>
                         </div>
 
-                        {/* Odds Grid */}
-                        <div className="w-3/5 grid grid-cols-7 gap-1.5">
-                            <button onClick={()=>handleOddsClick(m.t1, m.odds.o1, 'Match Winner')} className="odds-btn"><span></span><span className="odds-val">{m.odds.o1}</span></button>
-                            <button onClick={()=>handleOddsClick('Draw', m.odds.ox, 'Match Winner')} className="odds-btn bg-[#22242B]"><span></span><span className="odds-val text-brand-muted">{m.odds.ox}</span></button>
-                            <button onClick={()=>handleOddsClick(m.t2, m.odds.o2, 'Match Winner')} className="odds-btn"><span></span><span className="odds-val">{m.odds.o2}</span></button>
-                            
-                            <button onClick={()=>handleOddsClick(m.t1, m.odds.ah1, 'Asian Hcap')} className="odds-btn col-span-1"><span>-1.5</span><span className="odds-val">{m.odds.ah1}</span></button>
-                            <button onClick={()=>handleOddsClick(m.t2, m.odds.ah2, 'Asian Hcap')} className="odds-btn col-span-1"><span>+1.5</span><span className="odds-val">{m.odds.ah2}</span></button>
-                            
-                            <button onClick={()=>handleOddsClick('Over', m.odds.o_ou, 'Total Goals')} className="odds-btn col-span-1"><span>2.5</span><span className="odds-val text-white">{m.odds.o_ou}</span></button>
-                            <button onClick={()=>handleOddsClick('Under', m.odds.u_ou, 'Total Goals')} className="odds-btn col-span-1"><span>2.5</span><span className="odds-val text-white">{m.odds.u_ou}</span></button>
+                        {/* Action Buttons / Odds (Mobile stacks below, Desktop pushes right) */}
+                        <div className="mt-4 md:mt-0 flex space-x-2 w-full md:w-auto">
+                             <button className="flex-1 md:flex-none border border-brand-border rounded-xl px-6 py-2.5 font-bold text-sm text-brand-text hover:bg-brand-panel transition-colors shadow-sm">Odds: {m.odds}</button>
+                             <button className="flex-1 md:flex-none bg-brand-text text-white rounded-xl px-6 py-2.5 font-bold text-sm hover:bg-brand-text/90 transition-colors shadow-sm">Place Bet</button>
                         </div>
-                    </div>
+                    </motion.div>
                 ))}
             </div>
 
-            {/* Graphics Block */}
-            <div className="mt-6 flex space-x-4">
-                <div className="flex-1 bg-gradient-to-r from-[#171A21] to-brand-bg rounded-xl border border-white/5 p-6 flex justify-between items-center relative overflow-hidden">
-                    <div className="absolute right-0 top-0 opacity-20"><svg width="150" height="150" viewBox="0 0 200 200"><circle cx="100" cy="100" r="80" stroke="#1D7AF2" strokeWidth="20" fill="none"/></svg></div>
-                    <div className="relative z-10">
-                        <h3 className="text-lg font-black text-white mb-1">Mollybet Pro Engine</h3>
-                        <p className="text-xs text-brand-muted">Trade like a professional with direct API access.</p>
+            {/* Footer Trust Elements */}
+            <div className="border-t border-brand-border pt-10 flex flex-col md:flex-row justify-between">
+                <div>
+                    <div className="flex items-center space-x-2 mb-4">
+                        <ShieldCheck size={32} className="text-brand-accent"/>
+                        <div>
+                            <h4 className="font-bold text-lg text-brand-text">parbet guarantee</h4>
+                        </div>
                     </div>
+                    <ul className="space-y-2 text-sm font-bold text-brand-muted">
+                        <li className="flex items-center"><div className="w-1.5 h-1.5 rounded-full bg-brand-accent mr-2"></div> World class security checks</li>
+                        <li className="flex items-center"><div className="w-1.5 h-1.5 rounded-full bg-brand-accent mr-2"></div> Transparent pricing</li>
+                        <li className="flex items-center"><div className="w-1.5 h-1.5 rounded-full bg-brand-accent mr-2"></div> 100% order guarantee</li>
+                    </ul>
                 </div>
             </div>
         </div>
@@ -577,13 +539,36 @@ export default function Home() {
 """
     write_file('src/pages/Home/index.jsx', home_jsx)
 
-    # Fill out required dummy files to prevent compilation errors
-    write_file('src/pages/Discovery/index.jsx', "export default function Discovery() { return <div className='p-4 text-white text-xs'>Statistics Engine Loading...</div>; }")
-    write_file('src/pages/Settings/index.jsx', "export default function Settings() { return <div className='p-4 text-white text-xs'>System Preferences</div>; }")
+    # Empty stubs to prevent build crashes
+    write_file('src/pages/Discovery/index.jsx', "export default function Discovery() { return <div className='p-6'>Explore Categories</div>; }")
+    write_file('src/pages/TeamFocus/index.jsx', "export default function TeamFocus() { return <div className='p-6'>Team Details</div>; }")
 
-    print("\n✅ PRO SPORTSBOOK ARCHITECTURE COMPLETE!")
-    print("✅ Full Authentication Flow (EmailJS + OTPAuth 2FA) Integrated.")
-    print("✅ Dense Mollybet Grid Layout + Asian Handicap configurations added.")
+    # ==========================================
+    # 8. DYNAMIC GENERATION OF 50+ PAGES
+    # ==========================================
+    pages_list = [ "Wallet", "AdminDashboard", "LiveMatches", "UpcomingMatches", "MatchDetails", "BetSlip", "MyBets", "BetHistory", "Transactions", "Leaderboard", "Profile", "EditProfile", "Settings", "Security", "Notifications", "CricketBetting", "FootballBetting", "TennisBetting", "Esports", "LiveBettingScreen", "OddsMovement", "MultiBet", "CashOut", "Bonuses", "Referral", "Achievements", "DailyRewards", "HelpCenter", "Contact", "FAQs", "Login", "Signup", "ForgotPassword", "Promo1", "Promo2", "CampaignA", "CampaignB", "EventX", "LandingUser", "LandingGuest", "AdminUsers", "AdminAddMatch", "AdminEditMatch", "AdminOdds", "AdminResults", "AdminTrans", "AdminFraud", "AdminReports", "AdminAnalytics", "AdminNotifs", "AdminLogs", "AdminSettings", "AdminRoles", "AdminPerms", "AffiliatePortal", "VIPClub" ]
+
+    page_template = """
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+
+export default function {{PAGE_NAME}}() {
+    const navigate = useNavigate();
+    return (
+        <div className="w-full pb-20 animate-fade-in">
+            <h1 className="text-3xl font-black text-brand-text mb-6">{{PAGE_NAME}}</h1>
+            <div className="bg-white border border-brand-border rounded-2xl p-6 shadow-sm">
+                <p className="text-brand-muted mb-4">Content for {{PAGE_NAME}} module.</p>
+                <button onClick={() => navigate(-1)} className="bg-brand-panel border border-brand-border px-6 py-2 rounded-xl text-sm font-bold text-brand-text hover:bg-gray-100 transition-colors">Go Back</button>
+            </div>
+        </div>
+    );
+}
+"""
+    for page in pages_list:
+        write_file(f'src/pages/{page}/index.jsx', page_template.replace("{{PAGE_NAME}}", page))
+
+    print("\n✅ VIAGOGO LIGHT THEME & AUTH OVERHAUL COMPLETE!")
 
 if __name__ == "__main__":
     main()

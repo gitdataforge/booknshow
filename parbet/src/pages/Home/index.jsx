@@ -1,83 +1,90 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Star, ChevronRight } from 'lucide-react';
-import { useAppStore } from '../../store/useStore';
+import { MapPin, Calendar, Heart, ShieldCheck } from 'lucide-react';
 
 const matches = [
-    { id: 1, time: "64'", league: "UEFA Champions League", t1: "Paris St. Germain", t2: "FC Barcelona", s1: 2, s2: 1, odds: { o1: 2.315, ox: 4.851, o2: 4.001, ah1: 1.101, ah2: 9.216, o_ou: 1.5, u_ou: 8.214 } },
-    { id: 2, time: "19:00", league: "UEFA Champions League", t1: "Manchester City", t2: "Chelsea", s1: 0, s2: 0, odds: { o1: 1.954, ox: 3.200, o2: 4.500, ah1: 1.850, ah2: 1.950, o_ou: 2.5, u_ou: 1.850 } },
-    { id: 3, time: "88'", league: "Serie A", t1: "Fiorentina", t2: "AC Milan", s1: 3, s2: 1, odds: { o1: 1.050, ox: 15.00, o2: 55.00, ah1: "-", ah2: "-", o_ou: 4.5, u_ou: 1.100 } },
-    { id: 4, time: "45'", league: "Premier League", t1: "Liverpool", t2: "Arsenal", s1: 1, s2: 1, odds: { o1: 2.500, ox: 3.100, o2: 2.800, ah1: 1.900, ah2: 1.950, o_ou: 3.5, u_ou: 2.100 } }
+    { id: 1, month: "Apr", day: "4", dow: "Sat", league: "Indian Premier League", t1: "Delhi Capitals", t2: "Mumbai Indians", time: "3:30 PM", loc: "Delhi, India • Arun Jaitley Stadium", odds: "1.85", tag: "Hottest event on our site", tagColor: "text-brand-accent bg-brand-primaryLight" },
+    { id: 2, month: "Apr", day: "4", dow: "Sat", league: "Indian Premier League", t1: "Gujarat Titans", t2: "Rajasthan Royals", time: "7:30 PM", loc: "Ahmedabad, India • Narendra Modi Stadium", odds: "2.10", tag: "Today", tagColor: "text-brand-muted bg-brand-panel" },
+    { id: 3, month: "Apr", day: "5", dow: "Sun", league: "Indian Premier League", t1: "Sunrisers Hyderabad", t2: "Lucknow Super Giants", time: "3:30 PM", loc: "Hyderabad, India • Rajiv Gandhi Stadium", odds: "1.95", tag: "Tomorrow", tagColor: "text-brand-muted bg-brand-panel" },
+    { id: 4, month: "Apr", day: "5", dow: "Sun", league: "Indian Premier League", t1: "Royal Challengers Bengaluru", t2: "Chennai Super Kings", time: "7:30 PM", loc: "Bengaluru, India • M. Chinnaswamy Stadium", odds: "1.75", tag: "Selling Fast", tagColor: "text-brand-red bg-red-50" }
 ];
 
 export default function Home() {
-    const addToBetslip = useAppStore(state => state.addToBetslip);
-
-    const handleOddsClick = (team, oddsVal, market) => {
-        if(oddsVal !== "-") addToBetslip({ team, odds: oddsVal, market });
-    };
-
     return (
-        <div className="animate-fade-in w-full max-w-[1200px] mx-auto">
+        <div className="animate-fade-in w-full pb-20">
+            {/* Title Section */}
+            <div className="flex justify-between items-end mb-6">
+                <h1 className="text-4xl md:text-5xl font-black text-brand-text leading-tight">Indian Premier<br/>League Betting</h1>
+                <button className="w-10 h-10 rounded-full border border-brand-border flex items-center justify-center hover:bg-brand-panel transition-colors"><Heart size={18} className="text-brand-muted"/></button>
+            </div>
+
             {/* Filters Row */}
-            <div className="flex space-x-2 mb-4 overflow-x-auto hide-scrollbar pb-2">
-                <button className="bg-brand-primary text-white px-4 py-1.5 rounded-full text-xs font-bold flex items-center whitespace-nowrap"><div className="w-2 h-2 bg-white rounded-full mr-2 animate-pulse"></div> Live events</button>
-                {['Football', 'Basketball', 'Tennis', 'American Football', 'E-Sports'].map(s => (
-                    <button key={s} className="bg-brand-card border border-white/5 text-brand-muted hover:text-white px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors">{s}</button>
-                ))}
+            <div className="flex space-x-3 mb-8 overflow-x-auto hide-scrollbar">
+                <button className="bg-brand-text text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center whitespace-nowrap"><MapPin size={16} className="mr-2"/> Pune</button>
+                <button className="bg-white border border-brand-border text-brand-text px-4 py-2 rounded-xl text-sm font-bold flex items-center whitespace-nowrap"><Calendar size={16} className="mr-2"/> All dates</button>
+                <button className="bg-white border border-brand-border text-brand-text px-4 py-2 rounded-xl text-sm font-bold flex items-center whitespace-nowrap">Price</button>
             </div>
 
-            {/* Match Grid Header */}
-            <div className="bg-[#1A1C23] rounded-t-xl border border-white/5 p-3 flex text-[10px] font-bold text-brand-muted uppercase tracking-wider sticky top-0 z-10">
-                <div className="w-2/5">Match</div>
-                <div className="w-3/5 grid grid-cols-7 gap-1 text-center items-center">
-                    <div>1</div><div>X</div><div>2</div>
-                    <div className="col-span-2">A/1 &nbsp;&nbsp;&nbsp; A/2</div>
-                    <div className="col-span-2">O &nbsp;&nbsp;&nbsp; U</div>
+            {/* Hero Banner (Green Patterned) */}
+            <div className="w-full h-64 md:h-80 bg-brand-primary rounded-3xl overflow-hidden mb-10 relative flex items-center shadow-lg">
+                <div className="absolute inset-0 opacity-20 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI4MCIgaGVpZ2h0PSI4MCI+CjxyZWN0IHdpZHRoPSI4MCIgaGVpZ2h0PSI4MCIgZmlsbD0ibm9uZSIvPgo8cGF0aCBkPSJNMCAwbDQwIDQwbC00MCA0MHoiIGZpbGw9IiM0NTg3MzEiLz4KPHBhdGggZD0iTTQwIDBsNDAgNDBsLTQwIDQweiIgZmlsbD0iI0U2RjJEOSIvPgo8L3N2Zz4=')]"></div>
+                <div className="relative z-10 p-8 md:p-12 w-full flex justify-between items-center">
+                    <div>
+                        <h2 className="text-5xl md:text-7xl font-black text-white mb-4 tracking-tighter">WORLD<br/>CUP</h2>
+                        <button className="border border-white/30 text-white hover:bg-white/10 px-6 py-2.5 rounded-xl font-bold text-sm transition-colors">See Markets</button>
+                    </div>
                 </div>
+                <button className="absolute top-6 right-6 w-10 h-10 bg-black/30 rounded-full flex items-center justify-center hover:bg-black/50 transition-colors z-20"><Heart size={18} className="text-white"/></button>
             </div>
 
-            {/* Match List */}
-            <div className="space-y-1">
+            <h3 className="font-bold text-lg mb-4">63 events available</h3>
+
+            {/* Viagogo Style Match List */}
+            <div className="space-y-4 mb-12">
                 {matches.map(m => (
-                    <div key={m.id} className="bg-brand-card hover:bg-[#1E2129] border border-white/5 rounded-lg p-3 flex items-center transition-colors group">
-                        {/* Match Info */}
-                        <div className="w-2/5 flex pr-4">
-                            <div className="flex flex-col items-center justify-center mr-3 w-8">
-                                <Star size={12} className="text-brand-muted/30 hover:text-brand-neon cursor-pointer mb-1"/>
-                                <span className={`text-[10px] font-bold ${m.time.includes("'") ? 'text-brand-red animate-pulse' : 'text-brand-muted'}`}>{m.time}</span>
+                    <motion.div whileHover={{ scale: 1.01 }} key={m.id} className="bg-white border border-brand-border rounded-2xl p-4 md:p-5 flex flex-col md:flex-row md:items-center hover:shadow-md transition-all cursor-pointer">
+                        {/* Desktop Layout Inner Flex */}
+                        <div className="flex flex-1 items-center">
+                            {/* Date Block */}
+                            <div className="flex flex-col items-center justify-center pr-4 md:pr-6 border-r border-brand-border min-w-[70px]">
+                                <span className="text-sm font-bold text-brand-muted">{m.month}</span>
+                                <span className="text-2xl font-black text-brand-text my-0.5">{m.day}</span>
+                                <span className="text-xs text-brand-muted">{m.dow}</span>
                             </div>
-                            <div className="flex-1">
-                                <p className="text-[9px] text-brand-muted mb-1 flex items-center">{m.league} <ChevronRight size={10} className="mx-1"/> </p>
-                                <div className="flex justify-between items-center"><span className="text-xs font-bold text-white">{m.t1}</span><span className="text-brand-neon text-xs font-bold">{m.s1}</span></div>
-                                <div className="flex justify-between items-center mt-1"><span className="text-xs font-bold text-white">{m.t2}</span><span className="text-brand-neon text-xs font-bold">{m.s2}</span></div>
+                            
+                            {/* Match Info */}
+                            <div className="pl-4 md:pl-6 flex-1">
+                                <h3 className="text-lg font-bold text-brand-text leading-tight mb-1">{m.t1} vs {m.t2}</h3>
+                                <p className="text-sm text-brand-muted mb-2">{m.time} • {m.loc}</p>
+                                <div className="flex space-x-2">
+                                    {m.tag && <span className={`text-[10px] font-bold px-2 py-1 rounded-md ${m.tagColor}`}>{m.tag}</span>}
+                                </div>
                             </div>
                         </div>
 
-                        {/* Odds Grid */}
-                        <div className="w-3/5 grid grid-cols-7 gap-1.5">
-                            <button onClick={()=>handleOddsClick(m.t1, m.odds.o1, 'Match Winner')} className="odds-btn"><span></span><span className="odds-val">{m.odds.o1}</span></button>
-                            <button onClick={()=>handleOddsClick('Draw', m.odds.ox, 'Match Winner')} className="odds-btn bg-[#22242B]"><span></span><span className="odds-val text-brand-muted">{m.odds.ox}</span></button>
-                            <button onClick={()=>handleOddsClick(m.t2, m.odds.o2, 'Match Winner')} className="odds-btn"><span></span><span className="odds-val">{m.odds.o2}</span></button>
-                            
-                            <button onClick={()=>handleOddsClick(m.t1, m.odds.ah1, 'Asian Hcap')} className="odds-btn col-span-1"><span>-1.5</span><span className="odds-val">{m.odds.ah1}</span></button>
-                            <button onClick={()=>handleOddsClick(m.t2, m.odds.ah2, 'Asian Hcap')} className="odds-btn col-span-1"><span>+1.5</span><span className="odds-val">{m.odds.ah2}</span></button>
-                            
-                            <button onClick={()=>handleOddsClick('Over', m.odds.o_ou, 'Total Goals')} className="odds-btn col-span-1"><span>2.5</span><span className="odds-val text-white">{m.odds.o_ou}</span></button>
-                            <button onClick={()=>handleOddsClick('Under', m.odds.u_ou, 'Total Goals')} className="odds-btn col-span-1"><span>2.5</span><span className="odds-val text-white">{m.odds.u_ou}</span></button>
+                        {/* Action Buttons / Odds (Mobile stacks below, Desktop pushes right) */}
+                        <div className="mt-4 md:mt-0 flex space-x-2 w-full md:w-auto">
+                             <button className="flex-1 md:flex-none border border-brand-border rounded-xl px-6 py-2.5 font-bold text-sm text-brand-text hover:bg-brand-panel transition-colors shadow-sm">Odds: {m.odds}</button>
+                             <button className="flex-1 md:flex-none bg-brand-text text-white rounded-xl px-6 py-2.5 font-bold text-sm hover:bg-brand-text/90 transition-colors shadow-sm">Place Bet</button>
                         </div>
-                    </div>
+                    </motion.div>
                 ))}
             </div>
 
-            {/* Graphics Block */}
-            <div className="mt-6 flex space-x-4">
-                <div className="flex-1 bg-gradient-to-r from-[#171A21] to-brand-bg rounded-xl border border-white/5 p-6 flex justify-between items-center relative overflow-hidden">
-                    <div className="absolute right-0 top-0 opacity-20"><svg width="150" height="150" viewBox="0 0 200 200"><circle cx="100" cy="100" r="80" stroke="#1D7AF2" strokeWidth="20" fill="none"/></svg></div>
-                    <div className="relative z-10">
-                        <h3 className="text-lg font-black text-white mb-1">Mollybet Pro Engine</h3>
-                        <p className="text-xs text-brand-muted">Trade like a professional with direct API access.</p>
+            {/* Footer Trust Elements */}
+            <div className="border-t border-brand-border pt-10 flex flex-col md:flex-row justify-between">
+                <div>
+                    <div className="flex items-center space-x-2 mb-4">
+                        <ShieldCheck size={32} className="text-brand-accent"/>
+                        <div>
+                            <h4 className="font-bold text-lg text-brand-text">parbet guarantee</h4>
+                        </div>
                     </div>
+                    <ul className="space-y-2 text-sm font-bold text-brand-muted">
+                        <li className="flex items-center"><div className="w-1.5 h-1.5 rounded-full bg-brand-accent mr-2"></div> World class security checks</li>
+                        <li className="flex items-center"><div className="w-1.5 h-1.5 rounded-full bg-brand-accent mr-2"></div> Transparent pricing</li>
+                        <li className="flex items-center"><div className="w-1.5 h-1.5 rounded-full bg-brand-accent mr-2"></div> 100% order guarantee</li>
+                    </ul>
                 </div>
             </div>
         </div>

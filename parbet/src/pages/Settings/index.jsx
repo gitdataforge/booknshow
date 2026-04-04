@@ -1,1 +1,15 @@
-export default function Settings() { return <div className='p-4 text-white text-xs'>System Preferences</div>; }
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+
+export default function Settings() {
+    const navigate = useNavigate();
+    return (
+        <div className="w-full pb-20 animate-fade-in">
+            <h1 className="text-3xl font-black text-brand-text mb-6">Settings</h1>
+            <div className="bg-white border border-brand-border rounded-2xl p-6 shadow-sm">
+                <p className="text-brand-muted mb-4">Content for Settings module.</p>
+                <button onClick={() => navigate(-1)} className="bg-brand-panel border border-brand-border px-6 py-2 rounded-xl text-sm font-bold text-brand-text hover:bg-gray-100 transition-colors">Go Back</button>
+            </div>
+        </div>
+    );
+}

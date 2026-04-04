@@ -1,1 +1,1 @@
-import React from 'react'; export default function TeamFocus() { return <div className='p-6 w-full max-w-4xl mx-auto'>Team Focus Page</div>; }
+export default function TeamFocus() { return <div className='p-6'>Team Details</div>; }

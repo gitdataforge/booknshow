@@ -1,1 +1,1 @@
-export default function Discovery() { return <div className='p-4 text-white text-xs'>Statistics Engine Loading...</div>; }
+export default function Discovery() { return <div className='p-6'>Explore Categories</div>; }
