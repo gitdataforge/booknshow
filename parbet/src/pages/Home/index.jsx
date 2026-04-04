@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MapPin, Calendar, Heart, RefreshCw, AlertCircle, Info, Download, QrCode, Navigation, ChevronDown } from 'lucide-react';
 import { useAppStore } from '../../store/useStore';
@@ -17,6 +18,7 @@ const premiumImages = [
 ];
 
 export default function Home() {
+    const navigate = useNavigate();
     const { 
         isAuthenticated, 
         openAuthModal,
@@ -35,11 +37,12 @@ export default function Home() {
     // Dynamic Hero Carousel Data with Real Images
     const heroSlides = [
         {
-            id: 1,
+            id: "world-cup-banner",
             title: "World Cup",
             bgLeft: "#043B1A",
             bgRight: "#76AC48",
-            image: "https://images.unsplash.com/photo-1518605368461-1e1e10815183?auto=format&fit=crop&w=1000&q=80",
+            // Mapping to a relevant real-time event if possible, or a general search
+            query: "World Cup",
             content: (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                     <img src="https://images.unsplash.com/photo-1518605368461-1e1e10815183?auto=format&fit=crop&w=1000&q=80" className="w-full h-full object-cover opacity-60 mix-blend-overlay" alt="World Cup" />
@@ -52,11 +55,11 @@ export default function Home() {
             )
         },
         {
-            id: 2,
+            id: "mumbai-indians-banner",
             title: "Mumbai Indians",
             bgLeft: "#043B1A",
             bgRight: "#0F265C",
-            image: "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&w=1000&q=80",
+            query: "Mumbai Indians",
             content: (
                 <div className="absolute inset-0 right-0 pointer-events-none">
                     <img src="https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&w=1000&q=80" className="w-full h-full object-cover opacity-70 mix-blend-overlay" alt="MI"/>
@@ -64,11 +67,11 @@ export default function Home() {
             )
         },
         {
-            id: 3,
+            id: "circoloco-banner",
             title: "Circoloco",
             bgLeft: "#043B1A",
             bgRight: "#4A001F",
-            image: "https://images.unsplash.com/photo-1540039155732-678a1bc231cd?auto=format&fit=crop&w=1000&q=80",
+            query: "Concert",
             content: (
                 <div className="absolute inset-0 right-0 pointer-events-none">
                      <img src="https://images.unsplash.com/photo-1540039155732-678a1bc231cd?auto=format&fit=crop&w=1000&q=80" className="w-full h-full object-cover opacity-70 mix-blend-overlay" alt="Concert"/>
@@ -77,7 +80,6 @@ export default function Home() {
         }
     ];
 
-    // Carousel Auto-Advance Timer
     useEffect(() => {
         const timer = setInterval(() => {
             setCurrentHeroIndex((prev) => (prev + 1) % heroSlides.length);
@@ -94,6 +96,10 @@ export default function Home() {
         else console.log(`Executing secure real-time action: ${actionName}`);
     };
 
+    const goToEvent = (id) => {
+        navigate(`/event?id=${id}`);
+    };
+
     // --- REAL-TIME FUNCTIONAL FILTERING ---
     const filteredMatches = liveMatches.filter(m => {
         if (!searchQuery) return true;
@@ -103,7 +109,6 @@ export default function Home() {
                m.league.toLowerCase().includes(q);
     });
 
-    // Generate dynamic rails from real filtered data
     const recents = filteredMatches.slice(0, 4);
     const recommended = filteredMatches.slice(1, 5);
     const popular = filteredMatches.slice(2, 6);
@@ -123,7 +128,6 @@ export default function Home() {
                         transition={{ duration: 0.6, ease: "easeInOut" }}
                         className="absolute inset-0 flex"
                     >
-                        {/* Left Side (Dark Green, Angled) */}
                         <div 
                             className="relative w-1/2 md:w-1/3 h-full z-20 flex flex-col justify-center px-6 md:px-12"
                             style={{ 
@@ -135,14 +139,13 @@ export default function Home() {
                                 {heroSlides[currentHeroIndex].title}
                             </h2>
                             <button 
-                                onClick={() => handleRestrictedAction(`See Tickets for ${heroSlides[currentHeroIndex].title}`)}
+                                onClick={() => useAppStore.getState().setSearchQuery(heroSlides[currentHeroIndex].query)}
                                 className="border border-[#458731] text-white hover:bg-[#458731] w-max px-5 py-2 md:px-6 md:py-2.5 rounded-lg text-xs md:text-sm font-bold transition-colors"
                             >
                                 See Tickets
                             </button>
                         </div>
                         
-                        {/* Right Side (Dynamic Content) */}
                         <div 
                             className="absolute top-0 bottom-0 right-0 w-3/4 z-10"
                             style={{ backgroundColor: heroSlides[currentHeroIndex].bgRight }}
@@ -176,7 +179,6 @@ export default function Home() {
                     <Navigation size={18} className="text-white fill-white -rotate-45" />
                 </div>
                 
-                {/* Location Toggle & Dropdown */}
                 <div className="relative">
                     <button 
                         onClick={() => setLocationDropdownOpen(!isLocationDropdownOpen)}
@@ -184,7 +186,6 @@ export default function Home() {
                     >
                         <MapPin size={16} className="mr-2"/> {userCity} <ChevronDown size={16} className={`ml-2 transition-transform ${isLocationDropdownOpen ? 'rotate-180' : ''}`}/>
                     </button>
-                    {/* Functional Dropdown Component */}
                     <LocationDropdown />
                 </div>
 
@@ -194,10 +195,9 @@ export default function Home() {
 
                 <div className="h-6 w-px bg-gray-300 mx-2 flex-shrink-0"></div>
 
-                <button className="bg-[#E6F2D9] border border-[#C5E1A5] text-[#114C2A] px-5 py-2 rounded-[10px] text-sm font-bold whitespace-nowrap shadow-sm">All types</button>
-                <button className="bg-white border border-gray-300 text-brand-text px-5 py-2 rounded-[10px] text-sm font-medium whitespace-nowrap hover:bg-gray-50 transition-colors shadow-sm">Sports</button>
-                <button className="bg-white border border-gray-300 text-brand-text px-5 py-2 rounded-[10px] text-sm font-medium whitespace-nowrap hover:bg-gray-50 transition-colors shadow-sm">Concerts</button>
-                <button className="bg-white border border-gray-300 text-brand-text px-5 py-2 rounded-[10px] text-sm font-medium whitespace-nowrap hover:bg-gray-50 transition-colors shadow-sm">Theatre & Comedy</button>
+                <button onClick={() => useAppStore.getState().setSearchQuery('')} className={`px-5 py-2 rounded-[10px] text-sm font-bold whitespace-nowrap shadow-sm transition-colors ${!searchQuery ? 'bg-[#E6F2D9] border border-[#C5E1A5] text-[#114C2A]' : 'bg-white border border-gray-300 text-brand-text hover:bg-gray-50'}`}>All types</button>
+                <button onClick={() => useAppStore.getState().setSearchQuery('League')} className={`px-5 py-2 rounded-[10px] text-sm font-medium whitespace-nowrap shadow-sm transition-colors ${searchQuery === 'League' ? 'bg-[#E6F2D9] border border-[#C5E1A5] text-[#114C2A]' : 'bg-white border border-gray-300 text-brand-text hover:bg-gray-50'}`}>Sports</button>
+                <button onClick={() => useAppStore.getState().setSearchQuery('Concert')} className={`px-5 py-2 rounded-[10px] text-sm font-medium whitespace-nowrap shadow-sm transition-colors ${searchQuery === 'Concert' ? 'bg-[#E6F2D9] border border-[#C5E1A5] text-[#114C2A]' : 'bg-white border border-gray-300 text-brand-text hover:bg-gray-50'}`}>Concerts</button>
             </div>
 
             {/* 3. SPOTIFY BANNER */}
@@ -219,7 +219,6 @@ export default function Home() {
                 </button>
             </div>
 
-            {/* Check for empty search results */}
             {filteredMatches.length === 0 && !isLoadingMatches && !apiError && (
                 <div className="w-full text-center py-12 bg-gray-50 rounded-xl border border-gray-200 mb-12">
                     <h3 className="text-xl font-bold text-brand-text mb-2">No events found</h3>
@@ -227,7 +226,7 @@ export default function Home() {
                 </div>
             )}
 
-            {/* 4. RECENTLY VIEWED RAIL (Real API Data) */}
+            {/* 4. RECENTLY VIEWED RAIL */}
             {recents.length > 0 && (
                 <div className="mb-12">
                     <div className="flex justify-between items-center mb-6">
@@ -236,7 +235,7 @@ export default function Home() {
                     </div>
                     <div className="flex overflow-x-auto hide-scrollbar space-x-4 pb-4">
                         {recents.map((item, idx) => (
-                            <div key={`recent-${item.id}`} onClick={() => handleRestrictedAction(`View ${item.t1}`)} className="min-w-[280px] max-w-[280px] flex-shrink-0 cursor-pointer group">
+                            <div key={`recent-${item.id}`} onClick={() => goToEvent(item.id)} className="min-w-[280px] max-w-[280px] flex-shrink-0 cursor-pointer group">
                                 <div className="relative w-full h-[160px] rounded-[10px] overflow-hidden mb-3 border border-gray-100 bg-gray-200">
                                     <img src={premiumImages[idx % premiumImages.length]} alt={item.t1} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                                     <button onClick={(e) => { e.stopPropagation(); handleRestrictedAction(`Favourite ${item.t1}`); }} className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 backdrop-blur-sm z-10 transition-colors">
@@ -251,13 +250,13 @@ export default function Home() {
                 </div>
             )}
 
-            {/* 5. RECOMMENDED FOR YOU RAIL (Real API Data) */}
+            {/* 5. RECOMMENDED FOR YOU RAIL */}
             {recommended.length > 0 && (
                 <div className="mb-12">
                     <h2 className="text-2xl font-bold text-brand-text mb-6">Recommended for you</h2>
                     <div className="flex overflow-x-auto hide-scrollbar space-x-4 pb-4">
                         {recommended.map((item, idx) => (
-                            <div key={`rec-${item.id}`} onClick={() => handleRestrictedAction(`View ${item.t1}`)} className="min-w-[240px] max-w-[240px] flex-shrink-0 cursor-pointer group">
+                            <div key={`rec-${item.id}`} onClick={() => goToEvent(item.id)} className="min-w-[240px] max-w-[240px] flex-shrink-0 cursor-pointer group">
                                 <div className="relative w-full h-[180px] rounded-[10px] overflow-hidden mb-3 border border-gray-100 bg-gray-200">
                                     <img src={premiumImages[(idx + 2) % premiumImages.length]} alt={item.t1} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                                     <button onClick={(e) => { e.stopPropagation(); handleRestrictedAction(`Favourite ${item.t1}`); }} className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 backdrop-blur-sm z-10 transition-colors">
@@ -273,13 +272,13 @@ export default function Home() {
                 </div>
             )}
 
-            {/* 6. POPULAR CATEGORIES RAIL (Real API Data) */}
+            {/* 6. POPULAR CATEGORIES RAIL */}
             {popular.length > 0 && (
                 <div className="mb-12">
                     <h2 className="text-2xl font-bold text-brand-text mb-6">Popular categories</h2>
                     <div className="flex overflow-x-auto hide-scrollbar space-x-4 pb-4">
                         {popular.map((item, idx) => (
-                            <div key={`pop-${item.id}`} onClick={() => handleRestrictedAction(`View ${item.league}`)} className="min-w-[260px] max-w-[260px] flex-shrink-0 cursor-pointer group relative h-[180px] rounded-[10px] overflow-hidden border border-gray-100 bg-gray-200">
+                            <div key={`pop-${item.id}`} onClick={() => goToEvent(item.id)} className="min-w-[260px] max-w-[260px] flex-shrink-0 cursor-pointer group relative h-[180px] rounded-[10px] overflow-hidden border border-gray-100 bg-gray-200">
                                 <img src={premiumImages[(idx + 4) % premiumImages.length]} alt={item.league} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-4 pointer-events-none">
                                     <h3 className="font-bold text-white text-lg leading-tight drop-shadow-md truncate">{item.league}</h3>
@@ -305,13 +304,13 @@ export default function Home() {
                 </button>
             </div>
 
-            {/* 8. COMEDY / UPCOMING RAIL (Real API Data) */}
+            {/* 8. UPCOMING NEAR YOU RAIL */}
             {comedy.length > 0 && (
                 <div className="mb-16">
                     <h2 className="text-2xl font-bold text-brand-text mb-6">Upcoming Near You</h2>
                     <div className="flex overflow-x-auto hide-scrollbar space-x-4 pb-4">
                         {comedy.map((item, idx) => (
-                            <div key={`comedy-${item.id}`} onClick={() => handleRestrictedAction(`View ${item.t1}`)} className="min-w-[240px] max-w-[240px] flex-shrink-0 cursor-pointer group">
+                            <div key={`comedy-${item.id}`} onClick={() => goToEvent(item.id)} className="min-w-[240px] max-w-[240px] flex-shrink-0 cursor-pointer group">
                                 <div className="relative w-full h-[180px] rounded-[10px] overflow-hidden mb-3 border border-gray-100 bg-gray-200">
                                     <img src={premiumImages[(idx + 6) % premiumImages.length]} alt={item.t1} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                                     <button onClick={(e) => { e.stopPropagation(); handleRestrictedAction(`Favourite ${item.t1}`); }} className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 backdrop-blur-sm z-10 transition-colors">
@@ -359,6 +358,7 @@ export default function Home() {
                         <motion.div 
                             whileHover={{ scale: 1.002, borderColor: '#ccc' }} 
                             key={`list-${m.id}`} 
+                            onClick={() => goToEvent(m.id)}
                             className="bg-white border border-[#DEE2E6] rounded-[12px] p-4 flex flex-col md:flex-row md:items-center hover:shadow-md transition-all cursor-pointer"
                         >
                             <div className="flex flex-1 items-center">
@@ -389,7 +389,7 @@ export default function Home() {
                             <div className="mt-4 md:mt-0 flex flex-col items-end w-full md:w-auto border-t border-[#DEE2E6] md:border-t-0 pt-4 md:pt-0">
                                  <span className="text-xs text-brand-muted font-bold mb-2 md:mb-1 w-full text-center md:text-right">Odds: {m.odds}</span>
                                  <button 
-                                    onClick={() => handleRestrictedAction(`See Tickets for ${m.t1}`)}
+                                    onClick={(e) => { e.stopPropagation(); goToEvent(m.id); }}
                                     className="w-full md:w-auto bg-white border border-gray-300 text-brand-text rounded-[10px] px-6 py-2.5 font-bold text-sm hover:bg-gray-50 transition-colors shadow-sm"
                                  >
                                      See tickets

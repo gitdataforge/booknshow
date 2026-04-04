@@ -2,10 +2,27 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, User, Menu } from 'lucide-react';
 import { useAppStore } from '../store/useStore';
+import SearchDropdown from './SearchDropdown';
 
 export default function Header() {
     const navigate = useNavigate();
-    const { isAuthenticated, openAuthModal, searchQuery, setSearchQuery } = useAppStore();
+    const { 
+        isAuthenticated, 
+        openAuthModal, 
+        searchQuery, 
+        setSearchQuery,
+        isSearchExpanded,
+        setSearchExpanded 
+    } = useAppStore();
+
+    // Centralized navigation guard for protected routes
+    const handleNavigation = (path) => {
+        if (isAuthenticated) {
+            navigate(path);
+        } else {
+            openAuthModal();
+        }
+    };
 
     return (
         <header className="w-full bg-white border-b border-brand-border sticky top-0 z-40">
@@ -34,7 +51,12 @@ export default function Header() {
                     </div>
                     <div className="md:hidden flex items-center space-x-4">
                         {isAuthenticated ? (
-                            <div className="w-8 h-8 rounded-full bg-brand-primary flex items-center justify-center"><User size={16} className="text-white"/></div>
+                            <div 
+                                onClick={() => navigate('/dashboard')}
+                                className="w-8 h-8 rounded-full bg-brand-primary flex items-center justify-center cursor-pointer"
+                            >
+                                <User size={16} className="text-white"/>
+                            </div>
                         ) : (
                             <button onClick={openAuthModal} className="text-sm font-bold text-brand-primary">Sign In</button>
                         )}
@@ -46,45 +68,50 @@ export default function Header() {
                 <nav className="hidden md:flex items-center space-x-6 text-sm font-medium text-brand-text">
                     <button onClick={() => navigate('/')} className="hover:text-brand-primary transition-colors">Explore</button>
                     
-                    {isAuthenticated ? (
-                        <>
-                            <button className="hover:text-brand-primary transition-colors">Sell</button>
-                            <button className="hover:text-brand-primary transition-colors">Favourites</button>
-                            <button className="hover:text-brand-primary transition-colors">My Tickets</button>
-                            <div className="flex items-center space-x-3 cursor-pointer pl-2">
+                    <button onClick={() => handleNavigation('/sell')} className="hover:text-brand-primary transition-colors">Sell</button>
+                    <button onClick={() => handleNavigation('/dashboard')} className="hover:text-brand-primary transition-colors">Favourites</button>
+                    <button onClick={() => handleNavigation('/dashboard')} className="hover:text-brand-primary transition-colors">My Tickets</button>
+
+                    <div className="flex items-center space-x-4 pl-2">
+                        {isAuthenticated ? (
+                            <div 
+                                onClick={() => navigate('/dashboard')}
+                                className="flex items-center space-x-3 cursor-pointer"
+                            >
                                 <span className="font-bold">Profile</span>
-                                <div className="w-9 h-9 rounded-full bg-[#114C2A] flex items-center justify-center shadow-sm">
+                                <div className="w-9 h-9 rounded-full bg-[#114C2A] flex items-center justify-center shadow-sm hover:scale-105 transition-transform">
                                     <User size={18} className="text-white"/>
                                 </div>
                             </div>
-                        </>
-                    ) : (
-                        <>
-                            <button onClick={openAuthModal} className="hover:text-brand-primary transition-colors">Sell</button>
-                            <button onClick={openAuthModal} className="hover:text-brand-primary transition-colors">Favourites</button>
-                            <button onClick={openAuthModal} className="hover:text-brand-primary transition-colors">My Tickets</button>
-                            <div className="flex items-center space-x-4 pl-2">
+                        ) : (
+                            <>
                                 <button onClick={openAuthModal} className="font-bold hover:text-brand-primary transition-colors">Sign In</button>
                                 <div onClick={openAuthModal} className="w-9 h-9 rounded-full bg-[#458731] flex items-center justify-center cursor-pointer shadow-sm hover:scale-105 transition-transform">
                                     <User size={18} className="text-white"/>
                                 </div>
-                            </div>
-                        </>
-                    )}
+                            </>
+                        )}
+                    </div>
                 </nav>
             </div>
 
-            {/* Floating Search Bar Section (Now Fully Functional) */}
-            <div className="max-w-3xl mx-auto px-4 pb-6 md:pb-8 relative z-10 w-full">
-                <div className="flex items-center bg-white border border-gray-300 rounded-full px-5 py-3.5 w-full shadow-[0_4px_20px_rgba(0,0,0,0.05)] focus-within:shadow-[0_4px_25px_rgba(17,76,42,0.15)] focus-within:border-[#458731] transition-all">
+            {/* Floating Search Bar Section with Real-Time Dropdown */}
+            <div className="max-w-3xl mx-auto px-4 pb-6 md:pb-8 relative z-50 w-full">
+                <div className={`relative flex items-center bg-white border rounded-full px-5 py-3.5 w-full transition-all duration-300 ${isSearchExpanded ? 'shadow-[0_10px_30px_rgba(0,0,0,0.15)] border-gray-200' : 'border-gray-300 shadow-[0_4px_20px_rgba(0,0,0,0.05)] focus-within:shadow-[0_4px_25px_rgba(17,76,42,0.15)] focus-within:border-[#458731]'}`}>
                     <Search size={22} className="text-[#458731] mr-3 font-bold"/>
                     <input 
                         type="text" 
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
+                        onFocus={() => setSearchExpanded(true)}
+                        // Delay blur slightly to allow clicks on results
+                        onBlur={() => setTimeout(() => setSearchExpanded(false), 200)}
                         placeholder="Search events, artists, teams and more" 
                         className="bg-transparent outline-none flex-1 text-base text-brand-text placeholder-gray-500 font-medium"
                     />
+                    
+                    {/* Absolute-positioned overlay dropdown exactly matching the input styling */}
+                    <SearchDropdown />
                 </div>
             </div>
         </header>
