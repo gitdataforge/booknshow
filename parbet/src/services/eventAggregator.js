@@ -1,9 +1,13 @@
 /**
  * src/services/eventAggregator.js
  * * Master Controller for Parbet 2026 Multi-API Orchestration.
- * Aggregates data from The Odds API, CricAPI, and SeatGeek.
+ * Aggregates data from The Odds API, CricAPI, SeatGeek, Ticketmaster, Bandsintown, and TheSportsDB.
  * Strictly handles deduplication, normalization, and temporal filtering.
  */
+
+import { fetchTicketmasterEvents } from './ticketmasterApi';
+import { fetchBandsintownEvents } from './bandsintownApi';
+import { fetchTheSportsDbEvents } from './theSportsDbApi';
 
 const ODDS_API_KEY = import.meta.env.VITE_ODDS_API_KEY || '';
 const CRIC_API_KEY = import.meta.env.VITE_CRIC_API_KEY || '';
@@ -163,15 +167,41 @@ export async function aggregateAllEvents(location = { city: 'Mumbai', countryCod
         );
     }
 
+    // 4. Fetch from Ticketmaster (Indian Concerts & Global Matches)
+    promises.push(
+        fetchTicketmasterEvents(location.city)
+            .catch(err => {
+                console.warn("Ticketmaster Data Dropped:", err.message);
+                return [];
+            })
+    );
+
+    // 5. Fetch from Bandsintown (Local Underground Music & Gigs)
+    promises.push(
+        fetchBandsintownEvents(location.city)
+            .catch(err => {
+                console.warn("Bandsintown Data Dropped:", err.message);
+                return [];
+            })
+    );
+
+    // 6. Fetch from TheSportsDB (Indian Super League & Domestic Cricket)
+    promises.push(
+        fetchTheSportsDbEvents(location.city)
+            .catch(err => {
+                console.warn("TheSportsDB Data Dropped:", err.message);
+                return [];
+            })
+    );
+
     try {
         const allFetchedGroups = await Promise.all(promises);
         const flattened = allFetchedGroups.flat();
 
-        // Strict Logic: Deduplicate, Temporal Fencing, and Geo-Fencing
+        // Strict Logic: Deduplicate, Temporal Fencing, and Ruthless Geo-Fencing
         const seen = new Set();
         const unified = flattened.filter(event => {
             // Filter 1: Strict Temporal check (Must be upcoming)
-            // Any event from the past is immediately dropped
             const startTime = new Date(event.commence_time).getTime();
             if (startTime < Date.now()) return false;
 
@@ -180,15 +210,19 @@ export async function aggregateAllEvents(location = { city: 'Mumbai', countryCod
             if (seen.has(slug)) return false;
             seen.add(slug);
 
-            // Filter 3: Strict Location/Country Payload Filtering
-            // Discard foreign events (e.g., USA/UK events) if the user is in a different country (e.g., India)
-            if (location && location.countryCode) {
-                const userCountry = location.countryCode.toUpperCase();
-                const eventCountry = (event.country || '').toUpperCase();
+            // Filter 3: Ruthless Location/City Payload Filtering
+            if (location && location.city && location.city !== 'All Cities' && location.city !== 'Global') {
+                const targetCity = location.city.toLowerCase();
+                const eventLoc = (event.loc || '').toLowerCase();
+                const eventCity = (event.city || '').toLowerCase();
+                const eventCountry = (event.country || '').toLowerCase();
                 
                 // Allow 'GLOBAL' tagged international events, but strictly filter local venue events
-                if (eventCountry && eventCountry !== 'GLOBAL' && eventCountry !== userCountry) {
-                    return false;
+                if (eventCountry !== 'global') {
+                    // If the event location does NOT contain the manually selected city, instantly drop it
+                    if (!eventLoc.includes(targetCity) && !eventCity.includes(targetCity)) {
+                        return false;
+                    }
                 }
             }
 
