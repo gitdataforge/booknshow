@@ -32,7 +32,7 @@ export default function FilterDropdown({ type, isOpen, onClose, options = [] }) 
         };
     }, [isOpen, onClose]);
 
-    // Container scaling based on type
+    // Container scaling based on type to match references
     const getDropdownWidth = () => {
         switch (type) {
             case 'date': return 'w-[340px]';
@@ -46,7 +46,7 @@ export default function FilterDropdown({ type, isOpen, onClose, options = [] }) 
     // ------------------------------------------------------------------
     // 1. DATE RANGE CALENDAR UI (image_f557a3.png)
     // ------------------------------------------------------------------
-    const [currentMonth, setCurrentMonth] = useState(new Date(2026, 3, 1)); // Default to April 2026
+    const [currentMonth, setCurrentMonth] = useState(new Date(2026, 3, 1)); // Initialize to April 2026
     
     const nextMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
     const prevMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
