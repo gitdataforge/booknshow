@@ -2,7 +2,7 @@
  * src/services/eventAggregator.js
  * * Master Controller for Parbet 2026 Multi-API Orchestration.
  * Aggregates data from The Odds API, CricAPI, SeatGeek, Ticketmaster, Bandsintown, and TheSportsDB.
- * Strictly handles deduplication, normalization, and temporal filtering.
+ * Strictly handles deduplication, normalization, temporal filtering, and cascading geo-fencing.
  */
 
 import { fetchTicketmasterEvents } from './ticketmasterApi';
@@ -119,9 +119,9 @@ function transformSeatGeekEvent(event) {
 
 /**
  * Main Aggregator logic
- * @param {Object} location - { city, countryCode }
+ * @param {Object} location - { city, state, countryCode }
  */
-export async function aggregateAllEvents(location = { city: 'Mumbai', countryCode: 'IN' }) {
+export async function aggregateAllEvents(location = { city: 'Mumbai', state: 'Maharashtra', countryCode: 'IN' }) {
     const results = [];
     
     // Concurrent fetch promises
@@ -198,10 +198,10 @@ export async function aggregateAllEvents(location = { city: 'Mumbai', countryCod
         const allFetchedGroups = await Promise.all(promises);
         const flattened = allFetchedGroups.flat();
 
-        // Strict Logic: Deduplicate, Temporal Fencing, and Ruthless Geo-Fencing
+        // Strict Logic: Deduplicate, Temporal Fencing, and Cascading Geo-Fencing
         const seen = new Set();
         const unified = flattened.filter(event => {
-            // Filter 1: Strict Temporal check (Must be upcoming)
+            // Filter 1: Strict Temporal check (Must be upcoming or live)
             const startTime = new Date(event.commence_time).getTime();
             if (startTime < Date.now()) return false;
 
@@ -210,18 +210,42 @@ export async function aggregateAllEvents(location = { city: 'Mumbai', countryCod
             if (seen.has(slug)) return false;
             seen.add(slug);
 
-            // Filter 3: Ruthless Location/City Payload Filtering
+            // Default proximity score assignment
+            event.proximityScore = 1; 
+
+            // Filter 3: Cascading Location Filtering (City -> State -> Country)
             if (location && location.city && location.city !== 'All Cities' && location.city !== 'Global') {
                 const targetCity = location.city.toLowerCase();
+                const targetState = (location.state || 'maharashtra').toLowerCase();
+                const targetCountry = (location.countryCode || 'in').toLowerCase();
+
                 const eventLoc = (event.loc || '').toLowerCase();
                 const eventCity = (event.city || '').toLowerCase();
                 const eventCountry = (event.country || '').toLowerCase();
                 
-                // Allow 'GLOBAL' tagged international events, but strictly filter local venue events
-                if (eventCountry !== 'global') {
-                    // If the event location does NOT contain the manually selected city, instantly drop it
-                    if (!eventLoc.includes(targetCity) && !eventCity.includes(targetCity)) {
-                        return false;
+                // Allow 'GLOBAL' tagged international events, but strictly apply cascading geo-fence for venue events
+                if (eventCountry === 'global') {
+                    event.proximityScore = 1; // Global is allowed but ranked lowest in proximity
+                    event.isGlobal = true;
+                } else {
+                    // Level 1 Cascade: Strict City Match (Highest Priority)
+                    if (eventLoc.includes(targetCity) || eventCity.includes(targetCity)) {
+                        event.proximityScore = 3;
+                        event.isLocal = true;
+                    } 
+                    // Level 2 Cascade: State Match (e.g., Maharashtra)
+                    else if (eventLoc.includes(targetState) || eventCity.includes(targetState)) {
+                        event.proximityScore = 2;
+                        event.isStateLevel = true;
+                    } 
+                    // Level 3 Cascade: Country Match (e.g., India)
+                    else if (eventCountry === targetCountry || eventCountry === 'in' || eventCountry === 'india' || eventLoc.includes('india')) {
+                        event.proximityScore = 1;
+                        event.isNational = true; // Tagged as national fallback event
+                    } 
+                    // If event matches none of the cascading proximity levels, safely drop it
+                    else {
+                        return false; 
                     }
                 }
             }
@@ -229,8 +253,13 @@ export async function aggregateAllEvents(location = { city: 'Mumbai', countryCod
             return true;
         });
 
-        // Final Logic: Chronological Sort to surface the most immediate events first
-        return unified.sort((a, b) => new Date(a.commence_time).getTime() - new Date(b.commence_time).getTime());
+        // Final Logic: Sort first by Cascading Proximity Score (Local -> State -> National), then Chronologically
+        return unified.sort((a, b) => {
+            if (b.proximityScore !== a.proximityScore) {
+                return b.proximityScore - a.proximityScore;
+            }
+            return new Date(a.commence_time).getTime() - new Date(b.commence_time).getTime();
+        });
 
     } catch (error) {
         console.error("Aggregation Critical Failure:", error);

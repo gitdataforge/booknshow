@@ -277,10 +277,30 @@ export const useAppStore = create((set, get) => ({
             let geo, city, country;
 
             if (targetCity) {
-                // If a manual city is provided/stored, instantly bypass the location API
+                // If a manual city is provided/stored, map it strictly to its state for cascading logic
+                const cityToStateMap = {
+                    'mumbai': 'Maharashtra', 'pune': 'Maharashtra', 'nagpur': 'Maharashtra', 'thane': 'Maharashtra',
+                    'delhi': 'Delhi', 'new delhi': 'Delhi',
+                    'bangalore': 'Karnataka', 'bengaluru': 'Karnataka',
+                    'hyderabad': 'Telangana',
+                    'chennai': 'Tamil Nadu',
+                    'kolkata': 'West Bengal',
+                    'ahmedabad': 'Gujarat', 'surat': 'Gujarat',
+                    'jaipur': 'Rajasthan',
+                    'lucknow': 'Uttar Pradesh', 'noida': 'Uttar Pradesh',
+                    'bhopal': 'Madhya Pradesh', 'indore': 'Madhya Pradesh',
+                    'patna': 'Bihar',
+                    'bhubaneswar': 'Odisha',
+                    'kochi': 'Kerala', 'trivandrum': 'Kerala',
+                    'guwahati': 'Assam',
+                    'goa': 'Goa', 'panaji': 'Goa'
+                };
+                
+                const mappedState = cityToStateMap[targetCity.toLowerCase()] || '';
+
                 city = targetCity;
                 country = 'IN'; // Assuming India context for manual selections currently
-                geo = { city: targetCity, state: '', countryCode: 'IN', lat: null, lon: null };
+                geo = { city: targetCity, state: mappedState, countryCode: 'IN', lat: null, lon: null };
             } else {
                 // Only fall back to auto-detection if no manual preference exists
                 geo = await fetchUserCity();
@@ -288,8 +308,13 @@ export const useAppStore = create((set, get) => ({
                 country = geo.countryCode || 'IN';
             }
 
-            // Pass the strict location directly into the Aggregator
-            const matches = await aggregateAllEvents({ city, countryCode: country });
+            // Pass the strict location directly into the Aggregator including the state for cascading fallback
+            const matches = await aggregateAllEvents({ 
+                city: city, 
+                state: geo.state || geo.region || '', 
+                countryCode: country 
+            });
+            
             const performers = Array.from(new Set(matches.flatMap(m => [m.t1, m.t2])))
                 .filter(Boolean)
                 .map(name => ({ name }));

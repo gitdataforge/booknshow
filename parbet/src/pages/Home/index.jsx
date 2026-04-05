@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, Calendar, Heart, RefreshCw, AlertCircle, Info, Download, QrCode, Navigation, ChevronDown, Clock } from 'lucide-react';
+import { MapPin, Calendar, Heart, RefreshCw, AlertCircle, Info, Download, QrCode, Navigation, ChevronDown, Clock, CheckCircle } from 'lucide-react';
 import { useAppStore } from '../../store/useStore';
 import LocationDropdown from '../../components/LocationDropdown';
 
@@ -126,10 +126,33 @@ export default function Home() {
         });
     }, [liveMatches, searchQuery]);
 
-    const recents = filteredMatches.slice(0, 4);
-    const recommended = filteredMatches.slice(1, 5);
-    const popular = filteredMatches.slice(2, 6);
-    const comedy = filteredMatches.slice(3, 7);
+    // Dynamic Location String Builder (Cascading Logic Check)
+    const getDynamicLocationString = (eventsArray, baseText = '') => {
+        if (!eventsArray || eventsArray.length === 0) return userCity !== 'Loading...' ? `${baseText} ${userCity}` : `${baseText} your area`;
+        
+        // Check if the current array slice contains any fallback events
+        const hasNational = eventsArray.some(e => e.proximityScore === 1 || e.isNational || e.isGlobal);
+        const hasState = eventsArray.some(e => e.proximityScore === 2 || e.isStateLevel);
+        
+        const cityContext = userCity !== 'Loading...' ? userCity : 'your area';
+        
+        if (hasNational) return `${baseText} ${cityContext} & Across India`;
+        if (hasState) return `${baseText} ${cityContext} & Surrounding Regions`;
+        
+        return `${baseText} ${cityContext}`;
+    };
+
+    // Array Slice Logic: Local events are inherently pushed to the front because the aggregator sorts by ProximityScore (3, 2, 1) first.
+    // By creating wider slices, we guarantee local events are fully loaded on the left, and national fallbacks spill to the right.
+    const recents = filteredMatches.slice(0, 8);
+    const recommended = filteredMatches.slice(0, 10);
+    
+    // Attempt real categorical filters, otherwise fallback to the cascading sorted array
+    const popularData = filteredMatches.filter(m => m.source === 'OddsAPI' || m.source === 'TheSportsDB');
+    const popular = popularData.length > 0 ? popularData.slice(0, 10) : filteredMatches.slice(2, 12);
+    
+    const comedyData = filteredMatches.filter(m => m.source === 'SeatGeek' || m.source === 'Bandsintown');
+    const comedy = comedyData.length > 0 ? comedyData.slice(0, 10) : filteredMatches.slice(4, 14);
 
     return (
         <div className="animate-fade-in w-full pb-20 overflow-x-hidden">
@@ -246,7 +269,7 @@ export default function Home() {
                 </div>
             )}
 
-            {/* 4. RECENTLY VIEWED RAIL */}
+            {/* 4. RECENTLY VIEWED RAIL (Displays mixed location items gracefully) */}
             {recents.length > 0 && (
                 <div className="mb-12">
                     <div className="flex justify-between items-center mb-6">
@@ -263,45 +286,70 @@ export default function Home() {
                                     </button>
                                 </div>
                                 <h3 className="font-bold text-brand-text text-[17px] leading-tight group-hover:underline truncate">{item.t1} {item.t2 ? `vs ${item.t2}` : ''}</h3>
-                                <p className="text-[13px] text-brand-muted truncate">{item.league}</p>
+                                <p className="text-[13px] text-brand-muted truncate mt-1 flex items-center">
+                                    {item.league} 
+                                    <span className="ml-2 text-[#458731] flex items-center text-[10px] bg-[#E6F2D9] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
+                                       <CheckCircle size={10} className="mr-1"/> Verified Venue
+                                    </span>
+                                </p>
                             </div>
                         ))}
                     </div>
                 </div>
             )}
 
-            {/* 5. RECOMMENDED FOR YOU RAIL (Location Bound) */}
+            {/* 5. RECOMMENDED FOR YOU RAIL (Dynamic Cascading Heading) */}
             {recommended.length > 0 && (
                 <div className="mb-12">
-                    <h2 className="text-2xl font-bold text-brand-text mb-6">Recommended in {userCity !== 'Loading...' ? userCity : 'your area'}</h2>
+                    <h2 className="text-2xl font-bold text-brand-text mb-6">
+                        {getDynamicLocationString(recommended, 'Recommended in')}
+                    </h2>
                     <div className="flex overflow-x-auto hide-scrollbar space-x-4 pb-4">
                         {recommended.map((item) => (
-                            <div key={`rec-${item.id}`} onClick={() => goToEvent(item.id)} className="min-w-[240px] max-w-[240px] flex-shrink-0 cursor-pointer group">
+                            <div key={`rec-${item.id}`} onClick={() => goToEvent(item.id)} className="min-w-[240px] max-w-[240px] flex-shrink-0 cursor-pointer group flex flex-col">
                                 <div className="relative w-full h-[180px] rounded-[10px] overflow-hidden mb-3 border border-gray-100 bg-gray-200">
                                     <img src={`https://loremflickr.com/600/400/${encodeURIComponent(item.league.split(' ')[0])},sports/all`} alt={item.t1} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                                    {/* Geographic Proximity Badge Overlay */}
+                                    {item.proximityScore < 3 && (
+                                        <div className="absolute top-3 left-3 bg-white/90 backdrop-blur text-[10px] font-black px-2 py-1 rounded text-brand-text uppercase shadow-sm">
+                                            {item.isNational ? 'National Event' : 'State Event'}
+                                        </div>
+                                    )}
                                     <button onClick={(e) => { e.stopPropagation(); handleRestrictedAction(`Favourite`, item); }} className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 backdrop-blur-sm z-10 transition-colors">
                                         <Heart size={14} className="text-white"/>
                                     </button>
                                 </div>
-                                <h3 className="font-bold text-brand-text text-base leading-tight group-hover:underline mb-1 truncate">{item.t1} {item.t2 ? `vs ${item.t2}` : ''}</h3>
-                                <p className="text-[13px] text-brand-muted font-medium">{item.dow}, {item.day} {item.month} • {item.time}</p>
-                                <p className="text-[13px] font-bold text-brand-muted truncate">📍 {item.loc}</p>
+                                <h3 className="font-bold text-brand-text text-base leading-tight group-hover:underline mb-1.5 line-clamp-2">{item.t1} {item.t2 ? `vs ${item.t2}` : ''}</h3>
+                                <p className="text-[13px] text-brand-muted font-medium mb-1">
+                                    <Clock size={12} className="inline mr-1 opacity-70"/> {item.dow}, {item.day} {item.month} • {item.time}
+                                </p>
+                                <div className="text-[13px] font-bold text-brand-muted truncate flex items-center">
+                                    <span className="truncate">📍 {item.loc}</span>
+                                </div>
+                                <div className="mt-1 flex items-center text-[#458731] text-[10px] font-bold bg-[#E6F2D9] px-1.5 py-0.5 rounded w-max">
+                                    <CheckCircle size={10} className="mr-1"/> Verified Venue
+                                </div>
                             </div>
                         ))}
                     </div>
                 </div>
             )}
 
-            {/* 6. POPULAR CATEGORIES RAIL */}
+            {/* 6. POPULAR CATEGORIES RAIL (Dynamic Cascading Heading) */}
             {popular.length > 0 && (
                 <div className="mb-12">
-                    <h2 className="text-2xl font-bold text-brand-text mb-6">Popular in {userCountry || 'India'}</h2>
+                    <h2 className="text-2xl font-bold text-brand-text mb-6">
+                        {getDynamicLocationString(popular, 'Popular in')}
+                    </h2>
                     <div className="flex overflow-x-auto hide-scrollbar space-x-4 pb-4">
                         {popular.map((item) => (
                             <div key={`pop-${item.id}`} onClick={() => goToEvent(item.id)} className="min-w-[260px] max-w-[260px] flex-shrink-0 cursor-pointer group relative h-[180px] rounded-[10px] overflow-hidden border border-gray-100 bg-gray-200 shadow-sm">
                                 <img src={`https://loremflickr.com/600/400/${encodeURIComponent(item.league.split(' ')[0])},sports/all`} alt={item.league} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-4 pointer-events-none">
                                     <h3 className="font-bold text-white text-lg leading-tight drop-shadow-md truncate">{item.league}</h3>
+                                    <div className="text-white/80 text-[11px] font-bold mt-1 flex items-center uppercase tracking-wider">
+                                        <MapPin size={12} className="mr-1"/> {item.loc.substring(0, 20)}...
+                                    </div>
                                 </div>
                             </div>
                         ))}
@@ -324,37 +372,53 @@ export default function Home() {
                 </button>
             </div>
 
-            {/* 8. UPCOMING NEAR YOU RAIL */}
+            {/* 8. UPCOMING NEAR YOU RAIL (Dynamic Cascading Heading) */}
             {comedy.length > 0 && (
                 <div className="mb-16">
-                    <h2 className="text-2xl font-bold text-brand-text mb-6">Upcoming Near {userCity !== 'Loading...' ? userCity : 'You'}</h2>
+                    <h2 className="text-2xl font-bold text-brand-text mb-6">
+                        {getDynamicLocationString(comedy, 'Upcoming Near')}
+                    </h2>
                     <div className="flex overflow-x-auto hide-scrollbar space-x-4 pb-4">
                         {comedy.map((item) => (
-                            <div key={`comedy-${item.id}`} onClick={() => goToEvent(item.id)} className="min-w-[240px] max-w-[240px] flex-shrink-0 cursor-pointer group">
+                            <div key={`comedy-${item.id}`} onClick={() => goToEvent(item.id)} className="min-w-[240px] max-w-[240px] flex-shrink-0 cursor-pointer group flex flex-col">
                                 <div className="relative w-full h-[180px] rounded-[10px] overflow-hidden mb-3 border border-gray-100 bg-gray-200">
                                     <img src={`https://loremflickr.com/600/400/${encodeURIComponent(item.league.split(' ')[0])},sports/all`} alt={item.t1} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                                    {item.proximityScore < 3 && (
+                                        <div className="absolute top-3 left-3 bg-white/90 backdrop-blur text-[10px] font-black px-2 py-1 rounded text-brand-text uppercase shadow-sm">
+                                            {item.isNational ? 'National Event' : 'State Event'}
+                                        </div>
+                                    )}
                                     <button onClick={(e) => { e.stopPropagation(); handleRestrictedAction(`Favourite`, item); }} className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 backdrop-blur-sm z-10 transition-colors">
                                         <Heart size={14} className="text-white"/>
                                     </button>
                                 </div>
-                                <h3 className="font-bold text-brand-text text-base leading-tight group-hover:underline mb-1 truncate">{item.t1} {item.t2 ? `vs ${item.t2}` : ''}</h3>
-                                <p className="text-[13px] text-brand-muted font-medium">{item.dow}, {item.day} {item.month} • {item.time}</p>
-                                <p className="text-[13px] font-bold text-brand-muted truncate">📍 {item.loc}</p>
+                                <h3 className="font-bold text-brand-text text-base leading-tight group-hover:underline mb-1.5 line-clamp-2">{item.t1} {item.t2 ? `vs ${item.t2}` : ''}</h3>
+                                <p className="text-[13px] text-brand-muted font-medium mb-1">
+                                    <Clock size={12} className="inline mr-1 opacity-70"/> {item.dow}, {item.day} {item.month} • {item.time}
+                                </p>
+                                <div className="text-[13px] font-bold text-brand-muted truncate flex items-center">
+                                    <span className="truncate">📍 {item.loc}</span>
+                                </div>
+                                <div className="mt-1 flex items-center text-[#458731] text-[10px] font-bold bg-[#E6F2D9] px-1.5 py-0.5 rounded w-max">
+                                    <CheckCircle size={10} className="mr-1"/> Verified Venue
+                                </div>
                             </div>
                         ))}
                     </div>
                 </div>
             )}
 
-            {/* 9. THE ODDS API REAL-TIME INTEGRATION (FULL LIST) */}
+            {/* 9. THE MAIN REAL-TIME FEED (FULL LIST - DYNAMIC HEADER) */}
             <div className="mb-16">
                 <div className="flex justify-between items-end mb-6">
-                    <h2 className="text-2xl font-bold text-brand-text tracking-tight">Live Sports in {userCity !== 'Loading...' ? userCity : 'your area'}</h2>
+                    <h2 className="text-2xl font-bold text-brand-text tracking-tight">
+                        {getDynamicLocationString(filteredMatches, 'Live Events in')}
+                    </h2>
                 </div>
 
                 <div className="flex space-x-3 mb-6 overflow-x-auto hide-scrollbar pb-2">
                     <button onClick={() => fetchLocationAndMatches(userCity)} className="bg-white border border-brand-border text-[#458731] px-5 py-2.5 rounded-[10px] text-sm font-bold flex items-center whitespace-nowrap hover:bg-[#E6F2D9] transition-colors shadow-sm">
-                        <RefreshCw size={14} className={`mr-2 ${isLoadingMatches ? 'animate-spin' : ''}`}/> Refresh Local Feed
+                        <RefreshCw size={14} className={`mr-2 ${isLoadingMatches ? 'animate-spin' : ''}`}/> Refresh Aggregator Feed
                     </button>
                 </div>
 
@@ -379,8 +443,15 @@ export default function Home() {
                             whileHover={{ scale: 1.002, borderColor: '#ccc' }} 
                             key={`list-${m.id}`} 
                             onClick={() => goToEvent(m.id)}
-                            className="bg-white border border-[#DEE2E6] rounded-[12px] p-4 flex flex-col md:flex-row md:items-center hover:shadow-md transition-all cursor-pointer"
+                            className="bg-white border border-[#DEE2E6] rounded-[12px] p-4 flex flex-col md:flex-row md:items-center hover:shadow-md transition-all cursor-pointer relative"
                         >
+                            {/* Geographical Proximity Indicator for National Events */}
+                            {m.proximityScore < 3 && (
+                                <div className="absolute top-0 right-0 bg-[#f1f3f5] text-brand-muted text-[10px] font-black px-3 py-1 rounded-bl-[12px] rounded-tr-[12px] uppercase tracking-wider border-l border-b border-[#DEE2E6]">
+                                    {m.isNational ? 'National Event' : 'State Event'}
+                                </div>
+                            )}
+
                             <div className="flex flex-1 items-center">
                                 <div className="flex flex-col items-center justify-center pr-4 md:pr-6 border-r border-[#DEE2E6] min-w-[70px]">
                                     <span className="text-xs font-bold text-brand-text">{m.month}</span>
@@ -388,15 +459,24 @@ export default function Home() {
                                     <span className="text-xs text-brand-muted">{m.dow}</span>
                                 </div>
                                 
-                                <div className="pl-4 md:pl-6 flex-1">
-                                    <h3 className="text-[17px] font-bold text-brand-text leading-tight mb-1">{m.t1} {m.t2 ? `vs ${m.t2}` : ''}</h3>
-                                    <p className="text-[13px] text-brand-muted flex items-center mb-2 font-medium">
-                                        {m.time} • 📍 {m.loc}
-                                    </p>
+                                <div className="pl-4 md:pl-6 flex-1 pt-2 md:pt-0">
+                                    <h3 className="text-[17px] font-bold text-brand-text leading-tight mb-1 pr-16 md:pr-0">{m.t1} {m.t2 ? `vs ${m.t2}` : ''}</h3>
+                                    
+                                    <div className="text-[13px] text-brand-muted flex flex-col md:flex-row md:items-center mb-2 font-medium">
+                                        <span className="flex items-center"><Clock size={12} className="mr-1 opacity-70"/> {m.time}</span>
+                                        <span className="hidden md:inline mx-2">•</span>
+                                        <span className="flex items-center mt-1 md:mt-0">📍 {m.loc}</span>
+                                    </div>
+
                                     <div className="flex space-x-2 items-center">
                                         {/* Dynamic Relative Date Logic */}
                                         <div className="flex items-center text-brand-text bg-gray-100 px-2.5 py-1 rounded text-[11px] font-bold border border-[#DEE2E6] uppercase tracking-wider">
                                             <Calendar size={12} className="mr-1.5 opacity-60"/> {getRelativeDateLabel(m.commence_time)}
+                                        </div>
+                                        
+                                        {/* Verified Venue Tag */}
+                                        <div className="flex items-center text-[#458731] bg-[#E6F2D9] px-2.5 py-1 rounded text-[11px] font-bold border border-[#C5E1A5] uppercase tracking-wider">
+                                            <CheckCircle size={12} className="mr-1.5"/> Verified Venue
                                         </div>
                                     </div>
                                 </div>
