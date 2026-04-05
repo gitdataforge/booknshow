@@ -1,0 +1,15 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /listings/{listingId} {
+      // Public read access for buyers
+      allow read: if true;
+      // Strict real logic: Only authenticated users with verified KYC can create listings
+      allow create, update: if request.auth != null && request.auth.token.kycVerified == true;
+      allow delete: if request.auth != null && resource.data.sellerId == request.auth.uid;
+    }
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
