@@ -1,13 +1,18 @@
 export const fetchUserCity = async () => {
     try {
-        // Free, legal, zero-auth IP geolocation endpoint used to replicate Viagogo's zero-click localization
-        const response = await fetch('https://ipapi.co/json/');
+        // Free, legal, zero-auth IP geolocation endpoint with CORS enabled for web dev environments
+        const response = await fetch('https://ipwho.is/');
         
         if (!response.ok) {
             throw new Error("Location fetch failed due to network or rate limit.");
         }
         
         const data = await response.json();
+        
+        // ipwho.is returns a 'success' boolean flag that we must strictly check
+        if (!data.success) {
+             throw new Error(data.message || "Geolocation API returned an error payload.");
+        }
         
         // Return the strictly normalized object containing city, country code, and coordinates for the aggregator
         return {
