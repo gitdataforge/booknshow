@@ -23,7 +23,7 @@ const getCurrencyFromCountry = (countryCode) => {
         'CA': 'CAD',
         'EU': 'EUR'
     };
-    return map[countryCode?.toUpperCase()] || 'INR'; // Defaulting to INR for Indian market focus
+    return map[countryCode?.toUpperCase()] || 'INR'; 
 };
 
 export const useAppStore = create((set, get) => ({
@@ -37,28 +37,58 @@ export const useAppStore = create((set, get) => ({
     
     // Real-Time API Data
     liveMatches: [],
-    trendingPerformers: [], // Derived from liveMatches
+    trendingPerformers: [], 
     isLoadingMatches: true,
     apiError: null,
     
     // Location, Language & Currency
     userCity: 'Loading...',
-    userCurrency: 'INR', // Dynamic global currency state
-    userLanguage: 'EN', // Default Language
+    userCurrency: 'INR', 
+    userLanguage: 'EN',
 
     // Persisted User Data
     recentSearches: JSON.parse(localStorage.getItem('parbet_recent_searches')) || [],
     favorites: JSON.parse(localStorage.getItem('parbet_favorites')) || [],
 
+    // ------------------------------------------------------------------
+    // NEW: Multi-Step Checkout & PayU Lifecycle States
+    // ------------------------------------------------------------------
+    checkoutStep: 1, // Progress tracking (1-4)
+    checkoutExpiration: null, // 10-minute timer lock
+    payuHash: '', // Secure Production Hash
+    payuTransactionId: '', // Production TXN ID
+    
+    checkoutFormData: {
+        contact: {
+            email: '',
+            firstName: '',
+            lastName: '',
+            phone: '',
+            countryCode: '+91'
+        },
+        delivery: {
+            method: 'Mobile Transfer',
+            fullName: '',
+            phone: ''
+        },
+        address: {
+            country: 'India',
+            line1: '',
+            line2: '',
+            city: '',
+            state: '',
+            zip: ''
+        }
+    },
+
     // Marketplace Flow States
     activeEvent: null,
     eventListings: [],
     isCheckingOut: false,
-    checkoutExpiration: null, // 10-minute timer lock
 
     // Ticket Selection States
     isTicketQuantityModalOpen: false,
-    selectedTicketQuantity: 2, // Defaults to 2 mimicking the Viagogo standard
+    selectedTicketQuantity: 2, 
 
     // UI & Interactive States
     isLocationDropdownOpen: false,
@@ -102,12 +132,22 @@ export const useAppStore = create((set, get) => ({
     setUserLanguage: (lang) => set({ userLanguage: lang }),
     setUserCurrency: (currency) => set({ userCurrency: currency }),
 
+    // Checkout Step & Form Setters
+    setCheckoutStep: (step) => set({ checkoutStep: step }),
+    updateCheckoutFormData: (section, data) => set((state) => ({
+        checkoutFormData: {
+            ...state.checkoutFormData,
+            [section]: { ...state.checkoutFormData[section], ...data }
+        }
+    })),
+    setPayuStates: (hash, txnId) => set({ payuHash: hash, payuTransactionId: txnId }),
+
     // Checkout Timer Actions
     startCheckoutTimer: () => {
         const tenMinutesFromNow = Date.now() + 10 * 60 * 1000;
         set({ checkoutExpiration: tenMinutesFromNow });
     },
-    resetCheckoutTimer: () => set({ checkoutExpiration: null }),
+    resetCheckoutTimer: () => set({ checkoutExpiration: null, checkoutStep: 1 }),
 
     // Favorites Action (Local Storage + Firebase Sync)
     toggleFavorite: async (eventObj) => {
@@ -117,11 +157,9 @@ export const useAppStore = create((set, get) => ({
             ? state.favorites.filter(f => f.id !== eventObj.id)
             : [...state.favorites, eventObj];
         
-        // Persist locally for immediate UI feedback
         localStorage.setItem('parbet_favorites', JSON.stringify(newFavorites));
         set({ favorites: newFavorites });
 
-        // Securely sync to Firebase if user is authenticated
         if (state.user) {
             try {
                 const userRef = doc(db, 'users', state.user.uid);
@@ -151,71 +189,39 @@ export const useAppStore = create((set, get) => ({
         set({ trendingPerformers: performers });
     },
 
-    // ------------------------------------------------------------------
-    // Core Utility: Aggregate P2P Listings by Stadium Section
-    // ------------------------------------------------------------------
     getSectionAggregates: () => {
         const listings = get().eventListings;
         const aggregates = {};
-
         listings.forEach(listing => {
             const section = (listing.section || 'General').toUpperCase().trim();
             const price = parseFloat(listing.price);
             const quantity = parseInt(listing.quantity, 10) || 1;
-
             if (!aggregates[section]) {
-                aggregates[section] = {
-                    section: section,
-                    minPrice: price,
-                    totalQuantity: quantity,
-                    listings: [listing]
-                };
+                aggregates[section] = { section, minPrice: price, totalQuantity: quantity, listings: [listing] };
             } else {
-                if (price < aggregates[section].minPrice) {
-                    aggregates[section].minPrice = price; // Update Best Price
-                }
-                aggregates[section].totalQuantity += quantity; // Sum up tickets left
+                if (price < aggregates[section].minPrice) aggregates[section].minPrice = price;
+                aggregates[section].totalQuantity += quantity;
                 aggregates[section].listings.push(listing);
             }
         });
-
-        // Return array of aggregated sections sorted alphabetically
         return Object.values(aggregates).sort((a, b) => a.section.localeCompare(b.section));
     },
 
-    // Combined Async action for IP/Manual Location + Odds (Initial Load & Updates)
     fetchLocationAndMatches: async (manualCity = null) => {
         set({ isLoadingMatches: true, apiError: null });
         try {
-            // Resolve city: use manual input if provided, else auto-detect via IP
             const city = manualCity || await fetchUserCity();
-
-            // Pass the resolved location directly into the Odds API fetcher
             const matches = await fetchRealUpcomingMatches(city);
-            
-            // Calculate unique performers from real results
-            const performers = Array.from(new Set(matches.flatMap(m => [m.t1, m.t2])))
-                .map(name => ({ name }));
-
-            set({ 
-                userCity: city, 
-                liveMatches: matches, 
-                trendingPerformers: performers,
-                isLoadingMatches: false 
-            });
+            const performers = Array.from(new Set(matches.flatMap(m => [m.t1, m.t2]))).map(name => ({ name }));
+            set({ userCity: city, liveMatches: matches, trendingPerformers: performers, isLoadingMatches: false });
         } catch (error) {
             set({ apiError: error.message, isLoadingMatches: false, userCity: manualCity || "Global" });
         }
     },
 
-    // Fetch P2P Listings for a specific event
     fetchEventListings: async (eventId) => {
         try {
-            const q = query(
-                collection(db, 'listings'), 
-                where('eventId', '==', eventId), 
-                where('status', '==', 'active')
-            );
+            const q = query(collection(db, 'listings'), where('eventId', '==', eventId), where('status', '==', 'active'));
             const snapshot = await getDocs(q);
             const listings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             set({ eventListings: listings });
@@ -224,49 +230,25 @@ export const useAppStore = create((set, get) => ({
         }
     },
 
-    // Secure Atomic Transaction: Execute purchase and update balances
     executePurchase: async (listingId, buyerId, amount) => {
         set({ isCheckingOut: true });
         try {
             await runTransaction(db, async (transaction) => {
                 const listingRef = doc(db, 'listings', listingId);
                 const buyerRef = doc(db, 'users', buyerId);
-                
                 const listingSnap = await transaction.get(listingRef);
                 const buyerSnap = await transaction.get(buyerRef);
-
-                if (!listingSnap.exists() || listingSnap.data().status !== 'active') {
-                    throw new Error("Listing is no longer available.");
-                }
-
-                if (!buyerSnap.exists() || buyerSnap.data().balance < amount) {
-                    throw new Error("Insufficient wallet balance.");
-                }
-
+                if (!listingSnap.exists() || listingSnap.data().status !== 'active') throw new Error("Listing is no longer available.");
+                if (!buyerSnap.exists() || buyerSnap.data().balance < amount) throw new Error("Insufficient wallet balance.");
                 const sellerId = listingSnap.data().sellerId;
                 const sellerRef = doc(db, 'users', sellerId);
                 const sellerSnap = await transaction.get(sellerRef);
-
-                // 1. Deduct from Buyer
                 transaction.update(buyerRef, { balance: buyerSnap.data().balance - amount });
-                
-                // 2. Credit Seller
                 const currentSellerBalance = sellerSnap.exists() ? (sellerSnap.data().balance || 0) : 0;
                 transaction.update(sellerRef, { balance: currentSellerBalance + amount });
-
-                // 3. Mark Listing as Sold
                 transaction.update(listingRef, { status: 'sold' });
-
-                // 4. Create Order Record
                 const orderRef = doc(collection(db, 'orders'));
-                transaction.set(orderRef, {
-                    listingId,
-                    buyerId,
-                    sellerId,
-                    amount,
-                    eventName: listingSnap.data().eventName,
-                    createdAt: new Date().toISOString()
-                });
+                transaction.set(orderRef, { listingId, buyerId, sellerId, amount, eventName: listingSnap.data().eventName, createdAt: new Date().toISOString() });
             });
             set({ isCheckingOut: false });
             return { success: true };
@@ -276,28 +258,21 @@ export const useAppStore = create((set, get) => ({
         }
     },
 
-    // HTML5 Native Geolocation Request (with Currency Binding)
     requestDeviceLocation: async () => {
         set({ isLocationDropdownOpen: false, locationError: null });
-        
         if (!navigator.geolocation) {
-            set({ locationError: 'There is no location support on this device or it is disabled. Please check your settings.' });
+            set({ locationError: 'There is no location support on this device or it is disabled.' });
             return;
         }
-
         navigator.geolocation.getCurrentPosition(
             async (position) => {
                 const { latitude, longitude } = position.coords;
                 try {
                     const response = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`);
                     const data = await response.json();
-                    
                     const resolvedCity = data.city || data.locality || "Current Location";
-                    const resolvedCurrency = getCurrencyFromCountry(data.countryCode); // Set currency based on country code
-                    
+                    const resolvedCurrency = getCurrencyFromCountry(data.countryCode); 
                     set({ userCity: resolvedCity, userCurrency: resolvedCurrency });
-                    
-                    // Trigger the global fetch to update API data with the new GPS-based city
                     get().fetchLocationAndMatches(resolvedCity);
                 } catch (err) {
                     console.error("Reverse geocode failed:", err);
@@ -305,8 +280,7 @@ export const useAppStore = create((set, get) => ({
                 }
             },
             (error) => {
-                console.error("Geolocation Error:", error);
-                set({ locationError: 'There is no location support on this device or it is disabled. Please check your settings.' });
+                set({ locationError: 'Location access disabled.' });
             },
             { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
         );
