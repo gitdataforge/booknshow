@@ -10,7 +10,7 @@ const CRIC_API_KEY = import.meta.env.VITE_CRIC_API_KEY || '';
 const SEATGEEK_CLIENT_ID = import.meta.env.VITE_SEATGEEK_CLIENT_ID || '';
 
 /**
- * Enhanced fetch with exponential backoff and strict early-exit auth checks.
+ * Enhanced fetch with exponential backoff and strict early-exit auth/network checks.
  */
 async function fetchWithRetry(url, options = {}, retries = 5, backoff = 1000) {
     let response;
@@ -18,7 +18,13 @@ async function fetchWithRetry(url, options = {}, retries = 5, backoff = 1000) {
     try {
         response = await fetch(url, options);
     } catch (networkError) {
-        // Handle pure network failures (e.g., DNS issues, ERR_CONNECTION_RESET)
+        // Strict early-exit: Instantly abort on hard network drops to prevent console spam
+        const errMsg = networkError.message || '';
+        if (errMsg.includes('Failed to fetch') || errMsg.includes('NetworkError') || errMsg.includes('ERR_CONNECTION_RESET')) {
+            throw networkError;
+        }
+
+        // Handle pure network failures (e.g., temporary DNS drops)
         if (retries > 0) {
             await new Promise(resolve => setTimeout(resolve, backoff));
             return fetchWithRetry(url, options, retries - 1, backoff * 2);

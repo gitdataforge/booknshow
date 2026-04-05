@@ -44,6 +44,7 @@ export const useAppStore = create((set, get) => ({
     // ------------------------------------------------------------------
     // NEW: Strict Location & Internationalization
     // ------------------------------------------------------------------
+    manualCity: localStorage.getItem('parbet_manual_city') || null,
     userCity: 'Loading...',
     userCountry: 'IN', // Default country code
     userCurrency: 'INR', 
@@ -137,6 +138,22 @@ export const useAppStore = create((set, get) => ({
     setLocationError: (errorMsg) => set({ locationError: errorMsg }),
     setSearchQuery: (query) => set({ searchQuery: query }),
     setActiveEvent: (event) => set({ activeEvent: event }),
+
+    // ------------------------------------------------------------------
+    // NEW: Manual Location Strict Setter
+    // ------------------------------------------------------------------
+    setManualLocation: (city) => {
+        localStorage.setItem('parbet_manual_city', city);
+        set({ 
+            manualCity: city,
+            userCity: city,
+            liveMatches: [], // Instantly purge old data to prevent UI bleed
+            trendingPerformers: [],
+            isLocationDropdownOpen: false,
+            isLoadingMatches: true
+        });
+        get().fetchLocationAndMatches(city);
+    },
 
     // ------------------------------------------------------------------
     // NEW: Performer Filter Setters
@@ -250,12 +267,26 @@ export const useAppStore = create((set, get) => ({
     // ------------------------------------------------------------------
     // CORE LOGIC: Multi-API Orchestration & Strict Location Fetch
     // ------------------------------------------------------------------
-    fetchLocationAndMatches: async (manualCity = null) => {
+    fetchLocationAndMatches: async (cityOverride = null) => {
         set({ isLoadingMatches: true, apiError: null });
         try {
-            const geo = await fetchUserCity();
-            const city = manualCity || geo.city || 'Mumbai';
-            const country = geo.countryCode || 'IN';
+            // Strictly check for manual location persistence first
+            const manualCity = localStorage.getItem('parbet_manual_city');
+            const targetCity = cityOverride || manualCity;
+
+            let geo, city, country;
+
+            if (targetCity) {
+                // If a manual city is provided/stored, instantly bypass the location API
+                city = targetCity;
+                country = 'IN'; // Assuming India context for manual selections currently
+                geo = { city: targetCity, state: '', countryCode: 'IN', lat: null, lon: null };
+            } else {
+                // Only fall back to auto-detection if no manual preference exists
+                geo = await fetchUserCity();
+                city = geo.city || 'Mumbai';
+                country = geo.countryCode || 'IN';
+            }
 
             // Pass the strict location directly into the Aggregator
             const matches = await aggregateAllEvents({ city, countryCode: country });
@@ -274,7 +305,8 @@ export const useAppStore = create((set, get) => ({
             });
         } catch (error) {
             console.error("Critical State Failure:", error);
-            set({ apiError: error.message, isLoadingMatches: false, userCity: manualCity || "Global" });
+            const fallbackCity = cityOverride || localStorage.getItem('parbet_manual_city') || "Global";
+            set({ apiError: error.message, isLoadingMatches: false, userCity: fallbackCity });
         }
     },
 
@@ -335,7 +367,11 @@ export const useAppStore = create((set, get) => ({
                     const resolvedCountry = data.countryCode || 'IN';
                     const resolvedCurrency = getCurrencyFromCountry(data.countryCode); 
                     
+                    // Hard clear the manual override so strict GPS overrides the user's past selections
+                    localStorage.removeItem('parbet_manual_city');
+
                     set({ 
+                        manualCity: null,
                         userCity: resolvedCity, 
                         userCountry: resolvedCountry,
                         userCurrency: resolvedCurrency,
