@@ -12,6 +12,19 @@ import {
     addDoc 
 } from 'firebase/firestore';
 
+// Helper to resolve real-world currency from reverse-geocode country codes
+const getCurrencyFromCountry = (countryCode) => {
+    const map = {
+        'IN': 'INR',
+        'US': 'USD',
+        'GB': 'GBP',
+        'AU': 'AUD',
+        'CA': 'CAD',
+        'EU': 'EUR'
+    };
+    return map[countryCode?.toUpperCase()] || 'INR'; // Defaulting to INR for Indian market focus
+};
+
 export const useAppStore = create((set, get) => ({
     // User & Authentication
     user: null, 
@@ -27,6 +40,7 @@ export const useAppStore = create((set, get) => ({
     isLoadingMatches: true,
     apiError: null,
     userCity: 'Loading...',
+    userCurrency: 'INR', // Dynamic global currency state
 
     // Recent Searches (Persisted)
     recentSearches: JSON.parse(localStorage.getItem('parbet_recent_searches')) || [],
@@ -79,9 +93,9 @@ export const useAppStore = create((set, get) => ({
     setSelectedTicketQuantity: (qty) => set({ selectedTicketQuantity: qty }),
 
     // Recent Searches Actions
-    addRecentSearch: (query) => set((state) => {
-        if (!query || !query.trim()) return state;
-        const updatedSearches = [query, ...state.recentSearches.filter(q => q.toLowerCase() !== query.toLowerCase())].slice(0, 5);
+    addRecentSearch: (searchQuery) => set((state) => {
+        if (!searchQuery || !searchQuery.trim()) return state;
+        const updatedSearches = [searchQuery, ...state.recentSearches.filter(q => q.toLowerCase() !== searchQuery.toLowerCase())].slice(0, 5);
         localStorage.setItem('parbet_recent_searches', JSON.stringify(updatedSearches));
         return { recentSearches: updatedSearches };
     }),
@@ -95,6 +109,38 @@ export const useAppStore = create((set, get) => ({
         const performers = Array.from(new Set(matches.flatMap(m => [m.t1, m.t2])))
             .map(name => ({ name }));
         set({ trendingPerformers: performers });
+    },
+
+    // ------------------------------------------------------------------
+    // Core Utility: Aggregate P2P Listings by Stadium Section
+    // ------------------------------------------------------------------
+    getSectionAggregates: () => {
+        const listings = get().eventListings;
+        const aggregates = {};
+
+        listings.forEach(listing => {
+            const section = (listing.section || 'General').toUpperCase().trim();
+            const price = parseFloat(listing.price);
+            const quantity = parseInt(listing.quantity, 10) || 1;
+
+            if (!aggregates[section]) {
+                aggregates[section] = {
+                    section: section,
+                    minPrice: price,
+                    totalQuantity: quantity,
+                    listings: [listing]
+                };
+            } else {
+                if (price < aggregates[section].minPrice) {
+                    aggregates[section].minPrice = price; // Update Best Price
+                }
+                aggregates[section].totalQuantity += quantity; // Sum up tickets left
+                aggregates[section].listings.push(listing);
+            }
+        });
+
+        // Return array of aggregated sections sorted alphabetically
+        return Object.values(aggregates).sort((a, b) => a.section.localeCompare(b.section));
     },
 
     // Combined Async action for IP/Manual Location + Odds (Initial Load & Updates)
@@ -190,7 +236,7 @@ export const useAppStore = create((set, get) => ({
         }
     },
 
-    // HTML5 Native Geolocation Request
+    // HTML5 Native Geolocation Request (with Currency Binding)
     requestDeviceLocation: async () => {
         set({ isLocationDropdownOpen: false, locationError: null });
         
@@ -207,7 +253,9 @@ export const useAppStore = create((set, get) => ({
                     const data = await response.json();
                     
                     const resolvedCity = data.city || data.locality || "Current Location";
-                    set({ userCity: resolvedCity });
+                    const resolvedCurrency = getCurrencyFromCountry(data.countryCode); // Set currency based on country code
+                    
+                    set({ userCity: resolvedCity, userCurrency: resolvedCurrency });
                     
                     // Trigger the global fetch to update API data with the new GPS-based city
                     get().fetchLocationAndMatches(resolvedCity);
