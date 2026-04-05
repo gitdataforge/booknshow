@@ -5,6 +5,23 @@ import { MapPin, Calendar, Heart, RefreshCw, AlertCircle, Info, Download, QrCode
 import { useAppStore } from '../../store/useStore';
 import LocationDropdown from '../../components/LocationDropdown';
 
+// Utility to strictly label dates based on the real-time API
+const getRelativeDateLabel = (dateStr) => {
+    if (!dateStr) return 'Upcoming';
+    const eventDate = new Date(dateStr);
+    const today = new Date();
+    const tomorrow = new Date();
+    tomorrow.setDate(today.getDate() + 1);
+    
+    if (eventDate.toDateString() === today.toDateString()) return 'Today';
+    if (eventDate.toDateString() === tomorrow.toDateString()) return 'Tomorrow';
+    
+    const diffTime = Math.abs(eventDate - today);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays <= 7) return 'This Week';
+    return 'Upcoming';
+};
+
 export default function Home() {
     const navigate = useNavigate();
     const { 
@@ -14,22 +31,23 @@ export default function Home() {
         isLoadingMatches,
         apiError,
         userCity,
+        userCountry,
         fetchLocationAndMatches,
         searchQuery,
+        setSearchQuery,
         isLocationDropdownOpen,
         setLocationDropdownOpen
     } = useAppStore();
 
     const [currentHeroIndex, setCurrentHeroIndex] = useState(0);
 
-    // Dynamic Hero Carousel Data with Real Images
+    // Dynamic Hero Carousel Data mapped to Performer routing
     const heroSlides = [
         {
             id: "world-cup-banner",
             title: "World Cup",
             bgLeft: "#043B1A",
             bgRight: "#76AC48",
-            // Mapping to a relevant real-time event if possible, or a general search
             query: "World Cup",
             content: (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -59,7 +77,7 @@ export default function Home() {
             title: "Circoloco",
             bgLeft: "#043B1A",
             bgRight: "#4A001F",
-            query: "Concert",
+            query: "Circoloco",
             content: (
                 <div className="absolute inset-0 right-0 pointer-events-none">
                      <img src="https://images.unsplash.com/photo-1540039155732-678a1bc231cd?auto=format&fit=crop&w=1000&q=80" className="w-full h-full object-cover opacity-70 mix-blend-overlay" alt="Concert"/>
@@ -75,9 +93,12 @@ export default function Home() {
         return () => clearInterval(timer);
     }, [heroSlides.length]);
 
+    // Strict Location Fetching Initialization
     useEffect(() => {
-        fetchLocationAndMatches();
-    }, [fetchLocationAndMatches]);
+        if (liveMatches.length === 0) {
+            fetchLocationAndMatches();
+        }
+    }, [fetchLocationAndMatches, liveMatches.length]);
 
     const handleRestrictedAction = (actionName) => {
         if (!isAuthenticated) openAuthModal();
@@ -93,7 +114,7 @@ export default function Home() {
         if (!searchQuery) return true;
         const q = searchQuery.toLowerCase();
         return m.t1.toLowerCase().includes(q) || 
-               m.t2.toLowerCase().includes(q) || 
+               m.t2?.toLowerCase().includes(q) || 
                m.league.toLowerCase().includes(q);
     });
 
@@ -106,7 +127,7 @@ export default function Home() {
         <div className="animate-fade-in w-full pb-20 overflow-x-hidden">
             
             {/* 1. DYNAMIC HERO CAROUSEL */}
-            <div className="relative w-full h-[250px] md:h-[350px] rounded-xl overflow-hidden mb-6 group bg-gray-100">
+            <div className="relative w-full h-[250px] md:h-[350px] rounded-xl overflow-hidden mb-6 group bg-gray-100 shadow-sm border border-gray-200">
                 <AnimatePresence mode="wait">
                     <motion.div 
                         key={currentHeroIndex}
@@ -117,7 +138,7 @@ export default function Home() {
                         className="absolute inset-0 flex"
                     >
                         <div 
-                            className="relative w-1/2 md:w-1/3 h-full z-20 flex flex-col justify-center px-6 md:px-12"
+                            className="relative w-[60%] md:w-1/3 h-full z-20 flex flex-col justify-center px-6 md:px-12"
                             style={{ 
                                 backgroundColor: heroSlides[currentHeroIndex].bgLeft,
                                 clipPath: 'polygon(0 0, 100% 0, 85% 100%, 0 100%)' 
@@ -126,9 +147,10 @@ export default function Home() {
                             <h2 className="text-3xl md:text-5xl font-black text-white mb-4 leading-tight drop-shadow-md">
                                 {heroSlides[currentHeroIndex].title}
                             </h2>
+                            {/* Routes specifically to the Deep-Dive Performer Page */}
                             <button 
-                                onClick={() => useAppStore.getState().setSearchQuery(heroSlides[currentHeroIndex].query)}
-                                className="border border-[#458731] text-white hover:bg-[#458731] w-max px-5 py-2 md:px-6 md:py-2.5 rounded-lg text-xs md:text-sm font-bold transition-colors"
+                                onClick={() => navigate(`/performer/${encodeURIComponent(heroSlides[currentHeroIndex].query)}`)}
+                                className="border border-[#458731] text-white hover:bg-[#458731] w-max px-5 py-2 md:px-6 md:py-2.5 rounded-lg text-xs md:text-sm font-bold transition-colors shadow-sm"
                             >
                                 See Tickets
                             </button>
@@ -172,7 +194,9 @@ export default function Home() {
                         onClick={() => setLocationDropdownOpen(!isLocationDropdownOpen)}
                         className="bg-[#E6F2D9] border border-[#C5E1A5] text-[#114C2A] px-4 py-2 rounded-[10px] text-sm font-bold flex items-center whitespace-nowrap shadow-sm hover:bg-[#D9EBBF] transition-colors"
                     >
-                        <MapPin size={16} className="mr-2"/> {userCity} <ChevronDown size={16} className={`ml-2 transition-transform ${isLocationDropdownOpen ? 'rotate-180' : ''}`}/>
+                        <MapPin size={16} className="mr-2"/> 
+                        {userCity !== 'Loading...' ? `${userCity}, ${userCountry}` : 'Detecting Location...'} 
+                        <ChevronDown size={16} className={`ml-2 transition-transform ${isLocationDropdownOpen ? 'rotate-180' : ''}`}/>
                     </button>
                     <LocationDropdown />
                 </div>
@@ -183,9 +207,9 @@ export default function Home() {
 
                 <div className="h-6 w-px bg-gray-300 mx-2 flex-shrink-0"></div>
 
-                <button onClick={() => useAppStore.getState().setSearchQuery('')} className={`px-5 py-2 rounded-[10px] text-sm font-bold whitespace-nowrap shadow-sm transition-colors ${!searchQuery ? 'bg-[#E6F2D9] border border-[#C5E1A5] text-[#114C2A]' : 'bg-white border border-gray-300 text-brand-text hover:bg-gray-50'}`}>All types</button>
-                <button onClick={() => useAppStore.getState().setSearchQuery('League')} className={`px-5 py-2 rounded-[10px] text-sm font-medium whitespace-nowrap shadow-sm transition-colors ${searchQuery === 'League' ? 'bg-[#E6F2D9] border border-[#C5E1A5] text-[#114C2A]' : 'bg-white border border-gray-300 text-brand-text hover:bg-gray-50'}`}>Sports</button>
-                <button onClick={() => useAppStore.getState().setSearchQuery('Concert')} className={`px-5 py-2 rounded-[10px] text-sm font-medium whitespace-nowrap shadow-sm transition-colors ${searchQuery === 'Concert' ? 'bg-[#E6F2D9] border border-[#C5E1A5] text-[#114C2A]' : 'bg-white border border-gray-300 text-brand-text hover:bg-gray-50'}`}>Concerts</button>
+                <button onClick={() => setSearchQuery('')} className={`px-5 py-2 rounded-[10px] text-sm font-bold whitespace-nowrap shadow-sm transition-colors ${!searchQuery ? 'bg-[#E6F2D9] border border-[#C5E1A5] text-[#114C2A]' : 'bg-white border border-gray-300 text-brand-text hover:bg-gray-50'}`}>All types</button>
+                <button onClick={() => setSearchQuery('League')} className={`px-5 py-2 rounded-[10px] text-sm font-medium whitespace-nowrap shadow-sm transition-colors ${searchQuery === 'League' ? 'bg-[#E6F2D9] border border-[#C5E1A5] text-[#114C2A]' : 'bg-white border border-gray-300 text-brand-text hover:bg-gray-50'}`}>Sports</button>
+                <button onClick={() => setSearchQuery('Concert')} className={`px-5 py-2 rounded-[10px] text-sm font-medium whitespace-nowrap shadow-sm transition-colors ${searchQuery === 'Concert' ? 'bg-[#E6F2D9] border border-[#C5E1A5] text-[#114C2A]' : 'bg-white border border-gray-300 text-brand-text hover:bg-gray-50'}`}>Concerts</button>
             </div>
 
             {/* 3. SPOTIFY BANNER */}
@@ -202,24 +226,24 @@ export default function Home() {
                         <p className="text-[13px] text-gray-400 mt-0.5">Discover events from who you actually listen to</p>
                     </div>
                 </div>
-                <button className="bg-[#1DB954] text-black font-bold px-6 py-2.5 rounded-full text-sm hover:bg-[#1ed760] transition-colors w-full md:w-auto">
+                <button className="bg-[#1DB954] text-black font-bold px-6 py-2.5 rounded-full text-sm hover:bg-[#1ed760] transition-colors w-full md:w-auto shadow-sm">
                     Connect Spotify
                 </button>
             </div>
 
             {filteredMatches.length === 0 && !isLoadingMatches && !apiError && (
                 <div className="w-full text-center py-12 bg-gray-50 rounded-xl border border-gray-200 mb-12">
-                    <h3 className="text-xl font-bold text-brand-text mb-2">No events found</h3>
-                    <p className="text-brand-muted">Try adjusting your search query or refreshing the live data.</p>
+                    <h3 className="text-xl font-bold text-brand-text mb-2">No events found in {userCity}</h3>
+                    <p className="text-brand-muted font-medium">Try adjusting your location or refreshing the live data feed.</p>
                 </div>
             )}
 
-            {/* 4. RECENTLY VIEWED RAIL (Real API Data with Dynamic Images) */}
+            {/* 4. RECENTLY VIEWED RAIL */}
             {recents.length > 0 && (
                 <div className="mb-12">
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-2xl font-bold text-brand-text">Recently viewed</h2>
-                        <button className="border border-gray-300 px-4 py-1.5 rounded-lg text-sm font-bold text-brand-text hover:bg-gray-50 transition-colors">Edit</button>
+                        <button className="border border-gray-300 px-4 py-1.5 rounded-lg text-sm font-bold text-brand-text hover:bg-gray-50 transition-colors shadow-sm">Edit</button>
                     </div>
                     <div className="flex overflow-x-auto hide-scrollbar space-x-4 pb-4">
                         {recents.map((item) => (
@@ -230,7 +254,7 @@ export default function Home() {
                                         <Heart size={14} className="text-white"/>
                                     </button>
                                 </div>
-                                <h3 className="font-bold text-brand-text text-[17px] leading-tight group-hover:underline truncate">{item.t1}</h3>
+                                <h3 className="font-bold text-brand-text text-[17px] leading-tight group-hover:underline truncate">{item.t1} {item.t2 ? `vs ${item.t2}` : ''}</h3>
                                 <p className="text-[13px] text-brand-muted truncate">{item.league}</p>
                             </div>
                         ))}
@@ -238,10 +262,10 @@ export default function Home() {
                 </div>
             )}
 
-            {/* 5. RECOMMENDED FOR YOU RAIL (Real API Data with Dynamic Images) */}
+            {/* 5. RECOMMENDED FOR YOU RAIL (Location Bound) */}
             {recommended.length > 0 && (
                 <div className="mb-12">
-                    <h2 className="text-2xl font-bold text-brand-text mb-6">Recommended for you</h2>
+                    <h2 className="text-2xl font-bold text-brand-text mb-6">Recommended in {userCity !== 'Loading...' ? userCity : 'your area'}</h2>
                     <div className="flex overflow-x-auto hide-scrollbar space-x-4 pb-4">
                         {recommended.map((item) => (
                             <div key={`rec-${item.id}`} onClick={() => goToEvent(item.id)} className="min-w-[240px] max-w-[240px] flex-shrink-0 cursor-pointer group">
@@ -251,7 +275,7 @@ export default function Home() {
                                         <Heart size={14} className="text-white"/>
                                     </button>
                                 </div>
-                                <h3 className="font-bold text-brand-text text-base leading-tight group-hover:underline mb-1 truncate">{item.t1}</h3>
+                                <h3 className="font-bold text-brand-text text-base leading-tight group-hover:underline mb-1 truncate">{item.t1} {item.t2 ? `vs ${item.t2}` : ''}</h3>
                                 <p className="text-[13px] text-brand-muted">{item.dow}, {item.day} {item.month} • {item.time}</p>
                                 <p className="text-[13px] font-bold text-brand-muted truncate">📍 {item.loc}</p>
                             </div>
@@ -260,13 +284,13 @@ export default function Home() {
                 </div>
             )}
 
-            {/* 6. POPULAR CATEGORIES RAIL (Real API Data with Dynamic Images) */}
+            {/* 6. POPULAR CATEGORIES RAIL */}
             {popular.length > 0 && (
                 <div className="mb-12">
-                    <h2 className="text-2xl font-bold text-brand-text mb-6">Popular categories</h2>
+                    <h2 className="text-2xl font-bold text-brand-text mb-6">Popular in {userCountry}</h2>
                     <div className="flex overflow-x-auto hide-scrollbar space-x-4 pb-4">
                         {popular.map((item) => (
-                            <div key={`pop-${item.id}`} onClick={() => goToEvent(item.id)} className="min-w-[260px] max-w-[260px] flex-shrink-0 cursor-pointer group relative h-[180px] rounded-[10px] overflow-hidden border border-gray-100 bg-gray-200">
+                            <div key={`pop-${item.id}`} onClick={() => goToEvent(item.id)} className="min-w-[260px] max-w-[260px] flex-shrink-0 cursor-pointer group relative h-[180px] rounded-[10px] overflow-hidden border border-gray-100 bg-gray-200 shadow-sm">
                                 <img src={`https://loremflickr.com/600/400/${encodeURIComponent(item.league.split(' ')[0])},sports/all`} alt={item.league} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-4 pointer-events-none">
                                     <h3 className="font-bold text-white text-lg leading-tight drop-shadow-md truncate">{item.league}</h3>
@@ -287,15 +311,15 @@ export default function Home() {
                     </div>
                     <h3 className="font-bold text-lg md:text-xl text-brand-text">Discover when your favourite artists are on tour</h3>
                 </div>
-                <button className="bg-[#212529] text-white font-bold px-8 py-3 rounded-lg text-sm hover:bg-black transition-colors w-full md:w-auto">
+                <button className="bg-[#212529] text-white font-bold px-8 py-3 rounded-lg text-sm hover:bg-black transition-colors w-full md:w-auto shadow-sm">
                     Subscribe
                 </button>
             </div>
 
-            {/* 8. UPCOMING NEAR YOU RAIL (Real API Data with Dynamic Images) */}
+            {/* 8. UPCOMING NEAR YOU RAIL */}
             {comedy.length > 0 && (
                 <div className="mb-16">
-                    <h2 className="text-2xl font-bold text-brand-text mb-6">Upcoming Near You</h2>
+                    <h2 className="text-2xl font-bold text-brand-text mb-6">Upcoming Near {userCity !== 'Loading...' ? userCity : 'You'}</h2>
                     <div className="flex overflow-x-auto hide-scrollbar space-x-4 pb-4">
                         {comedy.map((item) => (
                             <div key={`comedy-${item.id}`} onClick={() => goToEvent(item.id)} className="min-w-[240px] max-w-[240px] flex-shrink-0 cursor-pointer group">
@@ -305,7 +329,7 @@ export default function Home() {
                                         <Heart size={14} className="text-white"/>
                                     </button>
                                 </div>
-                                <h3 className="font-bold text-brand-text text-base leading-tight group-hover:underline mb-1 truncate">{item.t1}</h3>
+                                <h3 className="font-bold text-brand-text text-base leading-tight group-hover:underline mb-1 truncate">{item.t1} {item.t2 ? `vs ${item.t2}` : ''}</h3>
                                 <p className="text-[13px] text-brand-muted">{item.dow}, {item.day} {item.month} • {item.time}</p>
                                 <p className="text-[13px] font-bold text-brand-muted truncate">📍 {item.loc}</p>
                             </div>
@@ -317,12 +341,12 @@ export default function Home() {
             {/* 9. THE ODDS API REAL-TIME INTEGRATION (FULL LIST) */}
             <div className="mb-16">
                 <div className="flex justify-between items-end mb-6">
-                    <h2 className="text-2xl font-bold text-brand-text tracking-tight">Live Sports Events</h2>
+                    <h2 className="text-2xl font-bold text-brand-text tracking-tight">Live Sports in {userCity !== 'Loading...' ? userCity : 'your area'}</h2>
                 </div>
 
                 <div className="flex space-x-3 mb-6 overflow-x-auto hide-scrollbar pb-2">
-                    <button onClick={fetchLocationAndMatches} className="bg-white border border-brand-border text-[#458731] px-5 py-2.5 rounded-[10px] text-sm font-bold flex items-center whitespace-nowrap hover:bg-[#E6F2D9] transition-colors shadow-sm">
-                        <RefreshCw size={14} className={`mr-2 ${isLoadingMatches ? 'animate-spin' : ''}`}/> Refresh Live Data
+                    <button onClick={() => fetchLocationAndMatches(userCity)} className="bg-white border border-brand-border text-[#458731] px-5 py-2.5 rounded-[10px] text-sm font-bold flex items-center whitespace-nowrap hover:bg-[#E6F2D9] transition-colors shadow-sm">
+                        <RefreshCw size={14} className={`mr-2 ${isLoadingMatches ? 'animate-spin' : ''}`}/> Refresh Local Feed
                     </button>
                 </div>
 
@@ -330,7 +354,7 @@ export default function Home() {
                     {apiError && (
                         <div className="w-full bg-red-50 border border-red-200 rounded-[12px] p-6 flex flex-col items-center justify-center text-center">
                             <AlertCircle size={32} className="text-brand-red mb-3" />
-                            <h3 className="font-bold text-lg text-brand-text mb-1">Live Data Feed Offline</h3>
+                            <h3 className="font-bold text-lg text-brand-text mb-1">Local Feed Offline</h3>
                             <p className="text-sm text-brand-muted">{apiError}</p>
                         </div>
                     )}
@@ -338,7 +362,7 @@ export default function Home() {
                     {isLoadingMatches && !apiError && (
                         <div className="w-full border border-brand-border rounded-[12px] p-12 flex flex-col items-center justify-center bg-gray-50">
                             <div className="w-8 h-8 border-4 border-[#114C2A] border-t-transparent rounded-full animate-spin mb-4"></div>
-                            <p className="text-sm font-bold text-brand-text">Loading verified events...</p>
+                            <p className="text-sm font-bold text-brand-text">Aggregating verified events for {userCity}...</p>
                         </div>
                     )}
 
@@ -357,28 +381,23 @@ export default function Home() {
                                 </div>
                                 
                                 <div className="pl-4 md:pl-6 flex-1">
-                                    <h3 className="text-[17px] font-bold text-brand-text leading-tight mb-1">{m.t1} vs {m.t2}</h3>
-                                    <p className="text-[13px] text-brand-muted flex items-center mb-2">
-                                        {m.time} • 🇮🇳 {m.loc}
+                                    <h3 className="text-[17px] font-bold text-brand-text leading-tight mb-1">{m.t1} {m.t2 ? `vs ${m.t2}` : ''}</h3>
+                                    <p className="text-[13px] text-brand-muted flex items-center mb-2 font-medium">
+                                        {m.time} • 📍 {m.loc}
                                     </p>
                                     <div className="flex space-x-2 items-center">
-                                        <div className="flex items-center text-brand-text bg-brand-panel px-2 py-1 rounded text-xs font-medium border border-[#DEE2E6]">
-                                            <Calendar size={12} className="mr-1.5 opacity-60"/> Today
+                                        {/* Dynamic Relative Date Logic */}
+                                        <div className="flex items-center text-brand-text bg-gray-100 px-2.5 py-1 rounded text-[11px] font-bold border border-[#DEE2E6] uppercase tracking-wider">
+                                            <Calendar size={12} className="mr-1.5 opacity-60"/> {getRelativeDateLabel(m.commence_time)}
                                         </div>
-                                        {m.tag && (
-                                            <div className={`flex items-center px-2 py-1 rounded text-xs font-bold border border-transparent ${m.tagColor}`}>
-                                                <Info size={12} className="mr-1.5"/> {m.tag}
-                                            </div>
-                                        )}
                                     </div>
                                 </div>
                             </div>
 
                             <div className="mt-4 md:mt-0 flex flex-col items-end w-full md:w-auto border-t border-[#DEE2E6] md:border-t-0 pt-4 md:pt-0">
-                                 <span className="text-xs text-brand-muted font-bold mb-2 md:mb-1 w-full text-center md:text-right">Odds: {m.odds}</span>
                                  <button 
                                     onClick={(e) => { e.stopPropagation(); goToEvent(m.id); }}
-                                    className="w-full md:w-auto bg-white border border-gray-300 text-brand-text rounded-[10px] px-6 py-2.5 font-bold text-sm hover:bg-gray-50 transition-colors shadow-sm"
+                                    className="w-full md:w-auto bg-[#114C2A] text-white rounded-[10px] px-6 py-2.5 font-bold text-sm hover:bg-[#0c361d] transition-colors shadow-sm"
                                  >
                                      See tickets
                                  </button>
