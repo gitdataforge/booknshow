@@ -20,6 +20,7 @@ export default function ExploreHeader() {
         setSearchQuery,
         isSearchExpanded,
         setSearchExpanded,
+        manualCity,
         userCity,
         exploreCategory,
         setExploreCategory,
@@ -137,7 +138,7 @@ export default function ExploreHeader() {
                         {/* Tertiary Row: Quick selectors under navigation */}
                         <div className="flex items-center space-x-6 text-[13px] font-medium text-gray-500 pr-2">
                             <button onClick={() => setLocationDropdownOpen(!isLocationDropdownOpen)} className="flex items-center hover:text-brand-text transition-colors">
-                                <MapPin size={14} className="mr-1.5"/> {userCity} <ChevronDown size={14} className="ml-1"/>
+                                <MapPin size={14} className="mr-1.5"/> {manualCity || userCity || 'Loading...'} <ChevronDown size={14} className="ml-1"/>
                             </button>
                             <button className="flex items-center hover:text-brand-text transition-colors">
                                 <Calendar size={14} className="mr-1.5"/> {exploreDateFilter || 'All dates'} <ChevronDown size={14} className="ml-1"/>
@@ -217,7 +218,7 @@ export default function ExploreHeader() {
                                 className="bg-[#E6F2D9] border border-[#C5E1A5] text-[#114C2A] px-4 py-2 rounded-full text-sm font-bold flex items-center whitespace-nowrap shadow-sm hover:bg-[#D9EBBF] transition-colors"
                             >
                                 <MapPin size={16} className="mr-2"/> 
-                                {userCity} 
+                                {manualCity || userCity || 'Loading...'} 
                                 <ChevronDown size={16} className={`ml-2 transition-transform ${isLocationDropdownOpen ? 'rotate-180' : ''}`}/>
                             </button>
                             <div className="absolute left-0 mt-2 z-50">
