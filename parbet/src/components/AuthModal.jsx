@@ -444,7 +444,7 @@ export default function AuthModal() {
                                 initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.9, duration: 0.8 }}
                                 className="text-lg text-green-100/80 font-medium max-w-md mx-auto leading-relaxed"
                             >
-                                Over 5 million authentic tickets sold. Global sports, massive concerts, and exclusive theater events—all backed by our 100% Buyer Guarantee.
+                                Over 5 million authentic tickets sold. Global sports, massive concerts, and exclusive theater events all backed by our 100% Buyer Guarantee.
                             </motion.p>
                         </div>
                     </div>
