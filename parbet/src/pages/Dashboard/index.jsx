@@ -33,6 +33,8 @@ export default function Dashboard() {
         loginTime: new Date().toLocaleTimeString()
     });
 
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
     useEffect(() => {
         // Parse Real User Agent Data
         const ua = navigator.userAgent;
@@ -52,7 +54,7 @@ export default function Dashboard() {
         setSessionData(prev => ({ ...prev, browser, os }));
     }, []);
 
-    // FEATURE 3: Real-Time Firestore Synchronization
+    // FEATURE 3: Real-Time Firestore Synchronization (STRICT SECURE PATHS)
     useEffect(() => {
         if (!isAuthenticated) {
             openAuthModal();
@@ -60,21 +62,27 @@ export default function Dashboard() {
         }
         if (!user || !user.uid) return;
 
-        // Sync Listings
-        const qListings = query(collection(db, 'listings'), where('sellerId', '==', user.uid));
+        // Sync Listings (Public Artifact Path)
+        const qListings = query(
+            collection(db, 'artifacts', appId, 'public', 'data', 'listings'), 
+            where('sellerId', '==', user.uid)
+        );
         const unsubListings = onSnapshot(qListings, (snapshot) => {
             setMyListings(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         });
 
-        // Sync Purchases
-        const qPurchases = query(collection(db, 'orders'), where('buyerId', '==', user.uid));
+        // Sync Purchases (Private User Path)
+        const qPurchases = query(
+            collection(db, 'artifacts', appId, 'users', user.uid, 'orders'), 
+            where('buyerId', '==', user.uid)
+        );
         const unsubPurchases = onSnapshot(qPurchases, (snapshot) => {
             setMyPurchases(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
             setIsLoading(false);
         });
 
         return () => { unsubListings(); unsubPurchases(); };
-    }, [user, isAuthenticated, openAuthModal]);
+    }, [user, isAuthenticated, openAuthModal, appId]);
 
     // FEATURE 4: Financial Portfolio Engine
     const financials = useMemo(() => {
@@ -85,7 +93,7 @@ export default function Dashboard() {
         return { totalSpent, activeInventoryValue, totalEarned };
     }, [myPurchases, myListings]);
 
-    // FEATURE 5: Dynamic Cloudinary Avatar Updater
+    // FEATURE 5: Dynamic Cloudinary Avatar Updater (STRICT SECURE PATH)
     const handleAvatarUpload = async (e) => {
         const file = e.target.files[0];
         if (!file || !user) return;
@@ -100,8 +108,8 @@ export default function Dashboard() {
             // Update Firebase Auth
             await updateProfile(auth.currentUser, { photoURL: newPhotoUrl });
             
-            // Update Firestore Document
-            const userRef = doc(db, 'users', user.uid);
+            // Update Firestore Document (Public Users Path for Discovery)
+            const userRef = doc(db, 'artifacts', appId, 'public', 'data', 'users', user.uid);
             await updateDoc(userRef, { photoURL: newPhotoUrl });
 
             // Update Global Zustand Store

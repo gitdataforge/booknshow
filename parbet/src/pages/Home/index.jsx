@@ -516,7 +516,7 @@ export default function Home() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {['London', 'New York', 'Tokyo', 'Dubai'].map((city) => (
                         <div key={city} onClick={() => { setLocationDropdownOpen(false); fetchLocationAndMatches(city); }} className="relative h-40 rounded-[16px] overflow-hidden cursor-pointer group shadow-sm border border-gray-200">
-                            <img src={optimizeImage(`https://loremflickr.com/600/400/${city.toLowerCase()},city?lock=${city.length}`, 600)} alt={city} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                            <img src={optimizeImage(`https://loremflickr.com/600/400/${encodeURIComponent(city.toLowerCase().replace(/\s+/g, ''))},city?lock=${city.length}`, 600)} alt={city} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-4">
                                 <h3 className="text-white font-black text-lg leading-tight">{city}</h3>
                                 <p className="text-green-300 text-[12px] font-bold">{Math.floor(Math.random() * 500) + 100} Events Live</p>
@@ -532,7 +532,7 @@ export default function Home() {
                 <div className="flex flex-col md:flex-row items-center space-y-5 md:space-y-0 md:space-x-8 w-full md:w-auto relative z-10">
                     <div className="flex -space-x-4">
                         <div className="w-[80px] h-[80px] rounded-full border-[4px] border-white bg-gray-200 z-30 overflow-hidden shadow-md"><img src={optimizeImage("https://images.unsplash.com/photo-1508344928928-7165b67de128?auto=format&fit=crop&w=200&q=80", 200)} className="w-full h-full object-cover" alt="Artist" /></div>
-                        <div className="w-[80px] h-[80px] rounded-full border-[4px] border-white bg-gray-300 z-20 overflow-hidden shadow-md"><img src={optimizeImage("https://images.unsplash.com/photo-1514361598106-897108422325?auto=format&fit=crop&w=200&q=80", 200)} className="w-full h-full object-cover" alt="Artist" /></div>
+                        <div className="w-[80px] h-[80px] rounded-full border-[4px] border-white bg-gray-300 z-20 overflow-hidden shadow-md"><img src={optimizeImage("https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=200&q=80", 200)} className="w-full h-full object-cover" alt="Artist" /></div>
                         <div className="w-[80px] h-[80px] rounded-full border-[4px] border-white bg-gray-400 z-10 overflow-hidden shadow-md"><img src={optimizeImage("https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=200&q=80", 200)} className="w-full h-full object-cover" alt="Artist" /></div>
                     </div>
                     <h3 className="font-black text-[24px] md:text-[28px] text-[#1a1a1a] tracking-tight text-center md:text-left max-w-sm leading-tight">Discover when your favourites hit the road.</h3>

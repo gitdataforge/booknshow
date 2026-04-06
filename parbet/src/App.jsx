@@ -75,6 +75,7 @@ export default function App() {
 
     const { hasOnboarded, setAuth, setWallet } = useAppStore();
     const [loading, setLoading] = useState(true);
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
     useEffect(() => {
         // Strict short-circuit to save Firebase read costs during maintenance
@@ -82,7 +83,7 @@ export default function App() {
 
         const unsubAuth = onAuthStateChanged(auth, async (user) => {
             if (user) {
-                const userRef = doc(db, 'users', user.uid);
+                const userRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile');
                 const unsubWallet = onSnapshot(userRef, (docSnap) => {
                     if (docSnap.exists()) setWallet(docSnap.data().balance, 0);
                 });
@@ -94,7 +95,7 @@ export default function App() {
             }
         });
         return () => unsubAuth();
-    }, [setAuth, setWallet, isMaintenance]);
+    }, [setAuth, setWallet, isMaintenance, appId]);
 
     // STRICT GATING: Immediately return Maintenance mode if active, bypassing all routers and layouts.
     if (isMaintenance) {
