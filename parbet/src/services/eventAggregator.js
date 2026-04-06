@@ -140,9 +140,10 @@ export async function aggregateAllEvents(location = { city: 'Mumbai', state: 'Ma
         );
     }
 
-    // 2. Fetch from CricAPI (IPL 2026 Focus)
+    // 2. Fetch from CricAPI (IPL 2026 Focus) - STRICT PROXY UPDATE
     if (CRIC_API_KEY) {
-        const cricUrl = `https://api.cricketdata.org/v1/cricScore?apikey=${CRIC_API_KEY}`;
+        // Routed through the local Vite proxy (/api/cricapi) to bypass CORS and avoid ERR_CONNECTION_RESET
+        const cricUrl = `/api/cricapi/v1/cricScore?apikey=${CRIC_API_KEY}`;
         promises.push(
             fetchWithRetry(cricUrl)
                 .then(data => (data.data || []).map(transformCricEvent))
@@ -153,10 +154,10 @@ export async function aggregateAllEvents(location = { city: 'Mumbai', state: 'Ma
         );
     }
 
-    // 3. Fetch from SeatGeek (Concerts & Theatre based on user location)
+    // 3. Fetch from SeatGeek (Concerts & Theatre based on user location) - STRICT PROXY UPDATE
     if (SEATGEEK_CLIENT_ID) {
-        // We strictly pass the user's city to SeatGeek to pull local venue data
-        const sgUrl = `https://api.seatgeek.com/2/events?venue.city=${encodeURIComponent(location.city)}&client_id=${SEATGEEK_CLIENT_ID}&per_page=50`;
+        // Routed through the local Vite proxy (/api/seatgeek) to bypass strict CORS blocks
+        const sgUrl = `/api/seatgeek/2/events?venue.city=${encodeURIComponent(location.city)}&client_id=${SEATGEEK_CLIENT_ID}&per_page=50`;
         promises.push(
             fetchWithRetry(sgUrl)
                 .then(data => (data.events || []).map(transformSeatGeekEvent))
