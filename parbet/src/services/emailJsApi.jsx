@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldCheck, Mail, RefreshCw, AlertCircle, Key, Server, Lock, ArrowRight } from 'lucide-react';
+import { ShieldCheck, Mail, RefreshCw, AlertCircle, Server, Lock, ArrowRight } from 'lucide-react';
 import emailjs from '@emailjs/browser';
 
 // ============================================================================
@@ -18,7 +18,7 @@ const emailRateLimitCache = new Map();
 export const generateSecureOTP = () => {
     const array = new Uint32Array(1);
     window.crypto.getRandomValues(array);
-    const code = (array[0] % 900000 + 100000).toString(); // Always 6 digits
+    const code = (array[0] % 900000 + 100000).toString(); // Always 6 digits securely
     return code;
 };
 
@@ -42,12 +42,12 @@ export const sendVerificationEmail = async (email, code) => {
         const templateParams = {
             to_email: email,
             verification_code: code,
-            timestamp: new Date().toUTCString(), // For security logs
+            timestamp: new Date().toUTCString(), // For real-time security logs
             reply_to: "security@parbet.com"
         };
 
         await emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY);
-        emailRateLimitCache.set(email, now);
+        emailRateLimitCache.set(email, now); // Update rate limit cache
         
         return { success: true };
     } catch (error) {
@@ -56,9 +56,8 @@ export const sendVerificationEmail = async (email, code) => {
     }
 };
 
-
 // ============================================================================
-// PART 2: HIGH-END VERIFICATION UI GATEWAY (4 SECTIONS + SVG BACKGROUND)
+// PART 2: HIGH-END VERIFICATION UI GATEWAY 
 // ============================================================================
 
 export const EmailVerificationGateway = ({ email, expectedCode, onVerifySuccess, onCancel, onRequestNewCode }) => {
@@ -78,19 +77,19 @@ export const EmailVerificationGateway = ({ email, expectedCode, onVerifySuccess,
 
     // FEATURE 4: Smart Input Handling (Auto-advance & Backspace logic)
     const handleChange = (index, value) => {
-        if (!/^[0-9]*$/.test(value)) return; // Only numbers allowed
+        if (!/^[0-9]*$/.test(value)) return; // Only numbers allowed strictly
         
         const newCode = [...code];
         newCode[index] = value;
         setCode(newCode);
         setError(null);
 
-        // Auto-advance
+        // Auto-advance to next input
         if (value !== '' && index < 5) {
             inputRefs.current[index + 1].focus();
         }
         
-        // Auto-submit when complete
+        // Auto-submit when completely filled
         if (value !== '' && index === 5 && newCode.every(v => v !== '')) {
             verifyCode(newCode.join(''));
         }
@@ -128,11 +127,10 @@ export const EmailVerificationGateway = ({ email, expectedCode, onVerifySuccess,
         await new Promise(resolve => setTimeout(resolve, 800));
 
         if (submittedCode === expectedCode) {
-            onVerifySuccess();
+            onVerifySuccess(); // Hands control back to AuthModal for Firebase creation
         } else {
             setError("Invalid verification code. Please try again.");
             setIsVerifying(false);
-            // Shake effect logic could be attached here via framer-motion variants
         }
     };
 
@@ -140,7 +138,7 @@ export const EmailVerificationGateway = ({ email, expectedCode, onVerifySuccess,
         if (cooldown > 0) return;
         setCooldown(60);
         setError(null);
-        await onRequestNewCode();
+        await onRequestNewCode(); // Triggers a fresh EmailJS dispatch
     };
 
     return (
@@ -173,7 +171,7 @@ export const EmailVerificationGateway = ({ email, expectedCode, onVerifySuccess,
                 </motion.svg>
             </div>
 
-            {/* SECTION 2: Security Header & Information Panel (Left) */}
+            {/* SECTION 2: Security Header & Information Panel (Left Side) */}
             <div className="w-full md:w-[45%] h-full bg-[#0B132B] text-white p-12 flex flex-col justify-center relative z-10 shadow-2xl">
                 <div className="w-16 h-16 bg-blue-500/20 rounded-2xl flex items-center justify-center mb-8 border border-blue-500/30">
                     <ShieldCheck size={32} className="text-blue-400" />
@@ -202,7 +200,7 @@ export const EmailVerificationGateway = ({ email, expectedCode, onVerifySuccess,
                 </div>
             </div>
 
-            {/* SECTION 4: Interactive OTP Grid & Controls (Right) */}
+            {/* SECTION 4: Interactive OTP Terminal (Right Side) */}
             <div className="w-full md:w-[55%] h-full flex flex-col justify-center px-8 md:px-20 relative z-10 bg-white/80 backdrop-blur-md">
                 <div className="max-w-md w-full mx-auto">
                     <div className="flex items-center justify-center w-16 h-16 bg-green-50 rounded-full mx-auto mb-6 shadow-sm border border-green-100">
@@ -222,7 +220,7 @@ export const EmailVerificationGateway = ({ email, expectedCode, onVerifySuccess,
                         )}
                     </AnimatePresence>
 
-                    {/* Strict 6-Digit Grid */}
+                    {/* Strict 6-Digit Grid Input */}
                     <div className="flex justify-between space-x-2 mb-10">
                         {code.map((data, index) => (
                             <input
