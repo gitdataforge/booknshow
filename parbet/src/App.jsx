@@ -12,6 +12,7 @@ import Header from './components/Header';
 import ExploreHeader from './components/ExploreHeader';
 import Footer from './components/Footer';
 import Home from './pages/Home';
+import Maintenance from './pages/Maintenance';
 
 // Dynamic module imports
 const pages = import.meta.glob('./pages/*/index.jsx', { eager: true });
@@ -39,6 +40,7 @@ function MainLayout() {
                     <Route path="/" element={<Home />} />
                     {routes.map(({ name, Component }) => {
                         if (name === 'Home') return null;
+                        if (name === 'Maintenance') return null; // Strictly block from dynamic routing
                         
                         // Inject dynamic route parameter strictly for the Performer/League grouping page
                         if (name === 'Performer') {
@@ -61,10 +63,17 @@ function MainLayout() {
 }
 
 export default function App() {
+    // MASTER MAINTENANCE TOGGLE
+    // Strictly change this to `true` to block the entire application and show the Maintenance page.
+    const isMaintenance = false; 
+
     const { hasOnboarded, setAuth, setWallet } = useAppStore();
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        // Strict short-circuit to save Firebase read costs during maintenance
+        if (isMaintenance) return;
+
         const unsubAuth = onAuthStateChanged(auth, async (user) => {
             if (user) {
                 const userRef = doc(db, 'users', user.uid);
@@ -79,7 +88,12 @@ export default function App() {
             }
         });
         return () => unsubAuth();
-    }, [setAuth, setWallet]);
+    }, [setAuth, setWallet, isMaintenance]);
+
+    // STRICT GATING: Immediately return Maintenance mode if active, bypassing all routers and layouts.
+    if (isMaintenance) {
+        return <Maintenance />;
+    }
 
     if (loading) {
         return (
