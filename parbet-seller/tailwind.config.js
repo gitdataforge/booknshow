@@ -7,7 +7,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        parbetGreen: '#5a9e1b',
+        parbetGreen: '#458731', // Updated to exact Viagogo primary green
         parbetDark: '#1a1a1a'
       },
       animation: {
@@ -26,5 +26,21 @@ export default {
       }
     },
   },
-  plugins: [],
+  plugins: [
+    // Strictly required plugin to enable the invisible scrollbars we built in the UI
+    function ({ addUtilities }) {
+      addUtilities({
+        '.hide-scrollbar': {
+          /* IE and Edge */
+          '-ms-overflow-style': 'none',
+          /* Firefox */
+          'scrollbar-width': 'none',
+          /* Safari */
+          '&::-webkit-scrollbar': {
+            display: 'none'
+          }
+        }
+      })
+    }
+  ],
 }
