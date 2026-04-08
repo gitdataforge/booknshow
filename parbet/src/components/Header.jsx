@@ -26,7 +26,8 @@ export default function Header() {
         setExploreCategory
     } = useAppStore();
 
-    const [hoveredCategory, setHoveredCategory] = useState(null);
+    // FIX: Track by unique 'name' instead of shared 'category' to prevent overlaps
+    const [hoveredName, setHoveredName] = useState(null);
     
     // Mobile Drawer States
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -89,8 +90,8 @@ export default function Header() {
                             <div 
                                 key={link.name}
                                 className="relative py-3 cursor-pointer"
-                                onMouseEnter={() => setHoveredCategory(link.category)}
-                                onMouseLeave={() => setHoveredCategory(null)}
+                                onMouseEnter={() => setHoveredName(link.name)}
+                                onMouseLeave={() => setHoveredName(null)}
                             >
                                 <button 
                                     onClick={() => { 
@@ -99,16 +100,17 @@ export default function Header() {
                                             navigate('/explore'); 
                                         }
                                     }} 
-                                    className={`transition-colors pointer-events-none ${hoveredCategory === link.category ? 'text-[#458731]' : 'hover:text-[#458731]'}`}
+                                    className={`transition-colors pointer-events-none ${hoveredName === link.name ? 'text-[#458731]' : 'hover:text-[#458731]'}`}
                                 >
                                     {link.name}
                                 </button>
                                 {link.category && (
                                     <NavHoverMenu 
-                                        isOpen={hoveredCategory === link.category} 
+                                        isOpen={hoveredName === link.name} 
                                         category={link.category}
-                                        onMouseEnter={() => setHoveredCategory(link.category)}
-                                        onMouseLeave={() => setHoveredCategory(null)}
+                                        name={link.name}
+                                        onMouseEnter={() => setHoveredName(link.name)}
+                                        onMouseLeave={() => setHoveredName(null)}
                                     />
                                 )}
                             </div>

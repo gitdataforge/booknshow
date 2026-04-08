@@ -3,38 +3,43 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useStore';
 
-export default function NavHoverMenu({ isOpen, category, onMouseEnter, onMouseLeave }) {
+export default function NavHoverMenu({ isOpen, category, name, onMouseEnter, onMouseLeave }) {
     const navigate = useNavigate();
     const { liveMatches, setSearchQuery, setExploreCategory } = useAppStore();
 
     // ============================================================================
-    // AUTHENTIC REAL-WORLD FALLBACKS (Strictly No "Mock" Data)
+    // AUTHENTIC REAL-WORLD FALLBACKS (Strictly No "Team A/B")
     // Guarantees UI immersion and layout integrity if the API is still hydrating
     // ============================================================================
-    const fallbackSports = [
-        "Mumbai Indians", 
-        "Chennai Super Kings", 
-        "Royal Challengers Bangalore", 
-        "Kolkata Knight Riders", 
-        "Patna Pirates", 
-        "Puneri Paltan", 
-        "Jaipur Pink Panthers",
-        "TATA IPL 2026", 
-        "ICC T20 World Cup", 
-        "Pro Kabaddi League"
+    const fallbackCricket = [
+        "Mumbai Indians", "Chennai Super Kings", "Royal Challengers Bangalore", 
+        "Kolkata Knight Riders", "Delhi Capitals", "Gujarat Titans", "Team India"
     ];
     
-    const fallbackCities = [
-        "Mumbai", "Bengaluru", "Chennai", "Delhi", "Pune", "Kolkata", "Ahmedabad", "Hyderabad", "London", "Melbourne"
+    const fallbackKabaddi = [
+        "Patna Pirates", "Puneri Paltan", "Jaipur Pink Panthers", 
+        "Bengaluru Bulls", "U Mumba", "Dabang Delhi KC"
+    ];
+    
+    const fallbackTournaments = [
+        "TATA IPL 2026", "ICC T20 World Cup", "Pro Kabaddi League", "The Ashes"
     ];
 
-    // Real-time Data Extraction Logic
+    const fallbackCities = [
+        "Mumbai", "Bengaluru", "Chennai", "Delhi", "Pune", "Kolkata", "Ahmedabad"
+    ];
+
+    // Real-time Data Extraction Logic mapped perfectly to the hovered column name
     const listItems = useMemo(() => {
         if (!liveMatches || liveMatches.length === 0) {
-            return category === 'Top Cities' ? fallbackCities : fallbackSports;
+            if (name === 'Kabaddi') return fallbackKabaddi;
+            if (name === 'Top Cities') return fallbackCities;
+            if (name === 'Tournaments') return fallbackTournaments;
+            return fallbackCricket; // Default to cricket
         }
 
-        if (category === 'Top Cities') {
+        // 1. Handle Top Cities
+        if (name === 'Top Cities') {
             const cities = new Set();
             liveMatches.forEach(m => {
                 if (m.loc) {
@@ -46,16 +51,49 @@ export default function NavHoverMenu({ isOpen, category, onMouseEnter, onMouseLe
             return cityArr.length > 0 ? cityArr : fallbackCities;
         }
 
-        // Default to Sports (Cricket & Kabaddi entities)
+        // 2. Filter base data depending on the specific tab hovered
+        let filteredMatches = liveMatches;
+        
+        if (name === 'Cricket') {
+            filteredMatches = liveMatches.filter(m => {
+                const str = `${m.t1} ${m.t2} ${m.league} ${m.sport}`.toLowerCase();
+                return str.includes('cricket') || str.includes('ipl') || str.includes('t20') || str.includes('icc') || str.includes('odi') || str.includes('test');
+            });
+        } else if (name === 'Kabaddi') {
+            filteredMatches = liveMatches.filter(m => {
+                const str = `${m.t1} ${m.t2} ${m.league} ${m.sport}`.toLowerCase();
+                return str.includes('kabaddi') || str.includes('pkl');
+            });
+        } else if (name === 'Tournaments') {
+            const leagues = new Set();
+            liveMatches.forEach(m => {
+                if (m.league && !m.league.toLowerCase().includes('team a') && !m.league.toLowerCase().includes('team b')) leagues.add(m.league);
+            });
+            const tourneys = Array.from(leagues).slice(0, 10);
+            return tourneys.length > 0 ? tourneys : fallbackTournaments;
+        }
+
+        // 3. Extract exact names while ruthlessly dropping "Team A/B" API defaults
         const entities = new Set();
-        liveMatches.forEach(m => {
-            if (m.t1) entities.add(m.t1);
-            if (m.t2) entities.add(m.t2);
-            if (m.league) entities.add(m.league);
+        filteredMatches.forEach(m => {
+            const t1 = m.t1 || '';
+            const t2 = m.t2 || '';
+            
+            // STRICT SCRUBBING: Ignore generic API fallbacks
+            if (t1 && !t1.toLowerCase().includes('team a') && !t1.toLowerCase().includes('team b')) entities.add(t1);
+            if (t2 && !t2.toLowerCase().includes('team a') && !t2.toLowerCase().includes('team b')) entities.add(t2);
         });
+        
         const sportsArr = Array.from(entities).slice(0, 10);
-        return sportsArr.length > 0 ? sportsArr : fallbackSports;
-    }, [liveMatches, category]);
+        
+        // 4. Return sanitized data or context-aware fallback
+        if (sportsArr.length > 0) return sportsArr;
+        
+        if (name === 'Kabaddi') return fallbackKabaddi;
+        if (name === 'Tournaments') return fallbackTournaments;
+        return fallbackCricket;
+        
+    }, [liveMatches, name]);
 
     const handleItemClick = (item) => {
         setSearchQuery(item);
