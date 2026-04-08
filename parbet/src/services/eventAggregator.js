@@ -42,9 +42,14 @@ async function fetchWithRetry(url, options = {}, retries = 5, backoff = 1000) {
         throw networkError;
     }
 
-    // Strict early-exit condition: Do not retry if the API explicitly rejects our authentication
+    // Strict suppression: If the API explicitly rejects our authentication (401),
+    // return an empty array immediately to prevent breaking the aggregator loop or logging errors.
     if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
+        if (response.status === 401) {
+            return []; 
+        }
+
+        if (response.status === 403) {
             throw new Error(`Critical Auth Error (${response.status}): Aborting retry loop for ${url}`);
         }
         
@@ -74,8 +79,8 @@ function transformOddsEvent(match) {
         day: date.getDate(),
         month: date.toLocaleDateString('en-US', { month: 'short' }),
         time: date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
-        loc: "Verified Venue", // Odds API doesn't provide specific venue without extra calls
-        country: 'GLOBAL', // Allowed to pass geo-fences for international sports
+        loc: "Verified Venue", 
+        country: 'GLOBAL', 
         source: 'OddsAPI'
     };
 }
@@ -85,7 +90,10 @@ function transformOddsEvent(match) {
  */
 function transformCricEvent(match) {
     const date = new Date(match.dateTimeGMT);
-    const teams = match.name.split(' vs ');
+    // FIXED: Existence check using optional chaining and fallback empty string to prevent split error
+    const matchName = match?.name || '';
+    const teams = matchName.split(' vs ');
+    
     return {
         id: match.id,
         t1: teams[0] || 'Team A',
@@ -128,9 +136,6 @@ function transformSeatGeekEvent(event) {
  * @param {Object} location - { city, state, countryCode }
  */
 export async function aggregateAllEvents(location = { city: 'Mumbai', state: 'Maharashtra', countryCode: 'IN' }) {
-    const results = [];
-    
-    // Concurrent fetch promises
     const promises = [];
 
     // 1. Fetch from Odds API (Soccer, NBA, etc)
@@ -138,7 +143,7 @@ export async function aggregateAllEvents(location = { city: 'Mumbai', state: 'Ma
         const oddsUrl = `https://api.the-odds-api.com/v4/sports/upcoming/odds/?regions=us,uk,eu,au&markets=h2h&apiKey=${ODDS_API_KEY}`;
         promises.push(
             fetchWithRetry(oddsUrl)
-                .then(data => data.map(transformOddsEvent))
+                .then(data => Array.isArray(data) ? data.map(transformOddsEvent) : [])
                 .catch((err) => {
                     console.warn("OddsAPI Data Dropped:", err.message);
                     return [];
@@ -148,7 +153,6 @@ export async function aggregateAllEvents(location = { city: 'Mumbai', state: 'Ma
 
     // 2. Fetch from CricAPI (IPL 2026 Focus) - STRICT PROXY UPDATE
     if (CRIC_API_KEY) {
-        // Routed through the local Vite proxy (/api/cricapi) to bypass CORS and avoid ERR_CONNECTION_RESET
         const cricUrl = `/api/cricapi/v1/cricScore?apikey=${CRIC_API_KEY}`;
         promises.push(
             fetchWithRetry(cricUrl)
@@ -162,7 +166,6 @@ export async function aggregateAllEvents(location = { city: 'Mumbai', state: 'Ma
 
     // 3. Fetch from SeatGeek (Concerts & Theatre based on user location) - STRICT PROXY UPDATE
     if (SEATGEEK_CLIENT_ID) {
-        // Routed through the local Vite proxy (/api/seatgeek) to bypass strict CORS blocks
         const sgUrl = `/api/seatgeek/2/events?venue.city=${encodeURIComponent(location.city)}&client_id=${SEATGEEK_CLIENT_ID}&per_page=50`;
         promises.push(
             fetchWithRetry(sgUrl)
@@ -205,14 +208,9 @@ export async function aggregateAllEvents(location = { city: 'Mumbai', state: 'Ma
         const allFetchedGroups = await Promise.all(promises);
         const flattened = allFetchedGroups.flat();
 
-        // Strict Logic: Deduplicate, Temporal Fencing, Cascading Geo-Fencing, and CONTENT SANITIZATION
         const seen = new Set();
         const unified = flattened.filter(event => {
-
-            // ========================================================================
             // STRICT CRICKET & KABADDI SANITIZATION LAYER
-            // Completely drop ANY event that does not match the client's approved sports
-            // ========================================================================
             if (event.source !== 'CricAPI') {
                 const searchString = `${event.t1} ${event.t2 || ''} ${event.league || ''}`.toLowerCase();
                 const isApprovedContent = 
@@ -225,24 +223,18 @@ export async function aggregateAllEvents(location = { city: 'Mumbai', state: 'Ma
                     searchString.includes('kabaddi') || 
                     searchString.includes('pkl');
                 
-                if (!isApprovedContent) {
-                    return false; // Ruthlessly drop unauthorized events (e.g. Taylor Swift, NBA, NFL)
-                }
+                if (!isApprovedContent) return false;
             }
 
-            // Filter 1: Strict Temporal check (Must be upcoming or live)
             const startTime = new Date(event.commence_time).getTime();
             if (startTime < Date.now()) return false;
 
-            // Filter 2: Deduplication based on teams and date
             const slug = `${event.t1}-${event.t2}-${event.day}-${event.month}`.toLowerCase();
             if (seen.has(slug)) return false;
             seen.add(slug);
 
-            // Default proximity score assignment
             event.proximityScore = 1; 
 
-            // Filter 3: Cascading Location Filtering (City -> State -> Country)
             if (location && location.city && location.city !== 'All Cities' && location.city !== 'Global') {
                 const targetCity = location.city.toLowerCase();
                 const targetState = (location.state || 'maharashtra').toLowerCase();
@@ -252,37 +244,30 @@ export async function aggregateAllEvents(location = { city: 'Mumbai', state: 'Ma
                 const eventCity = (event.city || '').toLowerCase();
                 const eventCountry = (event.country || '').toLowerCase();
                 
-                // Allow 'GLOBAL' tagged international events, but strictly apply cascading geo-fence for venue events
                 if (eventCountry === 'global') {
-                    event.proximityScore = 1; // Global is allowed but ranked lowest in proximity
+                    event.proximityScore = 1;
                     event.isGlobal = true;
                 } else {
-                    // Level 1 Cascade: Strict City Match (Highest Priority)
                     if (eventLoc.includes(targetCity) || eventCity.includes(targetCity)) {
                         event.proximityScore = 3;
                         event.isLocal = true;
                     } 
-                    // Level 2 Cascade: State Match (e.g., Maharashtra)
                     else if (eventLoc.includes(targetState) || eventCity.includes(targetState)) {
                         event.proximityScore = 2;
                         event.isStateLevel = true;
                     } 
-                    // Level 3 Cascade: Country Match (e.g., India)
                     else if (eventCountry === targetCountry || eventCountry === 'in' || eventCountry === 'india' || eventLoc.includes('india')) {
                         event.proximityScore = 1;
-                        event.isNational = true; // Tagged as national fallback event
+                        event.isNational = true;
                     } 
-                    // If event matches none of the cascading proximity levels, safely drop it
                     else {
                         return false; 
                     }
                 }
             }
-
             return true;
         });
 
-        // Final Logic: Sort first by Cascading Proximity Score (Local -> State -> National), then Chronologically
         return unified.sort((a, b) => {
             if (b.proximityScore !== a.proximityScore) {
                 return b.proximityScore - a.proximityScore;
@@ -296,9 +281,6 @@ export async function aggregateAllEvents(location = { city: 'Mumbai', state: 'Ma
     }
 }
 
-/**
- * Filter utility for Performer Deep Dives (e.g. Mumbai Indians)
- */
 export function filterEventsByPerformer(events, performerName, filters = {}) {
     return events.filter(e => {
         const isParticipant = e.t1.toLowerCase().includes(performerName.toLowerCase()) || 
@@ -306,7 +288,6 @@ export function filterEventsByPerformer(events, performerName, filters = {}) {
         
         if (!isParticipant) return false;
 
-        // Apply dynamic tabs (Home/Away, Opponents, Price etc)
         if (filters.homeOnly && !e.t1.toLowerCase().includes(performerName.toLowerCase())) return false;
         if (filters.awayOnly && e.t1.toLowerCase().includes(performerName.toLowerCase())) return false;
         if (filters.opponent && !e.t1.toLowerCase().includes(filters.opponent.toLowerCase()) && 
