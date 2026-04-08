@@ -14,7 +14,7 @@ const optimizeImage = (url, width = 1200) => {
 
 export default function ViagogoHeroCarousel() {
     const navigate = useNavigate();
-    const { isAuthenticated, openAuthModal, toggleFavorite } = useAppStore();
+    const { isAuthenticated, toggleFavorite } = useAppStore();
     const [currentHeroIndex, setCurrentHeroIndex] = useState(0);
 
     // STRICT CRICKET & KABADDI CONTENT REPLICATION
@@ -45,73 +45,78 @@ export default function ViagogoHeroCarousel() {
         return () => clearInterval(timer);
     }, [heroSlides.length]);
 
-    // Secure Interaction Guard
+    // Secure Interaction Guard (Strictly routes to standalone /login)
     const handleRestrictedAction = (e, obj) => {
         e.stopPropagation();
         if (!isAuthenticated) {
-            openAuthModal();
+            navigate('/login');
         } else {
             toggleFavorite(obj);
         }
     };
 
     return (
-        <div className="relative w-full h-[280px] md:h-[340px] lg:h-[400px] rounded-2xl overflow-hidden mb-6 mt-4 group bg-[#004e25]">
-            <AnimatePresence mode="wait">
-                <motion.div 
-                    key={currentHeroIndex} 
-                    initial={{ opacity: 0 }} 
-                    animate={{ opacity: 1 }} 
-                    exit={{ opacity: 0 }} 
-                    transition={{ duration: 0.8 }} 
-                    className="absolute inset-0 flex"
-                >
-                    {/* Left Side: Deep Green Background & Typography */}
-                    <div className="relative w-full md:w-[50%] h-full z-20 flex flex-col justify-center px-8 md:px-14 lg:px-16 pb-6">
-                        <h2 className="text-[40px] md:text-[56px] lg:text-[64px] font-black text-white mb-6 leading-[1.05] tracking-tight">
-                            {heroSlides[currentHeroIndex].title}
-                        </h2>
-                        {/* 1:1 Viagogo "See Tickets" Button Styling */}
-                        <button 
-                            onClick={() => navigate(`/performer/${encodeURIComponent(heroSlides[currentHeroIndex].query)}`)} 
-                            className="border border-[#1f7f45] bg-transparent text-white hover:bg-[#1f7f45] w-max px-5 py-2.5 rounded-[8px] text-[14px] font-bold transition-colors"
-                        >
-                            See Tickets
-                        </button>
-                    </div>
-                    
-                    {/* Right Side: Masked Image Blend */}
-                    <div 
-                        className="absolute top-0 bottom-0 right-0 w-[70%] z-10" 
-                        style={{ 
-                            maskImage: 'linear-gradient(to right, transparent, black 30%)', 
-                            WebkitMaskImage: 'linear-gradient(to right, transparent, black 30%)' 
-                        }}
-                    >
-                        <img 
-                            src={optimizeImage(heroSlides[currentHeroIndex].image, 1200)} 
-                            className="w-full h-full object-cover opacity-90 mix-blend-overlay" 
-                            alt={heroSlides[currentHeroIndex].title} 
-                        />
-                    </div>
-                </motion.div>
-            </AnimatePresence>
+        <div className="relative w-full mb-6 mt-0 md:mt-4 font-sans">
             
-            {/* Top Right Heart Icon */}
-            <button 
-                onClick={(e) => handleRestrictedAction(e, heroSlides[currentHeroIndex])} 
-                className="absolute top-4 right-4 w-[36px] h-[36px] bg-[#000000] rounded-full flex items-center justify-center hover:scale-105 transition-transform z-30 shadow-md"
-            >
-                <Heart size={16} className="text-white" strokeWidth={2}/>
-            </button>
+            {/* COHESIVE GEOMETRY CONTAINER:
+              On mobile, fixed height + flex-col + overflow-hidden clamps the image to the top corners
+              and the dark green block to the bottom corners perfectly. 
+            */}
+            <div className="relative w-full h-[260px] sm:h-[300px] md:h-[340px] lg:h-[400px] rounded-[16px] md:rounded-2xl overflow-hidden bg-[#114C2A] shadow-sm md:shadow-md group">
+                <AnimatePresence mode="wait">
+                    <motion.div 
+                        key={currentHeroIndex} 
+                        initial={{ opacity: 0 }} 
+                        animate={{ opacity: 1 }} 
+                        exit={{ opacity: 0 }} 
+                        transition={{ duration: 0.5 }} 
+                        className="absolute inset-0 flex flex-col md:flex-row cursor-pointer"
+                        onClick={() => navigate(`/performer/${encodeURIComponent(heroSlides[currentHeroIndex].query)}`)}
+                    >
+                        {/* Top/Right Image Section */}
+                        <div className="relative w-full h-[70%] sm:h-[75%] md:h-full md:absolute md:right-0 md:w-[70%] z-10">
+                            <img 
+                                src={optimizeImage(heroSlides[currentHeroIndex].image, 1200)} 
+                                className="w-full h-full object-cover md:mix-blend-overlay md:opacity-90" 
+                                alt={heroSlides[currentHeroIndex].title} 
+                                style={{
+                                    maskImage: window.innerWidth >= 768 ? 'linear-gradient(to right, transparent, black 30%)' : 'none',
+                                    WebkitMaskImage: window.innerWidth >= 768 ? 'linear-gradient(to right, transparent, black 30%)' : 'none'
+                                }}
+                            />
+                            {/* Top-Right Black Heart Button */}
+                            <button 
+                                onClick={(e) => handleRestrictedAction(e, heroSlides[currentHeroIndex])} 
+                                className="absolute top-3 right-3 md:top-4 md:right-4 w-[32px] h-[32px] md:w-[36px] md:h-[36px] bg-black/80 rounded-full flex items-center justify-center hover:scale-105 transition-transform z-30 shadow-md"
+                            >
+                                <Heart size={14} className="text-white" strokeWidth={2.5}/>
+                            </button>
+                        </div>
 
-            {/* Bottom Left Pagination Dots */}
-            <div className="absolute bottom-6 left-8 md:left-14 lg:left-16 flex space-x-2.5 z-30 items-center">
+                        {/* Bottom/Left Dark Green Text Block */}
+                        <div className="relative flex-1 w-full md:w-[50%] h-full z-20 flex flex-col justify-center px-4 md:px-14 lg:px-16 bg-[#114C2A] md:bg-transparent">
+                            <h2 className="text-[20px] sm:text-[24px] md:text-[56px] lg:text-[64px] font-bold md:font-black text-white leading-tight tracking-tight truncate md:whitespace-normal">
+                                {heroSlides[currentHeroIndex].title}
+                            </h2>
+                            
+                            {/* Hidden on Mobile as per image_db9a7e.png */}
+                            <div className="hidden md:block mt-6">
+                                <button className="border border-[#1f7f45] bg-transparent text-white hover:bg-[#1f7f45] px-6 py-2.5 rounded-[8px] text-[14px] font-bold transition-all">
+                                    See Tickets
+                                </button>
+                            </div>
+                        </div>
+                    </motion.div>
+                </AnimatePresence>
+            </div>
+
+            {/* Exact Pagination Dots: Centered Charcoal/Gray on mobile, Left White on desktop */}
+            <div className="flex justify-center md:justify-start md:absolute md:bottom-6 md:left-14 lg:left-16 space-x-2 mt-4 md:mt-0 z-30">
                 {heroSlides.map((_, idx) => (
                     <button 
                         key={idx} 
                         onClick={() => setCurrentHeroIndex(idx)} 
-                        className={`rounded-full transition-all duration-300 ${idx === currentHeroIndex ? 'bg-white w-2.5 h-2.5' : 'bg-white/40 w-2 h-2 hover:bg-white/60'}`} 
+                        className={`rounded-full transition-all duration-300 w-2 h-2 md:w-2.5 md:h-2.5 ${idx === currentHeroIndex ? 'bg-[#1a1a1a] md:bg-white' : 'bg-[#cccccc] md:bg-white/40 md:hover:bg-white/60'}`} 
                     />
                 ))}
             </div>
