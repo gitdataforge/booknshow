@@ -2,7 +2,7 @@
  * src/services/eventAggregator.js
  * * Master Controller for Parbet 2026 Multi-API Orchestration.
  * Aggregates data from The Odds API, CricAPI, SeatGeek, Ticketmaster, Bandsintown, and TheSportsDB.
- * Strictly handles deduplication, normalization, temporal filtering, and cascading geo-fencing.
+ * Strictly handles deduplication, normalization, temporal filtering, cascading geo-fencing, and CONTENT SANITIZATION.
  */
 
 import { fetchTicketmasterEvents } from './ticketmasterApi';
@@ -205,9 +205,31 @@ export async function aggregateAllEvents(location = { city: 'Mumbai', state: 'Ma
         const allFetchedGroups = await Promise.all(promises);
         const flattened = allFetchedGroups.flat();
 
-        // Strict Logic: Deduplicate, Temporal Fencing, and Cascading Geo-Fencing
+        // Strict Logic: Deduplicate, Temporal Fencing, Cascading Geo-Fencing, and CONTENT SANITIZATION
         const seen = new Set();
         const unified = flattened.filter(event => {
+
+            // ========================================================================
+            // STRICT CRICKET & KABADDI SANITIZATION LAYER
+            // Completely drop ANY event that does not match the client's approved sports
+            // ========================================================================
+            if (event.source !== 'CricAPI') {
+                const searchString = `${event.t1} ${event.t2 || ''} ${event.league || ''}`.toLowerCase();
+                const isApprovedContent = 
+                    searchString.includes('cricket') || 
+                    searchString.includes('ipl') || 
+                    searchString.includes('t20') || 
+                    searchString.includes('icc') || 
+                    searchString.includes('test') || 
+                    searchString.includes('odi') || 
+                    searchString.includes('kabaddi') || 
+                    searchString.includes('pkl');
+                
+                if (!isApprovedContent) {
+                    return false; // Ruthlessly drop unauthorized events (e.g. Taylor Swift, NBA, NFL)
+                }
+            }
+
             // Filter 1: Strict Temporal check (Must be upcoming or live)
             const startTime = new Date(event.commence_time).getTime();
             if (startTime < Date.now()) return false;
