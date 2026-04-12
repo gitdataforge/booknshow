@@ -264,65 +264,12 @@ export const useAppStore = create((set, get) => ({
     },
 
     // ------------------------------------------------------------------
-    // LIVE SELLER TICKET LISTENER & MULTI-API MERGER
+    // LIVE SELLER TICKET LISTENER (DISABLED TO PREVENT PERMISSION SPAM)
     // ------------------------------------------------------------------
     initSellerTicketsListener: () => {
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        // STRICT RULE 1: Mandated path for public shared application data
-        const ticketsRef = collection(db, 'artifacts', appId, 'public', 'data', 'tickets');
-
-        const unsub = onSnapshot(ticketsRef, (snapshot) => {
-            const sellerEvents = [];
-            snapshot.forEach(docSnap => {
-                const data = docSnap.data();
-                if (data.status !== 'active' && data.status !== undefined) return;
-                
-                const eventDate = new Date(data.date || data.commence_time || Date.now());
-                const teams = (data.eventName || data.t1 || '').split(' vs ');
-                
-                sellerEvents.push({
-                    id: docSnap.id,
-                    t1: teams[0] || data.t1 || data.eventName || 'TBA',
-                    t2: teams[1] || data.t2 || '',
-                    league: data.league || 'Indian Premier League',
-                    commence_time: data.date || data.commence_time || eventDate.toISOString(),
-                    dow: eventDate.toLocaleDateString('en-US', { weekday: 'short' }),
-                    day: eventDate.getDate(),
-                    month: eventDate.toLocaleDateString('en-US', { month: 'short' }),
-                    time: data.time || eventDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
-                    loc: data.venue || data.loc || `${data.city || 'Local Stadium'}, India`,
-                    country: data.country || 'IN',
-                    source: 'ParbetSeller',
-                    proximityScore: 4, // Heavily weight local seller tickets over API generics
-                    ...data
-                });
-            });
-
-            set(state => {
-                const combined = [...state.apiMatches, ...sellerEvents];
-                // Mathematical sorting to enforce relevancy and chronology
-                const sorted = combined.sort((a, b) => {
-                    if (b.proximityScore !== a.proximityScore) {
-                        return (b.proximityScore || 1) - (a.proximityScore || 1);
-                    }
-                    return new Date(a.commence_time).getTime() - new Date(b.commence_time).getTime();
-                });
-                
-                const performers = Array.from(new Set(sorted.flatMap(m => [m.t1, m.t2])))
-                    .filter(Boolean)
-                    .map(name => ({ name }));
-
-                return {
-                    sellerMatches: sellerEvents,
-                    liveMatches: sorted,
-                    trendingPerformers: performers
-                };
-            });
-        }, (error) => {
-            console.error("Failed to sync live seller tickets:", error);
-        });
-
-        set({ unsubscribeSellerTickets: unsub });
+        console.log("Legacy Seller Listener Deactivated - Delegated to useMainStore to prevent permission spam.");
+        // We set a dummy function so existing cleanup calls don't crash
+        set({ unsubscribeSellerTickets: () => {} });
     },
 
     // ------------------------------------------------------------------
@@ -372,11 +319,14 @@ export const useAppStore = create((set, get) => ({
                 country = geo.countryCode || 'IN';
             }
 
-            const matches = await aggregateAllEvents({ 
+            // FEATURE UPDATE: Disabled to prevent 401/403 API errors from expired/blocked endpoints
+            /* const matches = await aggregateAllEvents({ 
                 city: city, 
                 state: geo.state || geo.region || '', 
                 countryCode: country 
-            });
+            }); 
+            */
+            const matches = []; // Empty array suppresses the external fetch spam
             
             // Mathematically merge freshly fetched API feeds with the live seller state
             set(state => {
