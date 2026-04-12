@@ -25,6 +25,8 @@ import Sales from './pages/Profile/Sales';
 import Payments from './pages/Profile/Payments';
 import Settings from './pages/Profile/Settings';
 import Wallet from './pages/Profile/Wallet';
+import Support from './pages/Profile/Support'; // ADDED: Support module
+import Faqs from './pages/Profile/Faqs';       // ADDED: FAQs module
 
 // Dynamic module imports for high-performance routing
 const pages = import.meta.glob('./pages/*/index.jsx', { eager: true });
@@ -62,6 +64,8 @@ function MainLayout() {
                         <Route path="payments" element={<Payments />} />
                         <Route path="settings" element={<Settings />} />
                         <Route path="wallet" element={<Wallet />} />
+                        <Route path="support" element={<Support />} /> {/* ADDED: Support Route */}
+                        <Route path="faqs" element={<Faqs />} />       {/* ADDED: FAQs Route */}
                     </Route>
 
                     {dynamicRoutes.map(({ name, Component }) => {
