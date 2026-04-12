@@ -10,7 +10,11 @@ import Footer from './components/Footer';
 import Home from './pages/Home';
 import Dashboard from './pages/seller/Dashboard';
 import CreateListing from './pages/CreateListing';
-import IPLHub from './pages/seller/IPLHub'; // The new standalone 1:1 Viagogo IPL catalog page
+import IPLHub from './pages/seller/IPLHub'; // The standalone 1:1 Viagogo IPL catalog page
+
+// Mobile Standalone Menu Pages
+import MobileMenu from './pages/MobileMenu';
+import SellMenu from './pages/MobileMenu/SellMenu';
 
 export default function App() {
     const { initAuth } = useSellerStore();
@@ -34,6 +38,10 @@ export default function App() {
                     <Routes>
                         <Route path="/" element={<Home />} />
                         
+                        {/* Standalone Mobile Navigation Routes (Strictly Zero Modals) */}
+                        <Route path="/menu" element={<MobileMenu />} />
+                        <Route path="/menu/sell" element={<SellMenu />} />
+                        
                         {/* Standalone IPL Hub Page (Strictly Zero Modals) */}
                         <Route path="/ipl" element={<IPLHub />} />
                         
@@ -46,7 +54,7 @@ export default function App() {
                     </Routes>
                 </main>
                 
-                {/* 1:1 Replica 4-Column Footer */}
+                {/* 1:1 Replica Mobile/Desktop Footer */}
                 <Footer />
                 
             </div>
