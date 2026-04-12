@@ -1,20 +1,25 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useSellerStore } from './store/useSellerStore';
 
 // Structural Layout Components
 import Header from './components/Header';
 import Footer from './components/Footer';
+import ProfileLayout from './layouts/ProfileLayout'; // FEATURE 1: Imported new Master Layout
 
 // Core Real-Time Pages
 import Home from './pages/Home';
-import Dashboard from './pages/seller/Dashboard';
 import CreateListing from './pages/CreateListing';
 import IPLHub from './pages/seller/IPLHub'; // The standalone 1:1 Viagogo IPL catalog page
 
 // Mobile Standalone Menu Pages
 import MobileMenu from './pages/MobileMenu';
 import SellMenu from './pages/MobileMenu/SellMenu';
+
+// Profile Architecture (Zero-Modal Real-Time Nodes)
+import ProfileOverview from './pages/Profile/index';
+import Orders from './pages/Profile/Orders';
+// Note: Remaining profile nodes (Listings, Sales, etc.) will be injected here as they are built.
 
 export default function App() {
     const { initAuth } = useSellerStore();
@@ -45,8 +50,16 @@ export default function App() {
                         {/* Standalone IPL Hub Page (Strictly Zero Modals) */}
                         <Route path="/ipl" element={<IPLHub />} />
                         
-                        {/* Route to the real-time tracking dashboard */}
-                        <Route path="/dashboard" element={<Dashboard />} />
+                        {/* FEATURE 2: Legacy Dashboard Fallback Guard */}
+                        {/* Instantly reroutes old links to the new secure Profile layout */}
+                        <Route path="/dashboard" element={<Navigate to="/profile" replace />} />
+                        
+                        {/* FEATURE 3: 1:1 Viagogo Zero-Modal Nested Profile Architecture */}
+                        <Route path="/profile" element={<ProfileLayout />}>
+                            <Route index element={<ProfileOverview />} />
+                            <Route path="orders" element={<Orders />} />
+                            {/* Pending modules (Listings, Sales, Payments) will dynamically route here */}
+                        </Route>
                         
                         {/* Map both legacy and new routing pathways directly to the real-time API listing flow */}
                         <Route path="/sell" element={<CreateListing />} />
