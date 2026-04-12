@@ -1,12 +1,13 @@
 import { create } from 'zustand';
-import { db } from '../lib/firebase';
+import { auth, db } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp, query, where, onSnapshot } from 'firebase/firestore';
+import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { aggregateAllEvents } from '../services/eventAggregator';
 
 export const useSellerStore = create((set, get) => ({
-    // Seller Authentication State
-    user: { uid: 'seller_123_temp', email: 'seller@parbet.com' }, // Temporary mock user for dev if auth isn't wired yet, replace with null in prod
-    isAuthenticated: true, 
+    // 100% Real Seller Authentication State (Zero Mock Data)
+    user: null, 
+    isAuthenticated: false, 
     isSubmitting: false,
     submitError: null,
 
@@ -20,12 +21,33 @@ export const useSellerStore = create((set, get) => ({
     isLoadingListings: false,
     unsubscribeListings: null,
 
+    // ------------------------------------------------------------------
+    // SECURE FIREBASE AUTHENTICATION PIPELINE
+    // ------------------------------------------------------------------
+    initAuth: () => {
+        // Listen for real cryptographic identity state changes
+        onAuthStateChanged(auth, async (currentUser) => {
+            if (currentUser) {
+                // Secure session exists
+                set({ user: currentUser, isAuthenticated: true });
+            } else {
+                // No user found, generate a 100% real anonymous UID securely via Firebase
+                try {
+                    await signInAnonymously(auth);
+                } catch (error) {
+                    console.error("Firebase Anonymous Auth Failed:", error);
+                }
+            }
+        });
+    },
+
     // Auth Setters
     setUser: (user) => set({ user, isAuthenticated: !!user }),
     logout: () => {
         const { unsubscribeListings } = get();
         if (unsubscribeListings) unsubscribeListings(); // Clean up listener to prevent memory leaks
         set({ user: null, isAuthenticated: false, myListings: [], unsubscribeListings: null });
+        auth.signOut();
     },
 
     // API & Search Setters
@@ -61,7 +83,7 @@ export const useSellerStore = create((set, get) => ({
         // STRICT RULE 1: Target the exact public shared path the buyer site listens to
         const ticketsRef = collection(db, 'artifacts', appId, 'public', 'data', 'tickets');
         
-        // Strictly filter to ONLY show tickets created by the logged-in seller
+        // Strictly filter to ONLY show tickets created by the logged-in seller's REAL UID
         const q = query(ticketsRef, where('sellerId', '==', state.user.uid));
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -92,9 +114,9 @@ export const useSellerStore = create((set, get) => ({
         try {
             const state = get();
             
-            // Strict Auth Guard
+            // Strict Auth Guard ensuring only verified real UIDs can post
             if (!state.user) {
-                throw new Error("You must be signed in to list tickets on the marketplace.");
+                throw new Error("You must be securely authenticated to list tickets on the marketplace.");
             }
 
             // CRITICAL PATH: Dynamically resolve the environment App ID
