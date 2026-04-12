@@ -1,8 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
-import { auth, db } from './lib/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
-import { doc, onSnapshot } from 'firebase/firestore';
 
 // Store Imports
 import { useAppStore } from './store/useStore';
@@ -38,7 +35,8 @@ const dynamicRoutes = Object.keys(pages).map((path) => {
 
 function MainLayout() {
     const location = useLocation();
-    const { isAuthenticated } = useAppStore();
+    // FEATURE: Switched to useMainStore for accurate global auth state evaluation
+    const { isAuthenticated } = useMainStore();
     
     // Detect immersive/standalone pages that require global Header/Footer suppression
     const isIsolatedPage = ['/event', '/login', '/signup'].some(path => 
@@ -95,14 +93,11 @@ function MainLayout() {
 
 export default function App() {
     const isMaintenance = false; 
-    const { hasOnboarded, setAuth, setWallet } = useAppStore();
-    const { initAuth, authLoading } = useMainStore(); // Real-time state
-    const [loading, setLoading] = useState(true);
-    const [localUser, setLocalUser] = useState(null);
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    const { hasOnboarded } = useAppStore();
+    const { initAuth, authLoading } = useMainStore(); // Real-time gatekeeper state
 
     /**
-     * FEATURE 1: Master Authentication & Data Link
+     * FEATURE 1: Master Authentication & Data Link (Unified Gatekeeper)
      * Triggers the useMainStore engine to establish secure websocket listeners.
      */
     useEffect(() => {
@@ -111,62 +106,10 @@ export default function App() {
         }
     }, [isMaintenance, initAuth]);
 
-    /**
-     * EFFECT 1: Master Auth Listener (Legacy Preservation)
-     * Tracks the Firebase Auth state and hydrates the global store.
-     */
-    useEffect(() => {
-        if (isMaintenance) return;
-
-        const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-            setLocalUser(user);
-            if (user) {
-                setAuth({
-                    uid: user.uid,
-                    email: user.email,
-                    name: user.displayName || user.email?.split('@')[0],
-                    photo: user.photoURL
-                });
-            } else {
-                setAuth(false);
-            }
-            setLoading(false);
-        });
-
-        return () => unsubscribeAuth();
-    }, [isMaintenance, setAuth]);
-
-    /**
-     * EFFECT 2: Private Data Guardian (Legacy Preservation)
-     */
-    useEffect(() => {
-        if (!localUser || isMaintenance) return;
-
-        const userRef = doc(db, 'artifacts', appId, 'users', localUser.uid, 'profile', 'data');
-        
-        const unsubscribeData = onSnapshot(userRef, 
-            (docSnap) => {
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    setWallet(data.balance || 0, 0);
-                }
-            },
-            (error) => {
-                if (error.code === 'permission-denied') {
-                    console.warn("Firestore sync delayed: waiting for auth handshake.");
-                } else {
-                    console.error("Firestore critical error:", error);
-                }
-            }
-        );
-
-        return () => unsubscribeData();
-    }, [localUser, isMaintenance, appId, setWallet]);
-
     if (isMaintenance) return <Maintenance />;
 
-    // Combined loading state: ensures both auth systems are ready before rendering
-    if (loading || authLoading) {
+    // Single source of truth loading state from useMainStore gatekeeper
+    if (authLoading) {
         return (
             <div className="min-h-screen bg-white flex flex-col items-center justify-center">
                 <div className="w-10 h-10 border-4 border-[#114C2A] border-t-transparent rounded-full animate-spin mb-4"></div>
