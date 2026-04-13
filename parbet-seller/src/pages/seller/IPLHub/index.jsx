@@ -38,9 +38,11 @@ export default function IPLHub() {
         };
     };
 
+    // FEATURE UPDATE: Dynamic Performer Catalog Routing
+    // Navigates the seller to the 1:1 Viagogo team catalog instead of the generic listing form
     const handleSellClick = (event) => {
-        // Route directly to the form with the real team pre-filled
-        navigate(`/create-listing?q=${encodeURIComponent(event.t1)}`);
+        const teamSlug = event.t1 ? event.t1.replace(/\s+/g, '-') : 'Event';
+        navigate(`/sell/performer/${encodeURIComponent(teamSlug)}`);
     };
 
     return (
