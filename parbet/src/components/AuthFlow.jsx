@@ -6,7 +6,8 @@ import {
     createUserWithEmailAndPassword, 
     signInWithEmailAndPassword,
     GoogleAuthProvider,
-    signInWithPopup
+    signInWithPopup,
+    sendPasswordResetEmail
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { sendVerificationEmail } from '../lib/email';
@@ -27,6 +28,7 @@ export default function AuthFlow() {
     const [totpUri, setTotpUri] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [resetSuccess, setResetSuccess] = useState(false);
 
     // FEATURE 1: Secure Google OAuth Pipeline with Domain Interceptor
     const handleGoogleAuth = async () => {
@@ -132,6 +134,22 @@ export default function AuthFlow() {
         }
     };
 
+    // FEATURE 3: Secure Password Recovery Pipeline
+    const handleResetPassword = async () => {
+        if (!email) {
+            setError('Please enter your email address to recover your password.');
+            return;
+        }
+        setLoading(true); setError(''); setResetSuccess(false);
+        try {
+            await sendPasswordResetEmail(auth, email);
+            setResetSuccess(true);
+        } catch (err) {
+            setError(err.message || 'Failed to send reset link. Ensure the email is correct.');
+        }
+        setLoading(false);
+    };
+
     return (
         <div className="w-full bg-white p-6 md:p-8">
             <div className="flex justify-center mb-6"><ShieldCheck size={48} className="text-[#114C2A]" /></div>
@@ -157,7 +175,7 @@ export default function AuthFlow() {
                             <div className="flex-grow border-t border-gray-200"></div>
                         </div>
 
-                        {/* FEATURE 3: Google Auth Injection */}
+                        {/* Google Auth Injection */}
                         <button 
                             onClick={handleGoogleAuth} 
                             disabled={loading} 
@@ -217,9 +235,57 @@ export default function AuthFlow() {
                         <button onClick={() => setStep('select')} className="text-[#0064d2] text-sm font-bold hover:underline mb-2 block">&larr; Back</button>
                         <div className="flex items-center bg-white rounded-xl px-4 py-3 border-2 border-gray-200 focus-within:border-[#114C2A] transition-colors"><Mail size={18} className="text-gray-400 mr-3"/><input type="email" placeholder="Email Address" value={email} onChange={e=>setEmail(e.target.value)} className="bg-transparent outline-none flex-1 text-[15px] font-medium text-gray-900"/></div>
                         <div className="flex items-center bg-white rounded-xl px-4 py-3 border-2 border-gray-200 focus-within:border-[#114C2A] transition-colors"><Lock size={18} className="text-gray-400 mr-3"/><input type="password" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} className="bg-transparent outline-none flex-1 text-[15px] font-medium text-gray-900"/></div>
+                        
+                        {/* Forgot Password Toggle */}
+                        <div className="flex justify-end">
+                            <button onClick={() => { setStep('forgot_password'); setError(''); setResetSuccess(false); }} className="text-[#0064d2] text-[13px] font-bold hover:underline">
+                                Forgot Password?
+                            </button>
+                        </div>
+
                         <button onClick={handleLogin} disabled={loading} className="w-full bg-[#114C2A] text-white py-3.5 rounded-xl font-bold hover:bg-[#0c361d] transition-colors shadow-md disabled:opacity-50 flex justify-center items-center gap-2 mt-2">
                             {loading ? <><Loader2 className="animate-spin" size={18} /> Authenticating...</> : 'Sign In'}
                         </button>
+                    </div>
+                )}
+
+                {/* FEATURE 4: Password Recovery Flow */}
+                {step === 'forgot_password' && (
+                    <div className="space-y-4">
+                        <button onClick={() => { setStep('login'); setError(''); setResetSuccess(false); }} className="text-[#0064d2] text-sm font-bold hover:underline mb-2 block">&larr; Back to Login</button>
+                        <p className="text-[14px] text-gray-600 font-medium text-center mb-6 leading-relaxed">
+                            Enter your account email address and we will send you a secure link to reset your password.
+                        </p>
+                        
+                        {resetSuccess ? (
+                            <div className="bg-[#eaf4d9] border border-[#458731] text-[#114C2A] p-4 rounded-xl flex items-start gap-3 shadow-sm text-left leading-relaxed">
+                                <ShieldCheck size={20} className="shrink-0 mt-0.5" />
+                                <div>
+                                    <span className="font-bold block mb-1">Reset Link Sent!</span>
+                                    <span className="text-sm font-medium">Please check your inbox at <strong className="text-[#1a1a1a]">{email}</strong> to create a new password.</span>
+                                </div>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="flex items-center bg-white rounded-xl px-4 py-3 border-2 border-gray-200 focus-within:border-[#114C2A] transition-colors">
+                                    <Mail size={18} className="text-gray-400 mr-3"/>
+                                    <input 
+                                        type="email" 
+                                        placeholder="Email Address" 
+                                        value={email} 
+                                        onChange={e=>setEmail(e.target.value)} 
+                                        className="bg-transparent outline-none flex-1 text-[15px] font-medium text-gray-900"
+                                    />
+                                </div>
+                                <button 
+                                    onClick={handleResetPassword} 
+                                    disabled={loading || !email} 
+                                    className="w-full bg-[#114C2A] text-white py-3.5 rounded-xl font-bold hover:bg-[#0c361d] transition-colors shadow-md disabled:opacity-50 flex justify-center items-center gap-2 mt-2"
+                                >
+                                    {loading ? <><Loader2 className="animate-spin" size={18} /> Sending...</> : 'Send Recovery Link'}
+                                </button>
+                            </>
+                        )}
                     </div>
                 )}
 

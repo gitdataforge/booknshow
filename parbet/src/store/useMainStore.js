@@ -6,16 +6,26 @@ import {
     doc, 
     setDoc, 
     serverTimestamp,
-    query
+    query,
+    where
 } from 'firebase/firestore';
 import { 
     signInAnonymously, 
     onAuthStateChanged, 
-    signInWithCustomToken 
+    signInWithCustomToken,
+    sendPasswordResetEmail
 } from 'firebase/auth';
 
-// Retrieve global environment variables
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'parbet-main-app';
+// Retrieve global environment variables (Strict Fallback to Parbet Project ID)
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'parbet-44902';
+
+// Safe Date Parser to prevent sorting crashes on varying Timestamp formats
+const safeGetTime = (val) => {
+    if (!val) return 0;
+    if (typeof val.toDate === 'function') return val.toDate().getTime();
+    if (val.seconds) return val.seconds * 1000;
+    return new Date(val).getTime();
+};
 
 export const useMainStore = create((set, get) => ({
     // --- STATE ---
@@ -82,24 +92,27 @@ export const useMainStore = create((set, get) => ({
 
         const listeners = [];
 
-        // 1. ORDERS LISTENER (Private Path)
+        // 1. ORDERS LISTENER (Strict Path: /artifacts/appId/public/data/orders)
         set({ isLoadingOrders: true });
-        const ordersRef = collection(db, 'artifacts', appId, 'users', userId, 'orders');
+        const ordersRef = collection(db, 'artifacts', appId, 'public', 'data', 'orders');
+        const ordersQuery = query(ordersRef, where('buyerId', '==', userId));
         
-        const unsubOrders = onSnapshot(ordersRef, (snapshot) => {
+        const unsubOrders = onSnapshot(ordersQuery, (snapshot) => {
             const ordersList = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            ordersList.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+            ordersList.sort((a, b) => safeGetTime(b.createdAt) - safeGetTime(a.createdAt));
             set({ orders: ordersList, isLoadingOrders: false });
         }, (error) => {
             // Silently handle auth-transition errors during re-auth
             if (error.code !== 'permission-denied') {
                 console.error("Orders sync failed:", error);
+            } else {
+                console.warn("Orders sync permission denied. Awaiting auth stabilization.");
             }
             set({ isLoadingOrders: false });
         });
         listeners.push(unsubOrders);
 
-        // 2. WALLET LISTENER (Private Doc)
+        // 2. WALLET LISTENER (Private Doc: /artifacts/appId/users/userId/wallet/main)
         set({ isLoadingWallet: true });
         const walletDocRef = doc(db, 'artifacts', appId, 'users', userId, 'wallet', 'main');
         
@@ -136,7 +149,20 @@ export const useMainStore = create((set, get) => ({
     },
 
     /**
-     * FEATURE 5: Secure Sign Out
+     * FEATURE 5: Secure Password Recovery
+     */
+    resetPassword: async (email) => {
+        try {
+            await sendPasswordResetEmail(auth, email);
+            return { success: true };
+        } catch (error) {
+            console.error("Password recovery failed:", error);
+            throw error;
+        }
+    },
+
+    /**
+     * FEATURE 6: Secure Sign Out
      */
     logout: async () => {
         get().stopListeners();
