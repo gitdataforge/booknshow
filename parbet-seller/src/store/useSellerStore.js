@@ -17,6 +17,9 @@ import {
 import { onAuthStateChanged } from 'firebase/auth';
 import { aggregateAllEvents } from '../services/eventAggregator';
 
+// Retrieve global environment variables (Strict Fallback to Parbet Project ID)
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'parbet-44902';
+
 // FEATURE 1: Bulletproof Date Parser for Firebase Timestamps
 const safeGetTime = (val) => {
     if (!val) return 0;
@@ -59,7 +62,7 @@ export const useSellerStore = create((set, get) => ({
     isLoadingIPLEvents: false,
 
     // ------------------------------------------------------------------
-    // REAL-TIME LISTENER PIPELINE (CRITICAL FIX)
+    // REAL-TIME LISTENER PIPELINE (CRITICAL FIX - STRICT PATHS)
     // ------------------------------------------------------------------
     initAuth: () => {
         onAuthStateChanged(auth, async (currentUser) => {
@@ -70,12 +73,11 @@ export const useSellerStore = create((set, get) => ({
             if (currentUser) {
                 set({ user: currentUser, isAuthenticated: true, authStatus: 'password_set' });
                 
-                const appId = typeof __app_id !== 'undefined' ? __app_id : 'parbet-seller-portal';
                 const uid = currentUser.uid;
                 const newUnsubscribers = [];
 
                 try {
-                    // 1. Wallet & Profile Listener
+                    // 1. Wallet & Profile Listener (Private Data)
                     const profileRef = doc(db, 'artifacts', appId, 'users', uid, 'profile', 'data');
                     const unsubProfile = onSnapshot(profileRef, (docSnap) => {
                         if (docSnap.exists()) {
@@ -88,36 +90,44 @@ export const useSellerStore = create((set, get) => ({
                         } else {
                             setDoc(profileRef, { balance: 0, pendingBalance: 0, kycVerified: false, role: 'seller' }, { merge: true });
                         }
-                    }, (err) => console.error("Profile Sync Error:", err));
+                    }, (err) => {
+                        if (err.code !== 'permission-denied') console.error("Profile Sync Error:", err);
+                    });
                     newUnsubscribers.push(unsubProfile);
 
-                    // 2. REAL-TIME LISTINGS (My Active Tickets)
+                    // 2. REAL-TIME LISTINGS (My Active Tickets - Public Ledger filtered by Seller)
                     const ticketsRef = collection(db, 'artifacts', appId, 'public', 'data', 'tickets');
                     const unsubListings = onSnapshot(query(ticketsRef, where('sellerId', '==', uid)), (snapshot) => {
                         const items = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                         set({ listings: items.sort((a, b) => safeGetTime(b.createdAt) - safeGetTime(a.createdAt)) });
-                    }, (err) => console.error("Listings Sync Error:", err));
+                    }, (err) => {
+                        if (err.code !== 'permission-denied') console.error("Listings Sync Error:", err);
+                    });
                     newUnsubscribers.push(unsubListings);
 
-                    // 3. REAL-TIME SALES (Sold Tickets)
+                    // 3. REAL-TIME SALES (Sold Tickets - Public Ledger filtered by Seller)
                     const ordersRef = collection(db, 'artifacts', appId, 'public', 'data', 'orders');
                     const unsubSales = onSnapshot(query(ordersRef, where('sellerId', '==', uid)), (snapshot) => {
                         const items = snapshot.docs.map(d => ({ 
                             id: d.id, 
                             type: 'sale', 
-                            description: `Sold: ${d.data().eventName}`, 
+                            description: `Sold: ${d.data().eventName || 'Tickets'}`, 
                             date: d.data().createdAt, 
                             ...d.data() 
                         }));
                         set({ sales: items.sort((a, b) => safeGetTime(b.createdAt) - safeGetTime(a.createdAt)) });
-                    }, (err) => console.error("Sales Sync Error:", err));
+                    }, (err) => {
+                        if (err.code !== 'permission-denied') console.error("Sales Sync Error:", err);
+                    });
                     newUnsubscribers.push(unsubSales);
 
-                    // 4. REAL-TIME PURCHASES (If seller also buys)
+                    // 4. REAL-TIME PURCHASES (If seller also buys tickets)
                     const unsubOrders = onSnapshot(query(ordersRef, where('buyerId', '==', uid)), (snapshot) => {
                         const items = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                         set({ orders: items.sort((a, b) => safeGetTime(b.createdAt) - safeGetTime(a.createdAt)) });
-                    }, (err) => console.error("Orders Sync Error:", err));
+                    }, (err) => {
+                        if (err.code !== 'permission-denied') console.error("Orders Sync Error:", err);
+                    });
                     newUnsubscribers.push(unsubOrders);
 
                     set({ unsubscribers: newUnsubscribers, isLoading: false });
@@ -139,7 +149,6 @@ export const useSellerStore = create((set, get) => ({
             const state = get();
             if (!state.user) throw new Error("Authentication Required");
 
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'parbet-seller-portal';
             const ticketsRef = collection(db, 'artifacts', appId, 'public', 'data', 'tickets');
 
             const commenceTimeStr = new Date(`${listingData.date}T${listingData.time}`).toISOString();
@@ -177,7 +186,6 @@ export const useSellerStore = create((set, get) => ({
     },
 
     deleteListing: async (listingId) => {
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'parbet-seller-portal';
         await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tickets', listingId));
     },
 
