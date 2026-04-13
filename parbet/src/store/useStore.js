@@ -76,11 +76,12 @@ export const useAppStore = create((set, get) => ({
     recentSearches: JSON.parse(localStorage.getItem('parbet_recent_searches')) || [],
     favorites: JSON.parse(localStorage.getItem('parbet_favorites')) || [],
 
-    // Multi-Step Checkout & PayU States
+    // Multi-Step Checkout & Razorpay States
     checkoutStep: 1, 
     checkoutExpiration: null,
-    payuHash: '',
-    payuTransactionId: '',
+    razorpayOrderId: null,
+    razorpayPaymentId: null,
+    razorpaySignature: null,
     
     checkoutFormData: {
         contact: {
@@ -201,7 +202,13 @@ export const useAppStore = create((set, get) => ({
             [section]: { ...state.checkoutFormData[section], ...data }
         }
     })),
-    setPayuStates: (hash, txnId) => set({ payuHash: hash, payuTransactionId: txnId }),
+    
+    // Razorpay Integration Setters
+    setRazorpayOrder: (orderId) => set({ razorpayOrderId: orderId }),
+    setRazorpayVerification: (paymentId, signature) => set({ 
+        razorpayPaymentId: paymentId, 
+        razorpaySignature: signature 
+    }),
 
     // Checkout Timer Actions
     startCheckoutTimer: () => {
@@ -386,19 +393,31 @@ export const useAppStore = create((set, get) => ({
                 const buyerSnap = await transaction.get(buyerRef);
                 
                 if (!listingSnap.exists() || listingSnap.data().status !== 'active') throw new Error("Listing is no longer available.");
-                if (!buyerSnap.exists() || buyerSnap.data().balance < amount) throw new Error("Insufficient wallet balance.");
+                
+                // Allow purchase via Razorpay (wallet balance check removed for direct gateway integration)
+                // if (!buyerSnap.exists() || buyerSnap.data().balance < amount) throw new Error("Insufficient wallet balance.");
                 
                 const sellerId = listingSnap.data().sellerId;
                 const sellerRef = doc(db, 'artifacts', appId, 'users', sellerId, 'profile', 'data');
                 const sellerSnap = await transaction.get(sellerRef);
                 
-                transaction.update(buyerRef, { balance: buyerSnap.data().balance - amount });
+                // Skip wallet deduction since payment is handled by Razorpay
+                // transaction.update(buyerRef, { balance: buyerSnap.data().balance - amount });
                 const currentSellerBalance = sellerSnap.exists() ? (sellerSnap.data().balance || 0) : 0;
+                
                 transaction.update(sellerRef, { balance: currentSellerBalance + amount });
                 transaction.update(listingRef, { status: 'sold' });
                 
                 const orderRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'));
-                transaction.set(orderRef, { listingId, buyerId, sellerId, amount, eventName: listingSnap.data().eventName, createdAt: new Date().toISOString() });
+                transaction.set(orderRef, { 
+                    listingId, 
+                    buyerId, 
+                    sellerId, 
+                    amount, 
+                    eventName: listingSnap.data().eventName, 
+                    createdAt: new Date().toISOString(),
+                    paymentGateway: 'Razorpay'
+                });
             });
             set({ isCheckingOut: false });
             return { success: true };
