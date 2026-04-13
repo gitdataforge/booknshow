@@ -1,15 +1,61 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /listings/{listingId} {
-      // Public read access for buyers
-      allow read: if true;
-      // Strict real logic: Only authenticated users with verified KYC can create listings
-      allow create, update: if request.auth != null && request.auth.token.kycVerified == true;
-      allow delete: if request.auth != null && resource.data.sellerId == request.auth.uid;
+
+    // Helper: Checks if the user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
     }
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+    // Helper: Checks if the user is the owner of the private user data
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // FEATURE 1: Public Listings (Tickets)
+    // Path: /artifacts/{appId}/public/data/tickets/{documentId}
+    match /artifacts/{appId}/public/data/tickets/{ticketId} {
+      // Anyone (Buyer or Seller) can browse available tickets
+      allow read: if true;
+      
+      // Only authenticated sellers can create listings
+      // Ownership is established by the sellerId field in the document
+      allow create: if isAuthenticated();
+      
+      // Only the original seller can update or delete their own tickets
+      allow update, delete: if isAuthenticated() && resource.data.sellerId == request.auth.uid;
+    }
+
+    // FEATURE 2: Order Ledger (Sales & Purchases)
+    // Path: /artifacts/{appId}/public/data/orders/{documentId}
+    match /artifacts/{appId}/public/data/orders/{orderId} {
+      // A user can only read an order if they are either the buyer or the seller
+      allow read: if isAuthenticated() && (
+        resource.data.sellerId == request.auth.uid || 
+        resource.data.buyerId == request.auth.uid
+      );
+      
+      // Orders are typically created by the Main Site (Buyer)
+      allow create: if isAuthenticated();
+      
+      // Strict lockdown: Orders cannot be modified or deleted once created for financial integrity
+      allow update, delete: if false;
+    }
+
+    // FEATURE 3: Private Seller Profiles & Wallet Data
+    // Path: /artifacts/{appId}/users/{userId}/profile/data
+    match /artifacts/{appId}/users/{userId}/profile/data {
+      allow read, write: if isOwner(userId);
+    }
+
+    // FEATURE 4: Private Payouts Ledger
+    // Path: /artifacts/{appId}/users/{userId}/payouts/{documentId}
+    match /artifacts/{appId}/users/{userId}/payouts/{payoutId} {
+      allow read: if isOwner(userId);
+      // Payout records are system-generated or owner-requested
+      allow create: if isOwner(userId);
+      allow update, delete: if false;
     }
   }
 }

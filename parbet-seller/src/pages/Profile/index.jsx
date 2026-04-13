@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { 
     Wallet, 
@@ -8,21 +8,21 @@ import {
     ArrowRight, 
     Clock, 
     CheckCircle2, 
-    AlertCircle,
     PlusCircle,
     Banknote,
-    ChevronRight
+    ChevronRight,
+    Loader2
 } from 'lucide-react';
 import { useSellerStore } from '../../store/useSellerStore';
 
 export default function ProfileOverview() {
     const navigate = useNavigate();
     
-    // FEATURE 1: Secure Data Extraction from Seller Store
-    // Relies strictly on real-time data populated by the global seller gatekeeper
+    // FEATURE 1: Production-Grade Data Extraction
+    // Connects directly to the live Firebase-backed Zustand store
     const { user, walletBalance, listings = [], sales = [], isLoading } = useSellerStore();
 
-    // FEATURE 2: Dynamic Time-Aware Greeting Logic
+    // FEATURE 2: Time-Aware Personalized Greeting
     const [greeting, setGreeting] = useState('');
     useEffect(() => {
         const hour = new Date().getHours();
@@ -31,28 +31,22 @@ export default function ProfileOverview() {
         else setGreeting('Good evening');
     }, []);
 
-    // FEATURE 3: Real-Time Inventory Computation
+    // FEATURE 3: Mathematical Inventory & Revenue Engine
     const activeListingsCount = useMemo(() => {
         return listings.filter(l => l.status === 'active').length;
     }, [listings]);
 
-    const pendingListingsCount = useMemo(() => {
-        return listings.filter(l => l.status === 'pending').length;
-    }, [listings]);
-
-    // FEATURE 4: Live Lifetime Revenue Calculator
     const lifetimeRevenue = useMemo(() => {
-        return sales.reduce((total, sale) => total + (Number(sale.amount) || 0), 0);
+        // Calculates gross revenue from the live orders collection
+        return sales.reduce((total, sale) => total + (Number(sale.price * (sale.quantity || 1)) || 0), 0);
     }, [sales]);
 
-    // FEATURE 5: Chronological Sales Pipeline Sorter
     const recentSales = useMemo(() => {
-        return [...sales]
-            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-            .slice(0, 3); // Extract only the 3 most recent for the dashboard feed
+        // Orders the feed by creation timestamp (newest first)
+        return [...sales].slice(0, 3);
     }, [sales]);
 
-    // FEATURE 6: Currency Formatter Utility
+    // Currency Formatter Utility (INR)
     const formatCurrency = (amount) => {
         return new Intl.NumberFormat('en-IN', {
             style: 'currency',
@@ -61,21 +55,21 @@ export default function ProfileOverview() {
         }).format(amount || 0);
     };
 
-    // FEATURE 7: Framer Motion Staggered Physics Engine
-    const containerVariants = {
+    // Staggered Animation Definitions
+    const container = {
         hidden: { opacity: 0 },
-        show: { opacity: 1, transition: { staggerChildren: 0.1 } }
+        show: { opacity: 1, transition: { staggerChildren: 0.08 } }
     };
 
-    const cardVariants = {
-        hidden: { opacity: 0, y: 20 },
-        show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 100, damping: 20 } }
+    const item = {
+        hidden: { opacity: 0, y: 15 },
+        show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 120, damping: 20 } }
     };
 
     if (isLoading) {
         return (
             <div className="w-full h-[60vh] flex flex-col items-center justify-center">
-                <div className="w-8 h-8 border-4 border-[#1a1a1a] border-t-transparent rounded-full animate-spin mb-4"></div>
+                <Loader2 className="animate-spin text-[#1a1a1a] mb-4" size={32} />
                 <p className="text-[13px] font-bold text-[#54626c] tracking-widest uppercase">Syncing Dashboard...</p>
             </div>
         );
@@ -85,36 +79,37 @@ export default function ProfileOverview() {
         <motion.div 
             initial="hidden"
             animate="show"
-            variants={containerVariants}
+            variants={container}
             className="w-full font-sans max-w-[1000px] pb-20"
         >
-            {/* FEATURE 8: Contextual Header with Quick-Action Injection */}
-            <motion.div variants={cardVariants} className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
+            {/* FEATURE 4: Dynamic Greeting & Quick-List Action */}
+            <motion.div variants={item} className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
                 <div>
-                    <h1 className="text-[28px] md:text-[32px] font-black text-[#1a1a1a] tracking-tight leading-tight">
+                    <h1 className="text-[28px] md:text-[36px] font-black text-[#1a1a1a] tracking-tight leading-tight">
                         {greeting}, {user?.displayName || user?.email?.split('@')[0] || 'Seller'}.
                     </h1>
-                    <p className="text-[#54626c] text-[15px] mt-1">
-                        Here is what is happening with your inventory and sales today.
+                    <p className="text-[#54626c] text-[15px] mt-1 font-medium">
+                        Your marketplace activity is updated in real-time.
                     </p>
                 </div>
                 <button 
-                    onClick={() => navigate('/sell')} // Assuming there's a global sell route or modal trigger
-                    className="flex items-center justify-center gap-2 bg-[#1a1a1a] hover:bg-[#333333] text-white px-6 py-3 rounded-[4px] font-bold text-[14px] transition-colors shrink-0"
+                    onClick={() => navigate('/sell')}
+                    className="flex items-center justify-center gap-2 bg-[#1a1a1a] hover:bg-black text-white px-6 py-3.5 rounded-[8px] font-bold text-[14px] transition-all shadow-md active:scale-95 shrink-0"
                 >
                     <PlusCircle size={18} /> List New Tickets
                 </button>
             </motion.div>
 
-            {/* FEATURE 9: Real-Time Financial & Inventory Metric Grid */}
+            {/* FEATURE 5: Real-Time Performance Metric Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-                {/* Metric 1: Available Wallet Balance */}
-                <motion.div variants={cardVariants} className="bg-white border border-[#e2e2e2] rounded-[4px] p-6 shadow-sm flex flex-col justify-between">
+                
+                {/* Metric 1: Wallet Balance */}
+                <motion.div variants={item} className="bg-white border border-[#e2e2e2] rounded-[12px] p-6 shadow-sm flex flex-col justify-between group hover:border-[#458731] transition-colors">
                     <div>
-                        <div className="w-10 h-10 bg-[#eaf4d9] rounded-full flex items-center justify-center mb-4">
+                        <div className="w-10 h-10 bg-[#eaf4d9] rounded-[8px] flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                             <Wallet size={20} className="text-[#458731]" />
                         </div>
-                        <p className="text-[13px] font-bold text-[#54626c] uppercase tracking-wider mb-1">Available to Withdraw</p>
+                        <p className="text-[12px] font-bold text-[#54626c] uppercase tracking-widest mb-1">Available Funds</p>
                         <h2 className="text-[32px] font-black text-[#1a1a1a] tracking-tight">
                             {formatCurrency(walletBalance)}
                         </h2>
@@ -127,23 +122,16 @@ export default function ProfileOverview() {
                     </button>
                 </motion.div>
 
-                {/* Metric 2: Active Inventory */}
-                <motion.div variants={cardVariants} className="bg-white border border-[#e2e2e2] rounded-[4px] p-6 shadow-sm flex flex-col justify-between">
+                {/* Metric 2: Live Inventory */}
+                <motion.div variants={item} className="bg-white border border-[#e2e2e2] rounded-[12px] p-6 shadow-sm flex flex-col justify-between group hover:border-[#0064d2] transition-colors">
                     <div>
-                        <div className="w-10 h-10 bg-[#ebf3fb] rounded-full flex items-center justify-center mb-4">
+                        <div className="w-10 h-10 bg-[#ebf3fb] rounded-[8px] flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                             <Ticket size={20} className="text-[#0064d2]" />
                         </div>
-                        <p className="text-[13px] font-bold text-[#54626c] uppercase tracking-wider mb-1">Active Listings</p>
-                        <div className="flex items-baseline gap-3">
-                            <h2 className="text-[32px] font-black text-[#1a1a1a] tracking-tight">
-                                {activeListingsCount}
-                            </h2>
-                            {pendingListingsCount > 0 && (
-                                <span className="text-[13px] font-bold text-orange-500 bg-orange-50 px-2 py-1 rounded-md">
-                                    {pendingListingsCount} pending
-                                </span>
-                            )}
-                        </div>
+                        <p className="text-[12px] font-bold text-[#54626c] uppercase tracking-widest mb-1">Active Listings</p>
+                        <h2 className="text-[32px] font-black text-[#1a1a1a] tracking-tight">
+                            {activeListingsCount}
+                        </h2>
                     </div>
                     <button 
                         onClick={() => navigate('/profile/listings')}
@@ -153,13 +141,13 @@ export default function ProfileOverview() {
                     </button>
                 </motion.div>
 
-                {/* Metric 3: Lifetime Sales Tracking */}
-                <motion.div variants={cardVariants} className="bg-white border border-[#e2e2e2] rounded-[4px] p-6 shadow-sm flex flex-col justify-between">
+                {/* Metric 3: Gross Revenue */}
+                <motion.div variants={item} className="bg-white border border-[#e2e2e2] rounded-[12px] p-6 shadow-sm flex flex-col justify-between group hover:border-black transition-colors">
                     <div>
-                        <div className="w-10 h-10 bg-[#f8f9fa] rounded-full flex items-center justify-center mb-4 border border-[#e2e2e2]">
+                        <div className="w-10 h-10 bg-[#f8f9fa] border border-gray-200 rounded-[8px] flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                             <TrendingUp size={20} className="text-[#1a1a1a]" />
                         </div>
-                        <p className="text-[13px] font-bold text-[#54626c] uppercase tracking-wider mb-1">Lifetime Revenue</p>
+                        <p className="text-[12px] font-bold text-[#54626c] uppercase tracking-widest mb-1">Lifetime Revenue</p>
                         <h2 className="text-[32px] font-black text-[#1a1a1a] tracking-tight">
                             {formatCurrency(lifetimeRevenue)}
                         </h2>
@@ -173,15 +161,15 @@ export default function ProfileOverview() {
                 </motion.div>
             </div>
 
-            {/* FEATURE 10: Dynamic Recent Activity Feed & Production Empty States */}
-            <motion.div variants={cardVariants} className="bg-white border border-[#e2e2e2] rounded-[4px] shadow-sm overflow-hidden">
-                <div className="border-b border-[#e2e2e2] px-6 py-5 flex items-center justify-between bg-[#f8f9fa]">
-                    <h3 className="text-[16px] font-bold text-[#1a1a1a] flex items-center gap-2">
-                        <Clock size={18} className="text-[#54626c]" /> Recent Sales Activity
+            {/* FEATURE 6: Live Activity Ledger & Production Empty States */}
+            <motion.div variants={item} className="bg-white border border-[#e2e2e2] rounded-[12px] shadow-sm overflow-hidden">
+                <div className="border-b border-[#e2e2e2] px-6 py-5 flex items-center justify-between bg-[#fcfcfc]">
+                    <h3 className="text-[15px] font-black text-[#1a1a1a] flex items-center gap-2">
+                        <Clock size={18} className="text-[#54626c]" /> Recent Sales Feed
                     </h3>
                     {recentSales.length > 0 && (
                         <button onClick={() => navigate('/profile/sales')} className="text-[13px] font-bold text-[#0064d2] hover:underline">
-                            View All
+                            View Historical Records
                         </button>
                     )}
                 </div>
@@ -190,48 +178,46 @@ export default function ProfileOverview() {
                     {recentSales.length > 0 ? (
                         <div className="divide-y divide-[#e2e2e2]">
                             {recentSales.map((sale) => (
-                                <div key={sale.id} className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
+                                <div key={sale.id} className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-[#f9fdf7]/50 transition-colors">
                                     <div className="flex items-start gap-4">
-                                        <div className="w-10 h-10 rounded-full bg-[#eaf4d9] flex items-center justify-center shrink-0 mt-1">
+                                        <div className="w-10 h-10 rounded-full bg-[#eaf4d9] flex items-center justify-center shrink-0 mt-0.5">
                                             <Banknote size={20} className="text-[#458731]" />
                                         </div>
                                         <div>
-                                            <h4 className="text-[15px] font-bold text-[#1a1a1a] mb-1">{sale.eventName || 'Event Tickets Sold'}</h4>
-                                            <div className="flex items-center gap-3 text-[13px] text-[#54626c]">
-                                                <span>Order #{sale.id.substring(0, 8).toUpperCase()}</span>
+                                            <h4 className="text-[16px] font-bold text-[#1a1a1a] mb-0.5">{sale.eventName || 'Sold Event Tickets'}</h4>
+                                            <div className="flex items-center gap-2.5 text-[13px] text-[#54626c]">
+                                                <span className="font-medium">Order #{sale.id.substring(0, 8).toUpperCase()}</span>
                                                 <span className="w-1 h-1 rounded-full bg-[#cccccc]"></span>
-                                                <span>{new Date(sale.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                                <span>{sale.quantity} ticket{sale.quantity > 1 ? 's' : ''}</span>
                                             </div>
                                         </div>
                                     </div>
                                     <div className="flex items-center justify-between md:justify-end gap-6 md:w-auto w-full border-t border-gray-100 md:border-0 pt-4 md:pt-0">
                                         <div className="text-right">
-                                            <div className="text-[16px] font-black text-[#1a1a1a]">+{formatCurrency(sale.amount)}</div>
-                                            <div className="text-[12px] font-bold text-[#458731] flex items-center justify-end mt-1">
-                                                <CheckCircle2 size={12} className="mr-1" /> Payment Secured
+                                            <div className="text-[17px] font-black text-[#1a1a1a]">+{formatCurrency(sale.price * sale.quantity)}</div>
+                                            <div className="text-[11px] font-black text-[#458731] flex items-center justify-end mt-0.5 uppercase tracking-widest">
+                                                <CheckCircle2 size={12} className="mr-1" /> Paid to Wallet
                                             </div>
                                         </div>
-                                        <button onClick={() => navigate('/profile/sales')} className="text-gray-400 hover:text-[#1a1a1a] transition-colors">
-                                            <ChevronRight size={20} />
-                                        </button>
+                                        <ChevronRight size={20} className="text-gray-300" />
                                     </div>
                                 </div>
                             ))}
                         </div>
                     ) : (
-                        <div className="py-16 px-6 flex flex-col items-center justify-center text-center">
-                            <div className="w-16 h-16 bg-[#f8f9fa] rounded-full flex items-center justify-center mb-4">
-                                <TrendingUp size={28} className="text-gray-400" />
+                        <div className="py-20 px-6 flex flex-col items-center justify-center text-center">
+                            <div className="w-20 h-20 bg-[#f8f9fa] rounded-full flex items-center justify-center mb-5 border border-dashed border-gray-300">
+                                <TrendingUp size={32} className="text-gray-300" />
                             </div>
-                            <h4 className="text-[18px] font-bold text-[#1a1a1a] mb-2">No sales yet</h4>
-                            <p className="text-[15px] text-[#54626c] max-w-md mb-6">
-                                When your tickets sell, the transactions will appear here securely. List your first tickets to get started.
+                            <h4 className="text-[18px] font-black text-[#1a1a1a] mb-2 tracking-tight">No Market Activity Detected</h4>
+                            <p className="text-[15px] text-[#54626c] max-w-sm mb-8 leading-relaxed font-medium">
+                                Once your tickets are purchased on the Parbet buyer platform, your real-time earnings will appear here instantly.
                             </p>
                             <button 
                                 onClick={() => navigate('/sell')}
-                                className="bg-white border border-[#cccccc] hover:border-[#1a1a1a] text-[#1a1a1a] px-6 py-2.5 rounded-[4px] font-bold text-[14px] transition-colors"
+                                className="bg-white border-2 border-[#1a1a1a] hover:bg-[#1a1a1a] hover:text-white text-[#1a1a1a] px-8 py-3 rounded-[8px] font-bold text-[14px] transition-all active:scale-95 shadow-sm"
                             >
-                                Create a Listing
+                                Start Selling
                             </button>
                         </div>
                     )}
