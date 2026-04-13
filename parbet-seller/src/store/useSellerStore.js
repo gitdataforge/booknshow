@@ -1,56 +1,211 @@
 import { create } from 'zustand';
 import { auth, db } from '../lib/firebase';
-import { collection, addDoc, serverTimestamp, query, where, onSnapshot, getDocs } from 'firebase/firestore';
-import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { 
+    collection, 
+    addDoc, 
+    serverTimestamp, 
+    query, 
+    where, 
+    onSnapshot, 
+    getDocs, 
+    doc, 
+    deleteDoc, 
+    updateDoc, 
+    runTransaction,
+    setDoc
+} from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
 import { aggregateAllEvents } from '../services/eventAggregator';
 
 export const useSellerStore = create((set, get) => ({
-    // 100% Real Seller Authentication State (Zero Mock Data)
+    // ------------------------------------------------------------------
+    // 1. COMPLEX AUTH STATE MACHINE & SECURITY
+    // ------------------------------------------------------------------
     user: null, 
     isAuthenticated: false, 
+    authStatus: 'unverified', // unverified -> code_sent -> verified -> password_set
     isSubmitting: false,
     submitError: null,
+    isLoading: true, // Master loading state for profile architecture
 
-    // Live API State (For Search & Listing Creation)
+    // ------------------------------------------------------------------
+    // 2. REAL-TIME SELLER LEDGER & INVENTORY (Zero Mock Data)
+    // ------------------------------------------------------------------
+    walletBalance: 0,
+    pendingBalance: 0,
+    bankDetails: null,
+    listings: [],
+    sales: [],
+    orders: [],
+    payments: [], // Withdrawals/Remittances
+    transactions: [], // Combined Sales + Withdrawals ledger
+    
+    // Listener Cleanup References
+    unsubscribers: [],
+
+    // ------------------------------------------------------------------
+    // 3. LIVE API STATE (For Global Search & Listing Creation)
+    // ------------------------------------------------------------------
     liveMatches: [],
     searchQuery: '',
     isLoadingEvents: false,
-
-    // Dedicated IPL Hub State (Merged API + Firebase Custom Events)
     iplEvents: [],
     isLoadingIPLEvents: false,
 
-    // Seller Dashboard State (For Tracking Active Tickets)
-    myListings: [],
-    isLoadingListings: false,
-    unsubscribeListings: null,
-
     // ------------------------------------------------------------------
-    // SECURE FIREBASE AUTHENTICATION PIPELINE
+    // SECURE FIREBASE AUTHENTICATION & LISTENER PIPELINE
     // ------------------------------------------------------------------
     initAuth: () => {
-        // Listen for real cryptographic identity state changes
         onAuthStateChanged(auth, async (currentUser) => {
+            // Clear previous listeners to prevent memory leaks on user switch
+            get().unsubscribers.forEach(unsub => unsub());
+            set({ unsubscribers: [], isLoading: true });
+
             if (currentUser) {
-                // Secure session exists
-                set({ user: currentUser, isAuthenticated: true });
-            } else {
-                // No user found, generate a 100% real anonymous UID securely via Firebase
+                set({ user: currentUser, isAuthenticated: true, authStatus: 'password_set' });
+                
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'parbet-seller-app';
+                const uid = currentUser.uid;
+                const newUnsubscribers = [];
+
                 try {
-                    await signInAnonymously(auth);
+                    // 1. Profile & Wallet Listener (Razorpay KYC Status)
+                    const profileRef = doc(db, 'artifacts', appId, 'users', uid, 'profile', 'data');
+                    const unsubProfile = onSnapshot(profileRef, (docSnap) => {
+                        if (docSnap.exists()) {
+                            const data = docSnap.data();
+                            set({ 
+                                walletBalance: data.balance || 0,
+                                pendingBalance: data.pendingBalance || 0,
+                                bankDetails: data.bankDetails || { verified: false, bankName: 'Pending Setup', accountLastFour: '----' }
+                            });
+                        } else {
+                            // Failsafe initialization if profile document is missing
+                            setDoc(profileRef, { balance: 0, pendingBalance: 0, kycVerified: false, role: 'seller' }, { merge: true });
+                        }
+                    }, (err) => console.error("Profile Listener Error:", err));
+                    newUnsubscribers.push(unsubProfile);
+
+                    // 2. Active Inventory Listener (Listings)
+                    const ticketsRef = collection(db, 'artifacts', appId, 'public', 'data', 'tickets');
+                    const unsubListings = onSnapshot(query(ticketsRef, where('sellerId', '==', uid)), (snapshot) => {
+                        const items = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                        set({ listings: items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) });
+                    }, (err) => console.error("Listings Listener Error:", err));
+                    newUnsubscribers.push(unsubListings);
+
+                    // 3. Sales Pipeline Listener
+                    const ordersRef = collection(db, 'artifacts', appId, 'public', 'data', 'orders');
+                    const unsubSales = onSnapshot(query(ordersRef, where('sellerId', '==', uid)), (snapshot) => {
+                        const items = snapshot.docs.map(d => ({ id: d.id, type: 'sale', description: `Sold: ${d.data().eventName}`, date: d.data().createdAt || new Date().toISOString(), ...d.data() }));
+                        set(state => {
+                            const mergedTx = [...items, ...state.payments].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                            return { sales: items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)), transactions: mergedTx };
+                        });
+                    }, (err) => console.error("Sales Listener Error:", err));
+                    newUnsubscribers.push(unsubSales);
+
+                    // 4. Purchases/Orders Listener
+                    const unsubOrders = onSnapshot(query(ordersRef, where('buyerId', '==', uid)), (snapshot) => {
+                        const items = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                        set({ orders: items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) });
+                    }, (err) => console.error("Orders Listener Error:", err));
+                    newUnsubscribers.push(unsubOrders);
+
+                    // 5. Razorpay Payouts/Remittance Listener
+                    const payoutsRef = collection(db, 'artifacts', appId, 'users', uid, 'payouts', 'history');
+                    const unsubPayouts = onSnapshot(payoutsRef, (snapshot) => {
+                        const items = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                        set(state => {
+                            const mergedTx = [...state.sales, ...items].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                            return { payments: items.sort((a, b) => new Date(b.date) - new Date(a.date)), transactions: mergedTx };
+                        });
+                    }, (err) => console.error("Payouts Listener Error:", err));
+                    newUnsubscribers.push(unsubPayouts);
+
+                    set({ unsubscribers: newUnsubscribers, isLoading: false });
                 } catch (error) {
-                    console.error("Firebase Anonymous Auth Failed:", error);
+                    console.error("Initialization pipeline failed:", error);
+                    set({ isLoading: false });
                 }
+            } else {
+                // Anonymous sign-in removed for strict seller security. Unauthenticated users stay null.
+                set({ user: null, isAuthenticated: false, authStatus: 'unverified', isLoading: false });
             }
+        });
+    },
+
+    // ------------------------------------------------------------------
+    // MUTATION PIPELINE: Settings, Inventory, and Withdrawals
+    // ------------------------------------------------------------------
+    
+    updateProfileData: async (formData) => {
+        const { user } = get();
+        if (!user) throw new Error("Unauthorized");
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'parbet-seller-app';
+        const userRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data');
+        
+        await updateDoc(userRef, {
+            firstName: formData.displayName.split(' ')[0] || '',
+            lastName: formData.displayName.split(' ').slice(1).join(' ') || '',
+            phone: formData.phone,
+            companyName: formData.company,
+            gstin: formData.gstin,
+            notifications: {
+                email: formData.emailNotifications,
+                sms: formData.smsNotifications
+            },
+            updatedAt: serverTimestamp()
+        });
+    },
+
+    deleteListing: async (listingId) => {
+        const { user } = get();
+        if (!user) throw new Error("Unauthorized");
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'parbet-seller-app';
+        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tickets', listingId));
+    },
+
+    requestWithdrawal: async (amount) => {
+        const { user, walletBalance } = get();
+        if (!user) throw new Error("Unauthorized");
+        if (amount > walletBalance || amount <= 0) throw new Error("Invalid withdrawal amount");
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'parbet-seller-app';
+        const userRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data');
+        const payoutRef = doc(collection(db, 'artifacts', appId, 'users', user.uid, 'payouts', 'history'));
+
+        // Secure Atomic Transaction
+        await runTransaction(db, async (transaction) => {
+            const profileSnap = await transaction.get(userRef);
+            if (!profileSnap.exists()) throw new Error("Profile not found");
+            const currentBal = profileSnap.data().balance || 0;
+            
+            if (currentBal < amount) throw new Error("Insufficient funds");
+
+            transaction.update(userRef, { balance: currentBal - amount });
+            transaction.set(payoutRef, {
+                amount: amount,
+                date: new Date().toISOString(),
+                referenceId: 'RZP_' + Math.random().toString(36).substr(2, 9).toUpperCase(),
+                orderId: 'WD_' + Date.now(),
+                status: 'processing',
+                type: 'withdrawal',
+                description: 'Razorpay IMPS Transfer',
+                method: 'bank_transfer'
+            });
         });
     },
 
     // Auth Setters
     setUser: (user) => set({ user, isAuthenticated: !!user }),
     logout: () => {
-        const { unsubscribeListings } = get();
-        if (unsubscribeListings) unsubscribeListings(); // Clean up listener to prevent memory leaks
-        set({ user: null, isAuthenticated: false, myListings: [], unsubscribeListings: null });
+        get().unsubscribers.forEach(unsub => unsub());
+        set({ 
+            user: null, isAuthenticated: false, authStatus: 'unverified',
+            listings: [], sales: [], orders: [], payments: [], transactions: [], 
+            walletBalance: 0, pendingBalance: 0, unsubscribers: [] 
+        });
         auth.signOut();
     },
 
@@ -63,11 +218,10 @@ export const useSellerStore = create((set, get) => ({
     fetchLiveEvents: async () => {
         set({ isLoadingEvents: true });
         try {
-            // Fetch 100% real-world events via our custom ESPN aggregator
             const events = await aggregateAllEvents({ city: '', state: '', countryCode: 'IN' });
             set({ liveMatches: events, isLoadingEvents: false });
         } catch (error) {
-            console.error("Failed to fetch live events from API network:", error);
+            console.error("Failed to fetch live events:", error);
             set({ isLoadingEvents: false });
         }
     },
@@ -78,23 +232,16 @@ export const useSellerStore = create((set, get) => ({
     fetchIPLEvents: async () => {
         set({ isLoadingIPLEvents: true });
         try {
-            // 1. Fetch 100% real scheduled matches from the public ESPN network
             const espnEvents = await aggregateAllEvents({ city: '', state: '', countryCode: 'IN' });
-            
-            // Strictly filter for IPL/Indian related events
             const espnIPLEvents = espnEvents.filter(event => 
                 event.league?.toLowerCase().includes('premier league') ||
                 event.league?.toLowerCase().includes('ipl') ||
                 event.t1?.toLowerCase().includes('super') || 
                 event.t1?.toLowerCase().includes('indians') ||
                 event.t1?.toLowerCase().includes('challengers') ||
-                event.t1?.toLowerCase().includes('kings') ||
-                event.t1?.toLowerCase().includes('knight') ||
-                event.t1?.toLowerCase().includes('capitals') ||
                 event.country === 'IN'
             );
 
-            // 2. Fetch custom seller-posted events from the shared Parbet Firebase network
             const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
             const ticketsRef = collection(db, 'artifacts', appId, 'public', 'data', 'tickets');
             const customQuery = query(ticketsRef, where('league', '==', 'Indian Premier League'));
@@ -104,7 +251,6 @@ export const useSellerStore = create((set, get) => ({
 
             querySnapshot.forEach((doc) => {
                 const data = doc.data();
-                // Deduplication logic: Groups identical seller listings into a single Event UI Row
                 const uniqueKey = `${data.t1}-${data.t2}-${data.commence_time}`;
                 
                 if (!customSellerEvents.some(e => e.uniqueKey === uniqueKey)) {
@@ -122,17 +268,13 @@ export const useSellerStore = create((set, get) => ({
                 }
             });
 
-            // 3. Merge ESPN API schedule with Custom Seller marketplace events
             const combinedEvents = [...espnIPLEvents, ...customSellerEvents];
-
-            // Safely remove any exact duplicates between ESPN and the Seller network
             const deduplicatedEvents = combinedEvents.filter((event, index, self) =>
                 index === self.findIndex((e) => (
                     e.t1 === event.t1 && e.commence_time === event.commence_time
                 ))
             );
 
-            // 4. Sort strictly chronologically
             deduplicatedEvents.sort((a, b) => new Date(a.commence_time).getTime() - new Date(b.commence_time).getTime());
 
             set({ iplEvents: deduplicatedEvents, isLoadingIPLEvents: false });
@@ -143,89 +285,42 @@ export const useSellerStore = create((set, get) => ({
     },
 
     // ------------------------------------------------------------------
-    // REAL-TIME DASHBOARD TRACKING (Buyer-Seller Sync)
-    // ------------------------------------------------------------------
-    fetchMyListings: () => {
-        const state = get();
-        if (!state.user) return;
-
-        set({ isLoadingListings: true });
-
-        // CRITICAL PATH: Dynamically resolve the environment App ID
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        
-        // STRICT RULE 1: Target the exact public shared path the buyer site listens to
-        const ticketsRef = collection(db, 'artifacts', appId, 'public', 'data', 'tickets');
-        
-        // Strictly filter to ONLY show tickets created by the logged-in seller's REAL UID
-        const q = query(ticketsRef, where('sellerId', '==', state.user.uid));
-
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const listings = [];
-            snapshot.forEach(doc => {
-                listings.push({ id: doc.id, ...doc.data() });
-            });
-            
-            // Chronological sort: newest events first
-            listings.sort((a, b) => new Date(b.commence_time) - new Date(a.commence_time));
-            
-            set({ myListings: listings, isLoadingListings: false });
-        }, (error) => {
-            console.error("Failed to fetch seller listings from shared network:", error);
-            set({ isLoadingListings: false });
-        });
-
-        // Store the unsubscribe function to clean up when the user logs out
-        set({ unsubscribeListings: unsubscribe });
-    },
-
-    // ------------------------------------------------------------------
-    // CORE LOGIC: Strict Cross-App Data Bridge
+    // SECURE CROSS-APP DATA BRIDGE (Creates Public Listing)
     // ------------------------------------------------------------------
     addEventListing: async (listingData) => {
         set({ isSubmitting: true, submitError: null });
         
         try {
             const state = get();
-            
-            // Strict Auth Guard ensuring only verified real UIDs can post
-            if (!state.user) {
-                throw new Error("You must be securely authenticated to list tickets on the marketplace.");
-            }
+            if (!state.user) throw new Error("You must be securely authenticated to list tickets on the marketplace.");
 
-            // CRITICAL PATH: Dynamically resolve the environment App ID
             const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-            
-            // STRICT RULE 1: Target the exact public shared path the buyer site listens to
             const ticketsRef = collection(db, 'artifacts', appId, 'public', 'data', 'tickets');
 
-            // Format commence_time precisely for the buyer site's relative date parser
             let commenceTimeStr = new Date().toISOString();
             if (listingData.date && listingData.time) {
                 commenceTimeStr = new Date(`${listingData.date}T${listingData.time}`).toISOString();
             }
 
-            // Construct the exact schema expected by ViagogoListCard.jsx
             const payload = {
                 sellerId: state.user.uid,
                 t1: listingData.t1,
                 t2: listingData.t2 || '',
                 league: listingData.league || 'Indian Premier League',
+                eventName: listingData.t2 ? `${listingData.t1} vs ${listingData.t2}` : listingData.t1,
                 commence_time: commenceTimeStr,
                 loc: listingData.venue || 'TBA Stadium',
                 city: listingData.city || 'Pune',
-                country: 'IN', // Enforce India localization for IPL focus
+                country: 'IN', 
                 price: parseFloat(listingData.price) || 0,
                 quantity: parseInt(listingData.quantity, 10) || 1,
                 section: listingData.section || 'General Admission',
                 row: listingData.row || 'N/A',
-                status: 'active', // 'active' status is required by the buyer site's query
+                status: 'active', 
                 createdAt: serverTimestamp(),
             };
 
-            // Execute the write operation to trigger real-time sync across clients
             const docRef = await addDoc(ticketsRef, payload);
-            
             set({ isSubmitting: false });
             return { success: true, id: docRef.id };
 
