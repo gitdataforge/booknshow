@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Check, Globe, DollarSign, Loader2 } from 'lucide-react';
+import { X, Check, Globe, DollarSign, Loader2, AlertCircle } from 'lucide-react';
 import { auth, db } from '../../lib/firebase';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
@@ -14,6 +14,7 @@ export default function Signup() {
     const [loginEmail, setLoginEmail] = useState('');
     const [stayLoggedIn, setStayLoggedIn] = useState(true);
     const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+    const [authError, setAuthError] = useState(''); // Main view authentication errors
 
     // FEATURE 2: Modal & Registration States
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -40,16 +41,23 @@ export default function Signup() {
     // Email Regex Validator
     const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-    // FEATURE 4: Secure Google Authentication Integration
+    // FEATURE 4: Secure Google Authentication Integration with Domain Interceptor
     const handleGoogleLogin = async () => {
         setIsGoogleLoading(true);
+        setAuthError('');
         const provider = new GoogleAuthProvider();
         try {
             await signInWithPopup(auth, provider);
             navigate('/profile');
         } catch (error) {
             console.error("Google Auth Error:", error);
-            setRegError("Failed to authenticate with Google.");
+            if (error.code === 'auth/unauthorized-domain') {
+                setAuthError("Google Sign-In Blocked: Your current Github Codespaces domain is not authorized. Please copy your URL and add it in Firebase Console -> Authentication -> Settings -> Authorized Domains.");
+            } else if (error.code === 'auth/popup-closed-by-user') {
+                setAuthError("Sign-in popup was closed before completion.");
+            } else {
+                setAuthError(error.message || "Failed to authenticate with Google. Please try again.");
+            }
         } finally {
             setIsGoogleLoading(false);
         }
@@ -144,13 +152,20 @@ export default function Signup() {
         if (isValidEmail(loginEmail)) {
             // In a full flow, this checks if email exists. For now, route to password entry phase
             navigate(`/auth/login?email=${encodeURIComponent(loginEmail)}`);
+        } else {
+            setAuthError("Please enter a valid email address.");
         }
+    };
+
+    // FEATURE 8: Framer Motion Shake Animation
+    const shakeAnimation = {
+        shake: { x: [0, -10, 10, -10, 10, -5, 5, 0], transition: { duration: 0.4 } }
     };
 
     return (
         <div className="min-h-screen bg-white flex flex-col items-center justify-center font-sans relative overflow-x-hidden">
             
-            {/* FEATURE 8: 1:1 Viagogo Login Box Architecture */}
+            {/* FEATURE 9: 1:1 Viagogo Login Box Architecture */}
             <div className="w-full max-w-[400px] px-4 py-8">
                 {/* Logo */}
                 <div className="flex justify-center mb-6">
@@ -160,6 +175,20 @@ export default function Signup() {
                 </div>
 
                 <h2 className="text-[28px] font-bold text-[#54626c] text-center mb-8">Sign in to parbet</h2>
+
+                {/* Main Auth Error Banner */}
+                <AnimatePresence>
+                    {authError && (
+                        <motion.div 
+                            variants={shakeAnimation}
+                            animate="shake"
+                            className="mb-6 p-4 bg-red-50 text-red-600 text-[13px] font-bold rounded border border-red-100 flex items-start gap-2 text-left leading-relaxed shadow-sm"
+                        >
+                            <AlertCircle size={18} className="shrink-0 mt-0.5" /> 
+                            <span>{authError}</span>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
                 {/* Email Input */}
                 <div className="mb-4">
@@ -199,11 +228,10 @@ export default function Signup() {
                     Guest seller? Find your listing
                 </button>
 
-                {/* Replaced Facebook with Google as requested */}
                 <button 
                     onClick={handleGoogleLogin}
                     disabled={isGoogleLoading}
-                    className="w-full py-3.5 bg-white border border-[#cccccc] rounded-[4px] text-[#54626c] font-bold text-[15px] mb-8 hover:bg-gray-50 transition-colors flex items-center justify-center gap-3"
+                    className="w-full py-3.5 bg-white border border-[#cccccc] rounded-[4px] text-[#54626c] font-bold text-[15px] mb-8 hover:bg-gray-50 transition-colors flex items-center justify-center gap-3 disabled:opacity-50"
                 >
                     {isGoogleLoading ? <Loader2 size={18} className="animate-spin" /> : (
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -231,7 +259,7 @@ export default function Signup() {
                 </div>
             </div>
 
-            {/* FEATURE 9: Exact Replica "Create account" Modal */}
+            {/* FEATURE 10: Exact Replica "Create account" Modal */}
             <AnimatePresence>
                 {isCreateModalOpen && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
@@ -239,7 +267,7 @@ export default function Signup() {
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-white rounded-[12px] w-full max-w-[600px] shadow-2xl overflow-hidden relative"
+                            className="bg-white rounded-[12px] w-full max-w-[600px] shadow-2xl overflow-hidden relative max-h-[90vh] overflow-y-auto"
                         >
                             <div className="p-6 md:p-8">
                                 <button 
@@ -251,9 +279,11 @@ export default function Signup() {
                                 
                                 <h2 className="text-[24px] font-black text-[#1a1a1a] mb-6">Create account</h2>
 
+                                {/* Modal Specific Error Banner */}
                                 {regError && (
-                                    <div className="mb-4 p-3 bg-red-50 text-red-600 text-[13px] font-bold rounded border border-red-100">
-                                        {regError}
+                                    <div className="mb-4 p-3 bg-red-50 text-red-600 text-[13px] font-bold rounded border border-red-100 flex items-start gap-2">
+                                        <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                                        <span>{regError}</span>
                                     </div>
                                 )}
 
@@ -347,7 +377,7 @@ export default function Signup() {
                 )}
             </AnimatePresence>
 
-            {/* FEATURE 10: Interactive Exact-Replica Feedback Tab */}
+            {/* FEATURE 11: Interactive Exact-Replica Feedback Tab */}
             <div className="fixed right-0 top-[20%] z-[200] flex">
                 {/* The vertical trigger button */}
                 <div 

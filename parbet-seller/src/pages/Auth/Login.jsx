@@ -48,7 +48,7 @@ export default function Login() {
         }
     }, [searchParams]);
 
-    // FEATURE 5: Secure Google Auth Pipeline
+    // FEATURE 5: Secure Google Auth Pipeline with Domain Interceptor
     const handleGoogleLogin = async () => {
         setIsGoogleLoading(true);
         setAuthError('');
@@ -59,7 +59,14 @@ export default function Login() {
             navigate('/profile'); // Vault to dashboard on success
         } catch (error) {
             console.error("Google Auth Error:", error);
-            setAuthError("Failed to authenticate with Google. Please try again.");
+            // FEATURE: Graceful auth/unauthorized-domain Interceptor
+            if (error.code === 'auth/unauthorized-domain') {
+                setAuthError("Google Sign-In Blocked: Your current Github Codespaces domain is not authorized. Please copy your URL and add it in Firebase Console -> Authentication -> Settings -> Authorized Domains.");
+            } else if (error.code === 'auth/popup-closed-by-user') {
+                setAuthError("Sign-in popup was closed before completion.");
+            } else {
+                setAuthError(error.message || "Failed to authenticate with Google. Please try again.");
+            }
         } finally {
             setIsGoogleLoading(false);
         }
@@ -149,15 +156,16 @@ export default function Login() {
 
                 <h2 className="text-[28px] font-bold text-[#54626c] text-center mb-8">Sign in to parbet</h2>
 
-                {/* Error Banner */}
+                {/* Error Banner - Enhanced to support multiline instructions securely */}
                 <AnimatePresence>
                     {authError && (
                         <motion.div 
                             variants={shakeAnimation}
                             animate="shake"
-                            className="mb-6 p-3 bg-red-50 text-red-600 text-[13px] font-bold rounded border border-red-100 flex items-center justify-center gap-2"
+                            className="mb-6 p-4 bg-red-50 text-red-600 text-[13px] font-bold rounded border border-red-100 flex items-start gap-2 text-left leading-relaxed shadow-sm"
                         >
-                            <AlertCircle size={16} /> {authError}
+                            <AlertCircle size={18} className="shrink-0 mt-0.5" /> 
+                            <span>{authError}</span>
                         </motion.div>
                     )}
                 </AnimatePresence>
@@ -262,7 +270,7 @@ export default function Login() {
                 <button 
                     onClick={handleGoogleLogin}
                     disabled={isGoogleLoading}
-                    className="w-full py-3.5 bg-white border border-[#cccccc] rounded-[4px] text-[#54626c] font-bold text-[15px] mb-8 hover:bg-gray-50 transition-colors flex items-center justify-center gap-3"
+                    className="w-full py-3.5 bg-white border border-[#cccccc] rounded-[4px] text-[#54626c] font-bold text-[15px] mb-8 hover:bg-gray-50 transition-colors flex items-center justify-center gap-3 disabled:opacity-50"
                 >
                     {isGoogleLoading ? <Loader2 size={18} className="animate-spin" /> : (
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

@@ -15,7 +15,8 @@ import {
     TrendingUp,
     History,
     Banknote,
-    Loader2
+    Loader2,
+    ShieldCheck // FIX: Added missing import to prevent fatal UI crash
 } from 'lucide-react';
 import { useSellerStore } from '../../store/useSellerStore';
 
@@ -62,7 +63,7 @@ export default function Wallet() {
         }).format(amount || 0);
     };
 
-    // FEATURE 6: Secure Withdrawal Submission Logic
+    // FEATURE 6: Secure Withdrawal Submission Logic (Now routes to fixed 5-segment path in store)
     const handleWithdraw = async (e) => {
         e.preventDefault();
         const amount = Number(withdrawAmount);
