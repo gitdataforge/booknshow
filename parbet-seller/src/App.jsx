@@ -17,6 +17,7 @@ import SetPassword from './pages/Auth/SetPassword';
 import Home from './pages/Home';
 import CreateListing from './pages/CreateListing';
 import IPLHub from './pages/seller/IPLHub'; // The standalone 1:1 Viagogo IPL catalog page
+import PerformerEvents from './pages/seller/PerformerEvents'; // FEATURE 3: Dynamic Performer Catalog
 
 // Mobile Standalone Menu Pages
 import MobileMenu from './pages/MobileMenu';
@@ -45,14 +46,14 @@ export default function App() {
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             <Routes>
                 
-                {/* FEATURE 3: Standalone Authentication Funnel */}
+                {/* FEATURE 4: Standalone Authentication Funnel */}
                 {/* Placed OUTSIDE the MainLayout so Header/Footer do not render */}
                 <Route path="/auth/login" element={<Login />} />
                 <Route path="/auth/signup" element={<Signup />} />
                 <Route path="/auth/verify" element={<VerifyCode />} />
                 <Route path="/auth/set-password" element={<SetPassword />} />
 
-                {/* FEATURE 4: Primary Application Shell */}
+                {/* FEATURE 5: Primary Application Shell */}
                 {/* Placed INSIDE the MainLayout to inherit global Header/Footer */}
                 <Route element={<MainLayout />}>
                     <Route path="/" element={<Home />} />
@@ -64,10 +65,13 @@ export default function App() {
                     {/* Standalone IPL Hub Page */}
                     <Route path="/ipl" element={<IPLHub />} />
 
+                    {/* FEATURE 6: Dynamic Performer Catalog Route */}
+                    <Route path="/sell/performer/:performerName" element={<PerformerEvents />} />
+
                     {/* Legacy Dashboard Fallback Guard */}
                     <Route path="/dashboard" element={<Navigate to="/profile" replace />} />
                     
-                    {/* FEATURE 5: IMPENETRABLE SELLER DASHBOARD (Wrapped in AuthGuard) */}
+                    {/* FEATURE 7: IMPENETRABLE SELLER DASHBOARD (Wrapped in AuthGuard) */}
                     <Route element={<AuthGuard />}>
                         {/* 1:1 Viagogo Zero-Modal Nested Profile Architecture */}
                         <Route path="/profile" element={<ProfileLayout />}>

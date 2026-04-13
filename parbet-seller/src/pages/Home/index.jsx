@@ -29,8 +29,11 @@ export default function Home() {
         }
     };
 
+    // FEATURE UPDATE: Dynamic Performer Catalog Routing
+    // Replaces static creation linking with the 1:1 Viagogo team catalog funnel
     const handleSellClick = (event) => {
-        navigate(`/create-listing?q=${encodeURIComponent(event.t1)}`);
+        const teamSlug = event.t1 ? event.t1.replace(/\s+/g, '-') : 'Event';
+        navigate(`/sell/performer/${encodeURIComponent(teamSlug)}`);
     };
 
     return (
