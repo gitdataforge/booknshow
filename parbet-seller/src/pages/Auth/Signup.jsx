@@ -1,14 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Check, Globe, DollarSign, Loader2, AlertCircle } from 'lucide-react';
 import { auth, db } from '../../lib/firebase';
-import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import emailjs from '@emailjs/browser';
+
+// FEATURE: Import Zustand store to access the Vercel Account Verification API
+import { useSellerStore } from '../../store/useSellerStore';
 
 export default function Signup() {
     const navigate = useNavigate();
+    
+    // Extract custom Vercel API routing function from the store
+    const { sendVerificationEmail } = useSellerStore();
 
     // FEATURE 1: Core Form States
     const [loginEmail, setLoginEmail] = useState('');
@@ -63,7 +68,7 @@ export default function Signup() {
         }
     };
 
-    // FEATURE 5: EmailJS OTP Generation & Transmission Pipeline
+    // FEATURE 5: Firebase Account Creation & Vercel API Link Dispatch
     const handleCreateAccount = async (e) => {
         e.preventDefault();
         setRegError('');
@@ -88,34 +93,36 @@ export default function Signup() {
         setIsSubmitting(true);
 
         try {
-            // 1. Generate secure 6-digit OTP
-            const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+            // 1. Create the unverified Firebase Auth User securely
+            const userCredential = await createUserWithEmailAndPassword(auth, regForm.email, regForm.password);
+            const user = userCredential.user;
 
-            // 2. Stage the registration payload in local storage for the next step
+            // 2. Update Firebase Profile with the provided name
+            await updateProfile(user, {
+                displayName: `${regForm.firstName} ${regForm.lastName}`.trim()
+            });
+
+            // 3. Stage minimal payload in local storage for the Waiting Screen
             localStorage.setItem('parbet_pending_seller', JSON.stringify({
-                ...regForm,
-                verificationCode: otpCode,
-                timestamp: Date.now()
+                email: regForm.email,
+                firstName: regForm.firstName,
+                timestamp: Date.now(),
+                verified: false
             }));
 
-            // 3. Transmit OTP via EmailJS
-            await emailjs.send(
-                import.meta.env.VITE_EMAILJS_SERVICE_ID,
-                import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
-                {
-                    to_email: regForm.email,
-                    to_name: regForm.firstName,
-                    otp_code: otpCode,
-                    reply_to: "support@parbet.com"
-                },
-                import.meta.env.VITE_EMAILJS_PUBLIC_KEY
-            );
+            // 4. STRICT OVERRIDE: Dispatch official verification link via Vercel Resend API
+            await sendVerificationEmail(regForm.email, regForm.firstName);
 
-            // 4. Route to Verification Step
+            // 5. Route to Verification Listening Step
             navigate('/auth/verify');
         } catch (error) {
-            console.error("OTP Transmission Failed:", error);
-            setRegError("Failed to send verification email. Please try again later.");
+            console.error("Account Creation/Verification Failed:", error);
+            if (error.code === 'auth/email-already-in-use') {
+                setRegError("This email is already registered. Please sign in instead.");
+            } else {
+                setRegError(error.message || "Failed to create account. Please try again.");
+            }
+        } finally {
             setIsSubmitting(false);
         }
     };
@@ -124,7 +131,7 @@ export default function Signup() {
     const handleFeedbackSubmit = async () => {
         if (!feedbackRating) return;
         setIsFeedbackSubmitting(true);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'parbet-seller-app';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'parbet-44902';
 
         try {
             await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'feedback'), {
@@ -150,7 +157,6 @@ export default function Signup() {
     // FEATURE 7: Main Login Action (Routes to password entry or alerts)
     const handleContinue = () => {
         if (isValidEmail(loginEmail)) {
-            // In a full flow, this checks if email exists. For now, route to password entry phase
             navigate(`/auth/login?email=${encodeURIComponent(loginEmail)}`);
         } else {
             setAuthError("Please enter a valid email address.");
@@ -379,7 +385,6 @@ export default function Signup() {
 
             {/* FEATURE 11: Interactive Exact-Replica Feedback Tab */}
             <div className="fixed right-0 top-[20%] z-[200] flex">
-                {/* The vertical trigger button */}
                 <div 
                     onClick={() => setIsFeedbackOpen(!isFeedbackOpen)}
                     className="bg-[#458731] text-white w-10 h-28 cursor-pointer rounded-l-md flex items-center justify-center shadow-lg hover:w-11 transition-all"
@@ -387,7 +392,6 @@ export default function Signup() {
                     <span className="rotate-[-90deg] whitespace-nowrap font-bold text-[14px] tracking-wider">Feedback</span>
                 </div>
 
-                {/* The sliding feedback panel */}
                 <AnimatePresence>
                     {isFeedbackOpen && (
                         <motion.div 

@@ -210,7 +210,7 @@ export const useSellerStore = create((set, get) => ({
     },
 
     // ------------------------------------------------------------------
-    // SECURE ACCOUNT RECOVERY (Strict Vercel API Override)
+    // SECURE ACCOUNT RECOVERY & VERIFICATION (Strict Vercel API Override)
     // ------------------------------------------------------------------
     resetPassword: async (email) => {
         try {
@@ -237,6 +237,33 @@ export const useSellerStore = create((set, get) => ({
             return { success: true };
         } catch (error) {
             console.error("Vercel Password Recovery Pipeline Failed:", error);
+            throw error;
+        }
+    },
+
+    // FEATURE: New Vercel Account Verification Pipeline
+    sendVerificationEmail: async (email, name) => {
+        try {
+            const sanitizedEmail = email.trim().toLowerCase();
+            const VERCEL_API_URL = 'https://parbet-api.vercel.app/api/sendVerification';
+
+            const response = await fetch(VERCEL_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email: sanitizedEmail, name })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to dispatch account verification email via Resend API.');
+            }
+
+            return { success: true };
+        } catch (error) {
+            console.error("Vercel Account Verification Pipeline Failed:", error);
             throw error;
         }
     },
