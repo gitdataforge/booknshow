@@ -75,7 +75,7 @@ export default function ProfileHeader() {
 
     // --- DROPDOWN DATA (Exact match to screenshots) ---
     const sellLinks = [
-        { label: 'Sell Tickets', path: '/sell' },
+        { label: 'Sell Tickets', path: 'https://parbet-seller-44902.web.app/' },
         { label: 'My Tickets', path: '/profile' },
         { label: 'My Sales', path: '/profile/sales' },
         { label: 'Season Ticket Wallet', path: '/profile/wallet' }

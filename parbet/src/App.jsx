@@ -45,18 +45,28 @@ function MainLayout() {
     // FEATURE: Switched to useMainStore for accurate global auth state evaluation
     const { isAuthenticated } = useMainStore();
     
-    // Detect immersive/standalone pages that require global Header/Footer suppression
+    // FEATURE 1: Strict Route Identification
+    // Isolate the profile path to ensure the Global Header doesn't stack on top of the ProfileHeader
+    const isProfilePath = location.pathname.toLowerCase().startsWith('/profile');
+    
+    // Detect immersive/standalone pages that require complete global Header/Footer suppression
     const isIsolatedPage = ['/event', '/login', '/signup'].some(path => 
         location.pathname.toLowerCase().startsWith(path)
     );
 
+    // FEATURE 2: Header Separation Logic
+    const hideGlobalHeader = isIsolatedPage || isProfilePath;
+
     return (
         <div className="flex flex-col w-full min-h-screen bg-white text-[#1a1a1a] relative">
-            {!isIsolatedPage && (
+            
+            {/* The global header is suppressed on /profile, allowing ProfileLayout's ProfileHeader to take over */}
+            {!hideGlobalHeader && (
                 location.pathname === '/explore' ? <ExploreHeader /> : <Header />
             )}
             
-            <main className={`flex-1 w-full mx-auto ${isIsolatedPage ? '' : 'max-w-[1400px] p-0'}`}>
+            {/* ProfileLayout needs full width to render its edge-to-edge replica header */}
+            <main className={`flex-1 w-full mx-auto ${(isIsolatedPage || isProfilePath) ? '' : 'max-w-[1400px] p-0'}`}>
                 <Routes>
                     <Route path="/" element={<Home />} />
                     
@@ -93,6 +103,7 @@ function MainLayout() {
                 </Routes>
             </main>
             
+            {/* Profile keeps the global footer like the real Viagogo site */}
             {!isIsolatedPage && <Footer />}
             <LocationToast />
         </div>
