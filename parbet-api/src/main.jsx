@@ -3,6 +3,10 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import { useAuthStore } from './store/useAuthStore';
 
+// CRITICAL UI FIX: Inject Global Tailwind Stylesheet
+// Without this import, Vite will not compile the CSS and the UI will remain completely unstyled.
+import './index.css';
+
 /**
  * FEATURE 1: Global Security Initialization
  * Arms the Firebase Authentication listener immediately upon application boot.

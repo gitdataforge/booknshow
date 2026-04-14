@@ -7,7 +7,8 @@ export default {
   theme: {
     extend: {
       colors: {
-        parbetGreen: '#458731', // Updated to exact Viagogo primary green
+        parbetGreen: '#458731', // Updated to exact primary green hover
+        parbetLightGreen: '#8cc63f', // Brand green
         parbetDark: '#1a1a1a'
       },
       animation: {

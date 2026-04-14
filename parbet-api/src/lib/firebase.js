@@ -7,10 +7,23 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
+// FEATURE: Strict Environment Validation Boundary
+// This permanently stops the "Uncaught FirebaseError: (auth/invalid-api-key)" fatal crash
+const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
+
+if (!apiKey) {
+    console.error(
+        "CRITICAL ERROR: Firebase API Key is missing. \n" +
+        "Vite failed to inject the VITE_FIREBASE_API_KEY environment variable. \n" +
+        "Ensure your local .env file contains these variables and you have restarted the Vite server."
+    );
+}
+
 // FEATURE: Secure Environment Variable Mapping
 // Vite strictly requires the 'VITE_' prefix for client-side exposure.
 const firebaseConfig = {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    // Injecting a fallback string if undefined to prevent Firebase from fatally crashing the React DOM
+    apiKey: apiKey || 'missing-api-key-prevent-crash',
     authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
     projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
     storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
