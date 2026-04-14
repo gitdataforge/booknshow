@@ -9,14 +9,20 @@ import {
     signInWithPopup, 
     setPersistence, 
     browserLocalPersistence, 
-    browserSessionPersistence,
-    sendPasswordResetEmail
+    browserSessionPersistence
+    // FEATURE: sendPasswordResetEmail strictly removed to enforce Vercel API routing
 } from 'firebase/auth';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+
+// FEATURE: Import Zustand store to access the Vercel API fetch routing
+import { useSellerStore } from '../../store/useSellerStore';
 
 export default function Login() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    
+    // Extract custom Vercel API routing function from the store
+    const { resetPassword } = useSellerStore();
     
     // FEATURE 1: Authentication State Machine (1 = Email, 2 = Password, 3 = Forgot Pass, 4 = Reset Success)
     const [authStep, setAuthStep] = useState(1); 
@@ -108,7 +114,7 @@ export default function Login() {
         }
     };
 
-    // FEATURE 7: Secure Password Recovery Architecture
+    // FEATURE 7: Secure Password Recovery Architecture (STRICT VERCEL OVERRIDE)
     const handleForgotPasswordSubmit = async (e) => {
         e.preventDefault();
         setAuthError('');
@@ -119,7 +125,8 @@ export default function Login() {
         
         setIsAuthenticating(true);
         try {
-            await sendPasswordResetEmail(auth, email);
+            // STRICT OVERRIDE: Trigger Zustand store to hit Vercel API instead of default Firebase
+            await resetPassword(email);
             setAuthStep(4); // Advance to Success Screen
         } catch (error) {
             console.error("Password Reset Error:", error);
