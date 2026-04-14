@@ -1,18 +1,36 @@
 {
   "name": "parbet-api",
   "version": "1.0.0",
-  "description": "",
+  "description": "Parbet Enterprise API Gateway & Serverless Backend",
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "type": "commonjs",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [
+    "parbet",
+    "api",
+    "gateway",
+    "secure"
+  ],
+  "author": "Parbet Enterprise",
+  "license": "ISC",
   "dependencies": {
     "cors": "^2.8.6",
+    "firebase": "^12.12.0",
     "firebase-admin": "^13.8.0",
-    "resend": "^6.11.0"
+    "framer-motion": "^12.38.0",
+    "lucide-react": "^1.8.0",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "react-router-dom": "^7.14.1",
+    "resend": "^6.11.0",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.0.1",
+    "vite": "^8.0.8"
   }
 }
