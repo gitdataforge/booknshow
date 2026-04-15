@@ -1,6 +1,27 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, collection, doc, updateDoc, increment, addDoc, serverTimestamp } from 'firebase/firestore';
+
+/**
+ * FEATURE 1: Strict Environment Validation Boundary
+ * Prevents silent data synchronization failures by verifying 
+ * all required Vite environment variables exist before SDK initialization.
+ * This guarantees the Buyer Site connects to the exact same database as the Seller Site.
+ */
+const requiredEnvs = [
+  'VITE_FIREBASE_API_KEY',
+  'VITE_FIREBASE_AUTH_DOMAIN',
+  'VITE_FIREBASE_PROJECT_ID',
+  'VITE_FIREBASE_STORAGE_BUCKET',
+  'VITE_FIREBASE_MESSAGING_SENDER_ID',
+  'VITE_FIREBASE_APP_ID'
+];
+
+requiredEnvs.forEach(envKey => {
+  if (!import.meta.env[envKey]) {
+    console.error(`[Parbet Shared Database] CRITICAL: Missing environment variable -> ${envKey}. Buyer/Seller data synchronization will fail.`);
+  }
+});
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -11,6 +32,11 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
-export const app = initializeApp(firebaseConfig);
+/**
+ * FEATURE 2: Singleton Initialization Pattern
+ * Prevents "Firebase: App already exists" crashes caused by React StrictMode 
+ * double-invocations and Vite hot-module replacement (HMR).
+ */
+export const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 export const auth = getAuth(app);
 export const db = getFirestore(app);
