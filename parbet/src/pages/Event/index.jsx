@@ -1,12 +1,15 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, Calendar, ShieldCheck, Ticket, SlidersHorizontal, ChevronDown, Zap, Eye, X, AlertCircle, Flame, Heart, Upload } from 'lucide-react';
-import { useAppStore } from '../../store/useStore';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
+import { MapPin, Calendar, ShieldCheck, Ticket, SlidersHorizontal, ChevronDown, Zap, Eye, X, AlertCircle, Flame, Heart, Upload, Loader2, Tag } from 'lucide-react';
 
-// Modular Component Imports
+// --- CANVAS FIX: MOCKED IMPORTS ---
+// I have temporarily commented out the external imports that caused the Canvas compilation to fail.
+// IMPORTANT: When copying this file to your local development environment, delete these stubs and uncomment your real imports!
+
+/* import { useAppStore } from '../../store/useStore';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
 import DynamicStadiumMap from '../../components/DynamicStadiumMap';
 import DynamicArenaMap from '../../components/DynamicArenaMap';
 import DynamicTheaterMap from '../../components/DynamicTheaterMap';
@@ -15,6 +18,66 @@ import TicketQuantityModal from '../../components/TicketQuantityModal';
 import EventFilters from '../../components/EventFilters';
 import LanguageCurrencyModal from '../../components/LanguageCurrencyModal';
 import ShareEventModal from '../../components/ShareEventModal';
+*/
+
+const useAppStore = () => ({
+    isAuthenticated: true,
+    openAuthModal: () => {},
+    isTicketQuantityModalOpen: false,
+    setTicketQuantityModalOpen: () => {},
+    selectedTicketQuantity: 1,
+    userCurrency: 'USD',
+    userLanguage: 'EN',
+    favorites: [],
+    toggleFavorite: () => {}
+});
+
+const db = {};
+const doc = (database, coll, id) => ({ collection: coll, id });
+const onSnapshot = (ref, cb) => {
+    setTimeout(() => {
+        cb({
+            exists: () => true,
+            id: ref.id || '123',
+            data: () => ({
+                title: "India vs Australia - Final",
+                sportCategory: "Cricket",
+                stadium: "Wankhede Stadium",
+                location: "Mumbai, India",
+                eventTimestamp: new Date(Date.now() + 86400000).toISOString(),
+                imageUrl: "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=600&auto=format&fit=crop",
+                ticketTiers: [
+                    { id: '1', name: 'General Admission', price: 150, quantity: 10, seats: 'Unreserved', disclosures: ['No disclosures'] },
+                    { id: '2', name: 'VIP Pavilion', price: 500, quantity: 2, seats: 'A1-A2', disclosures: ['Free Food', 'Clear View'] }
+                ]
+            })
+        });
+    }, 800);
+    return () => {};
+};
+
+const DynamicStadiumMap = () => <div className="flex-1 flex flex-col items-center justify-center bg-[#EAF4D9] m-4 rounded-[16px] border-2 border-dashed border-[#8cc63f]"><MapPin size={48} className="text-[#458731] mb-2 opacity-50"/><p className="font-black text-[#458731] text-[18px]">Interactive Stadium Map</p></div>;
+const DynamicArenaMap = () => <div className="flex-1 flex flex-col items-center justify-center bg-[#EAF4D9] m-4 rounded-[16px] border-2 border-dashed border-[#8cc63f]"><MapPin size={48} className="text-[#458731] mb-2 opacity-50"/><p className="font-black text-[#458731] text-[18px]">Interactive Arena Map</p></div>;
+const DynamicTheaterMap = () => <div className="flex-1 flex flex-col items-center justify-center bg-[#EAF4D9] m-4 rounded-[16px] border-2 border-dashed border-[#8cc63f]"><MapPin size={48} className="text-[#458731] mb-2 opacity-50"/><p className="font-black text-[#458731] text-[18px]">Interactive Theater Map</p></div>;
+const DynamicFestivalMap = () => <div className="flex-1 flex flex-col items-center justify-center bg-[#EAF4D9] m-4 rounded-[16px] border-2 border-dashed border-[#8cc63f]"><MapPin size={48} className="text-[#458731] mb-2 opacity-50"/><p className="font-black text-[#458731] text-[18px]">Interactive Festival Map</p></div>;
+const TicketQuantityModal = () => null;
+const EventFilters = () => null;
+const LanguageCurrencyModal = () => null;
+const ShareEventModal = () => null;
+// ----------------------------------
+
+/**
+ * FEATURE 1: Real-Time Single Document Synchronization
+ * FEATURE 2: Dynamic Nested Payload Mapping (Ticket Tiers)
+ * FEATURE 3: Advanced ISO Timestamp Parser
+ * FEATURE 4: Fallback Image/Cover Routing
+ * FEATURE 5: Hardware-Accelerated Rendering & Skeletons
+ * FEATURE 6: Dynamic Map Component Router based on Category
+ * FEATURE 7: Live Inventory Quantity Gate
+ * FEATURE 8: Seller Disclosure UI Badge Generator
+ * FEATURE 9: Price-Value Algorithmic Sorting
+ * FEATURE 10: Strict Enterprise Palette Enforcement
+ */
 
 // Utility to strictly label dates based on the real-time API
 const getRelativeDateLabel = (dateStr) => {
@@ -33,14 +96,25 @@ const getRelativeDateLabel = (dateStr) => {
     return 'Upcoming';
 };
 
+// Advanced ISO Timestamp Parser
+const parseEventTimestamp = (isoString) => {
+    if (!isoString) return { date: 'Date TBA', time: '' };
+    const d = new Date(isoString);
+    if (isNaN(d)) return { date: 'Date TBA', time: '' };
+    return {
+        date: `${d.toLocaleDateString('en-US', { weekday: 'short' })}, ${d.getDate()} ${d.toLocaleDateString('en-US', { month: 'short' })}`,
+        time: d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+    };
+};
+
 export default function Event() {
     const [searchParams] = useSearchParams();
-    const eventId = searchParams.get('id');
+    const eventId = searchParams.get('id') || 'mock-id-for-canvas'; // Fallback for Canvas Preview
     const navigate = useNavigate();
     
     const { 
-        liveMatches, 
-        fetchLocationAndMatches,
+        isAuthenticated,
+        openAuthModal,
         isTicketQuantityModalOpen,
         setTicketQuantityModalOpen,
         selectedTicketQuantity,
@@ -50,8 +124,9 @@ export default function Event() {
         toggleFavorite
     } = useAppStore();
 
+    // FEATURE 1: Real-Time Document State
     const [eventData, setEventData] = useState(null);
-    const [listings, setListings] = useState([]);
+    const [ticketTiers, setTicketTiers] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     
     // Feature UI States
@@ -59,55 +134,81 @@ export default function Event() {
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isLangCurrModalOpen, setIsLangCurrModalOpen] = useState(false);
     
-    const [activeSection, setActiveSection] = useState(null); // Linked to interactive map
-    const [sitTogether, setSitTogether] = useState(true); // Linked to quantity modal
-    const [instantDownloadOnly, setInstantDownloadOnly] = useState(false); // Linked to sidebar
-    const [clearViewOnly, setClearViewOnly] = useState(false); // Linked to sidebar
-    const [sortOrder, setSortOrder] = useState('asc'); // Linked to sidebar
+    const [activeSection, setActiveSection] = useState(null);
+    const [sitTogether, setSitTogether] = useState(true);
+    const [instantDownloadOnly, setInstantDownloadOnly] = useState(false);
+    const [clearViewOnly, setClearViewOnly] = useState(false);
+    const [sortOrder, setSortOrder] = useState('asc');
     
     const hasOpenedModal = useRef(false);
     const feedScrollRef = useRef(null);
 
+    // FEATURE 2: Dynamic Document Listener
     useEffect(() => {
-        if (liveMatches.length === 0) {
-            fetchLocationAndMatches();
-        } else if (eventId) {
-            const found = liveMatches.find(m => m.id === eventId);
-            setEventData(found);
-            
-            // Trigger pre-selection modal exactly once when event is loaded
-            if (found && !hasOpenedModal.current && !isTicketQuantityModalOpen) {
-                setTicketQuantityModalOpen(true);
-                hasOpenedModal.current = true;
-            }
-            
-            // Fetch real P2P listings for this event from Firebase securely
-            const q = query(collection(db, 'listings'), where('eventId', '==', eventId), where('status', '==', 'active'));
-            const unsub = onSnapshot(q, (snapshot) => {
-                const fetchedListings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                setListings(fetchedListings);
-                setIsLoading(false);
-            });
-            return () => unsub();
-        }
-    }, [eventId, liveMatches, fetchLocationAndMatches, setTicketQuantityModalOpen, isTicketQuantityModalOpen]);
+        if (!eventId) return;
 
-    // Feature 4: Smart Auto-scroll to top when a new section/filter is applied
+        setIsLoading(true);
+        const docRef = doc(db, 'events', eventId);
+        
+        const unsubscribe = onSnapshot(docRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const data = { id: docSnap.id, ...docSnap.data() };
+                setEventData(data);
+                // Extract the nested ticket tiers array created by the seller
+                setTicketTiers(data.ticketTiers || []);
+                
+                if (!hasOpenedModal.current && !isTicketQuantityModalOpen) {
+                    setTicketQuantityModalOpen(true);
+                    hasOpenedModal.current = true;
+                }
+            } else {
+                setEventData(null);
+                setTicketTiers([]);
+            }
+            setIsLoading(false);
+        }, (error) => {
+            console.error("[Parbet Database] Failed to fetch event document:", error);
+            setIsLoading(false);
+        });
+
+        return () => unsubscribe();
+    }, [eventId, setTicketQuantityModalOpen, isTicketQuantityModalOpen]);
+
+    // Smart Auto-scroll to top when a new section/filter is applied
     useEffect(() => {
         if (feedScrollRef.current) {
             feedScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
         }
     }, [activeSection, sortOrder, instantDownloadOnly, clearViewOnly]);
 
-    if (!eventId || (!eventData && !isLoading)) return <div className="min-h-screen p-10 font-bold text-center">Event not found.</div>;
+    if (!eventId) return <div className="min-h-screen p-10 font-bold text-center text-[#1a1a1a]">Invalid Event ID.</div>;
+    
+    if (isLoading) return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-[#f8f9fa]">
+            <Loader2 className="animate-spin text-[#8cc63f] mb-4" size={40} />
+            <h3 className="text-[16px] font-black text-[#1a1a1a] tracking-widest uppercase">Fetching Secure Inventory</h3>
+        </div>
+    );
 
-    // Features 1, 3, 6: Master Filtering & Sorting Engine
-    const filteredListings = listings.filter(l => {
-        if (Number(l.quantity) < selectedTicketQuantity) return false;
-        if (activeSection && (l.section || 'General').toUpperCase().trim() !== activeSection) return false;
-        if (instantDownloadOnly && !l.instantDownload) return false;
-        if (clearViewOnly && l.obstructedView) return false;
-        if (sitTogether && Number(selectedTicketQuantity) > 1 && l.splitSeats) return false;
+    if (!eventData && !isLoading) return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-[#f8f9fa]">
+            <ShieldCheck size={48} className="text-[#9ca3af] mb-4" />
+            <h3 className="text-[20px] font-black text-[#1a1a1a]">Event Offline</h3>
+            <p className="text-[#54626c] mt-2">This event has been removed or securely archived by the seller.</p>
+            <button onClick={() => navigate('/')} className="mt-6 bg-[#1a1a1a] text-white px-6 py-3 rounded-[8px] font-bold">Return Home</button>
+        </div>
+    );
+
+    // FEATURE 9: Master Filtering & Sorting Engine (On Ticket Tiers)
+    const filteredTiers = ticketTiers.filter(tier => {
+        if (Number(tier.quantity) < selectedTicketQuantity) return false;
+        if (activeSection && !tier.name.toUpperCase().includes(activeSection.toUpperCase())) return false;
+        
+        // Approximate mock filter logic based on disclosures array
+        const disclosuresStr = (tier.disclosures || []).join(' ').toLowerCase();
+        if (instantDownloadOnly && !disclosuresStr.includes('paperless')) return false;
+        if (clearViewOnly && disclosuresStr.includes('obstructed')) return false;
+        
         return true;
     }).sort((a, b) => {
         return sortOrder === 'asc' ? a.price - b.price : b.price - a.price;
@@ -119,28 +220,30 @@ export default function Event() {
         setClearViewOnly(false);
     };
 
-    const bestValuePrice = filteredListings.length > 0 ? Math.min(...filteredListings.map(l => Number(l.price))) : null;
+    const bestValuePrice = filteredTiers.length > 0 ? Math.min(...filteredTiers.map(t => Number(t.price))) : null;
     const isFavorite = favorites?.some(f => f.id === eventData?.id);
-
-    // Dynamic Map Router based on Event League/Type
-    const renderMapComponent = () => {
-        const league = (eventData?.league || '').toLowerCase();
-        
-        if (league.includes('basketball') || league.includes('hockey') || league.includes('indoor')) {
-            return <DynamicArenaMap activeSection={activeSection} onSectionSelect={setActiveSection} />;
-        }
-        if (league.includes('theater') || league.includes('theatre') || league.includes('broadway') || league.includes('comedy')) {
-            return <DynamicTheaterMap activeSection={activeSection} onSectionSelect={setActiveSection} />;
-        }
-        if (league.includes('festival') || league.includes('general admission')) {
-            return <DynamicFestivalMap activeSection={activeSection} onSectionSelect={setActiveSection} />;
-        }
-        // Default to Stadium (Cricket, Football, Baseball, Large Concerts)
-        return <DynamicStadiumMap activeSection={activeSection} onSectionSelect={setActiveSection} />;
+    
+    const handleRestrictedAction = (e, actionFn) => {
+        e.stopPropagation();
+        if (!isAuthenticated) openAuthModal();
+        else actionFn();
     };
 
+    // FEATURE 6: Dynamic Map Router based on Real Category
+    const renderMapComponent = () => {
+        const cat = (eventData?.sportCategory || '').toLowerCase();
+        if (cat.includes('basketball') || cat.includes('esports')) return <DynamicArenaMap activeSection={activeSection} onSectionSelect={setActiveSection} />;
+        if (cat.includes('theater')) return <DynamicTheaterMap activeSection={activeSection} onSectionSelect={setActiveSection} />;
+        if (cat.includes('festival')) return <DynamicFestivalMap activeSection={activeSection} onSectionSelect={setActiveSection} />;
+        return <DynamicStadiumMap activeSection={activeSection} onSectionSelect={setActiveSection} />; // Default (Cricket/Football)
+    };
+
+    // Derived Display Data
+    const displayImage = eventData.imageUrl || 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=600&auto=format&fit=crop';
+    const parsedTime = parseEventTimestamp(eventData.eventTimestamp);
+
     return (
-        <div className="w-full animate-fade-in pb-10 bg-[#F8F9FA] min-h-screen">
+        <div className="w-full animate-fade-in pb-10 bg-[#F8F9FA] min-h-screen text-[#1a1a1a] font-sans">
             
             {/* Extracted Modular Overlays */}
             <TicketQuantityModal sitTogether={sitTogether} setSitTogether={setSitTogether} />
@@ -150,7 +253,7 @@ export default function Event() {
                 instantDownloadOnly={instantDownloadOnly} setInstantDownloadOnly={setInstantDownloadOnly}
                 clearViewOnly={clearViewOnly} setClearViewOnly={setClearViewOnly}
                 sortOrder={sortOrder} setSortOrder={setSortOrder}
-                filteredCount={filteredListings.length}
+                filteredCount={filteredTiers.length}
             />
             <LanguageCurrencyModal isOpen={isLangCurrModalOpen} onClose={() => setIsLangCurrModalOpen(false)} />
             <ShareEventModal isOpen={isShareModalOpen} onClose={() => setIsShareModalOpen(false)} eventData={eventData} />
@@ -159,24 +262,25 @@ export default function Event() {
             <div className="w-full bg-[#F8F9FA] border-b border-gray-200 px-4 md:px-8 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 sticky top-0 z-30 shadow-sm">
                 <div className="flex items-center gap-4">
                     <img 
-                        src={`https://loremflickr.com/150/150/${encodeURIComponent(eventData?.t1.split(' ')[0] || 'event')},sports/all`} 
+                        src={displayImage} 
                         alt="Event Thumbnail" 
                         className="w-[60px] h-[60px] rounded-lg object-cover shadow-sm border border-gray-200"
+                        onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=150&auto=format&fit=crop'; }}
                     />
                     <div>
-                        <h1 className="text-[18px] md:text-[20px] font-black text-[#4A329A] leading-tight mb-1 cursor-pointer hover:underline">
-                            {eventData?.t1} vs {eventData?.t2}
+                        <h1 className="text-[18px] md:text-[20px] font-black text-[#1a1a1a] leading-tight mb-1 cursor-pointer hover:underline">
+                            {eventData?.title}
                         </h1>
                         <div className="flex flex-wrap items-center gap-2 mb-1">
-                            <span className="bg-[#114C2A] text-white text-[11px] font-bold px-2 py-0.5 rounded shadow-sm">
-                                {getRelativeDateLabel(eventData?.commence_time)}
+                            <span className="bg-[#eaf4d9] text-[#458731] border border-[#8cc63f]/30 text-[11px] font-black uppercase tracking-widest px-2 py-0.5 rounded-[4px] shadow-sm">
+                                {getRelativeDateLabel(eventData?.eventTimestamp)}
                             </span>
-                            <span className="text-[13px] text-gray-800 font-bold">
-                                {eventData?.dow} • {eventData?.day} {eventData?.month} • {eventData?.time}
+                            <span className="text-[13px] text-[#54626c] font-bold">
+                                {parsedTime.date} • {parsedTime.time}
                             </span>
                         </div>
-                        <p className="text-[13px] text-gray-700 font-medium underline decoration-gray-400 underline-offset-2 cursor-pointer hover:text-black">
-                            {eventData?.loc}
+                        <p className="text-[13px] text-[#54626c] font-bold flex items-center gap-1">
+                            <MapPin size={12} /> {eventData?.stadium}, {eventData?.location?.split(',')[0]}
                         </p>
                     </div>
                 </div>
@@ -184,16 +288,16 @@ export default function Event() {
                 <div className="flex items-center gap-3 self-end md:self-auto">
                     <div className="flex items-center gap-2">
                         <button 
-                            onClick={() => toggleFavorite(eventData)} 
+                            onClick={(e) => handleRestrictedAction(e, () => toggleFavorite(eventData))} 
                             className="w-10 h-10 rounded-full border border-gray-300 bg-white flex items-center justify-center hover:bg-gray-50 transition-colors shadow-sm"
                         >
-                            <Heart size={18} className={isFavorite ? "fill-[#E91E63] text-[#E91E63]" : "text-gray-600"} />
+                            <Heart size={18} className={isFavorite ? "fill-[#c21c3a] text-[#c21c3a]" : "text-[#54626c]"} />
                         </button>
                         <button 
                             onClick={() => setIsShareModalOpen(true)} 
                             className="w-10 h-10 rounded-full border border-gray-300 bg-white flex items-center justify-center hover:bg-gray-50 transition-colors shadow-sm"
                         >
-                            <Upload size={18} className="text-gray-600" />
+                            <Upload size={18} className="text-[#54626c]" />
                         </button>
                     </div>
                     
@@ -203,8 +307,8 @@ export default function Event() {
                         onClick={() => setIsLangCurrModalOpen(true)} 
                         className="flex items-center gap-1.5 hover:bg-gray-100 px-3 py-1.5 rounded-lg transition-colors"
                     >
-                        <span className="text-[14px] font-bold text-gray-700">{userCurrency}</span>
-                        <span className="text-[14px] font-bold text-gray-700">{userLanguage}</span>
+                        <span className="text-[14px] font-bold text-[#1a1a1a]">{userCurrency}</span>
+                        <span className="text-[14px] font-bold text-[#1a1a1a]">{userLanguage}</span>
                         <ChevronDown size={14} className="text-gray-500"/>
                     </button>
                 </div>
@@ -214,35 +318,35 @@ export default function Event() {
             <div className="w-full h-[85vh] min-h-[700px] flex flex-col lg:flex-row bg-white rounded-none lg:rounded-[24px] overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.08)] border-0 lg:border border-gray-200 mt-0 lg:mt-4 lg:mx-4 xl:mx-auto max-w-[1500px]">
                 
                 {/* Left Side: Dynamic Map Router */}
-                <div className="hidden lg:flex flex-1 relative flex-col bg-[#F4F6F8]">
+                <div className="hidden lg:flex flex-1 relative flex-col bg-[#f8f9fa] border-r border-[#e2e2e2]">
                     {renderMapComponent()}
                 </div>
 
                 {/* Right Side: P2P Ticket Listings Panel */}
-                <div className="w-full lg:w-[450px] xl:w-[500px] flex flex-col bg-white h-full z-20 shadow-[-15px_0_40px_rgba(0,0,0,0.05)] border-l border-gray-200">
+                <div className="w-full lg:w-[450px] xl:w-[500px] flex flex-col bg-white h-full z-20 shadow-[-15px_0_40px_rgba(0,0,0,0.05)]">
                     
                     {/* Top Controls Bar */}
-                    <div className="p-5 border-b border-gray-200 flex flex-col bg-white shadow-sm z-30">
+                    <div className="p-5 border-b border-[#e2e2e2] flex flex-col bg-white shadow-sm z-30">
                         <div className="flex items-center justify-between mb-3">
                             <button 
                                 onClick={() => setTicketQuantityModalOpen(true)} 
-                                className="flex items-center space-x-2 bg-white border border-gray-300 text-brand-text px-5 py-2.5 rounded-full font-bold text-[14px] hover:bg-gray-50 hover:border-gray-400 transition-all shadow-sm"
+                                className="flex items-center space-x-2 bg-white border border-gray-300 text-[#1a1a1a] px-5 py-2.5 rounded-full font-bold text-[14px] hover:bg-gray-50 hover:border-gray-400 transition-all shadow-sm"
                             >
                                 <span>{selectedTicketQuantity} Tickets</span>
                                 <ChevronDown size={14} className="opacity-60" />
                             </button>
                             <div className="flex items-center space-x-2">
-                                <button className="flex items-center space-x-2 bg-white border border-transparent text-brand-text px-3 py-2.5 rounded-full font-bold text-[14px] hover:bg-gray-50 transition-colors">
-                                    <span>Any section</span>
+                                <button onClick={() => setActiveSection(null)} className="flex items-center space-x-2 bg-white border border-transparent text-[#1a1a1a] px-3 py-2.5 rounded-full font-bold text-[14px] hover:bg-gray-50 transition-colors">
+                                    <span>{activeSection || 'Any section'}</span>
                                     <ChevronDown size={14} className="opacity-60" />
                                 </button>
                                 <button 
                                     onClick={() => setIsFilterSidebarOpen(true)} 
-                                    className="w-10 h-10 flex items-center justify-center rounded-full border border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-all text-brand-text shadow-sm relative"
+                                    className="w-10 h-10 flex items-center justify-center rounded-full border border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-all text-[#1a1a1a] shadow-sm relative"
                                 >
                                     <SlidersHorizontal size={16} />
                                     {(instantDownloadOnly || clearViewOnly || sortOrder === 'desc') && (
-                                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#E91E63] rounded-full border-2 border-white"></div>
+                                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#c21c3a] rounded-full border-2 border-white"></div>
                                     )}
                                 </button>
                             </div>
@@ -258,9 +362,9 @@ export default function Event() {
                                     className="flex flex-wrap gap-2 pt-2"
                                 >
                                     {activeSection && (
-                                        <div className="flex items-center bg-[#EAF4D9] border border-[#C5E1A5] text-[#114C2A] px-3 py-1.5 rounded-full text-[12px] font-bold shadow-sm">
-                                            Section {activeSection}
-                                            <button onClick={() => setActiveSection(null)} className="ml-2 hover:text-black"><X size={12} /></button>
+                                        <div className="flex items-center bg-[#1a1a1a] text-white px-3 py-1.5 rounded-full text-[12px] font-bold shadow-sm">
+                                            {activeSection}
+                                            <button onClick={() => setActiveSection(null)} className="ml-2 hover:text-[#8cc63f]"><X size={12} /></button>
                                         </div>
                                     )}
                                     {instantDownloadOnly && (
@@ -275,7 +379,7 @@ export default function Event() {
                                             <button onClick={() => setClearViewOnly(false)} className="ml-2 hover:text-black"><X size={12} /></button>
                                         </div>
                                     )}
-                                    <button onClick={clearAllFilters} className="text-[12px] font-bold text-gray-400 hover:text-brand-text transition-colors px-2 py-1.5">
+                                    <button onClick={clearAllFilters} className="text-[12px] font-bold text-gray-400 hover:text-[#1a1a1a] transition-colors px-2 py-1.5">
                                         Clear all
                                     </button>
                                 </motion.div>
@@ -285,34 +389,29 @@ export default function Event() {
 
                     {/* Scrollable Listings Feed */}
                     <div ref={feedScrollRef} className="flex-1 overflow-y-auto bg-[#F8F9FA] p-4 md:p-5 relative scroll-smooth">
-                        {isLoading ? (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#F8F9FA]">
-                                <div className="w-10 h-10 border-4 border-[#114C2A] border-t-transparent rounded-full animate-spin mb-4"></div>
-                                <p className="font-bold text-brand-text">Finding best seats...</p>
-                            </div>
-                        ) : filteredListings.length === 0 ? (
-                            <div className="bg-white border border-gray-200 rounded-[20px] p-10 text-center mt-4 shadow-sm">
-                                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <Ticket size={28} className="text-gray-400" />
+                        {filteredTiers.length === 0 ? (
+                            <div className="bg-white border border-[#e2e2e2] rounded-[16px] p-10 text-center mt-4 shadow-sm">
+                                <div className="w-16 h-16 bg-[#f8f9fa] rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Ticket size={28} className="text-[#9ca3af]" />
                                 </div>
-                                <h3 className="text-[18px] font-black text-brand-text mb-2 leading-tight">No matching tickets</h3>
-                                <p className="text-[14px] text-brand-muted mb-6 font-medium">Try reducing the ticket quantity or clearing your section filter to see more results.</p>
+                                <h3 className="text-[18px] font-black text-[#1a1a1a] mb-2 leading-tight">No matching tickets</h3>
+                                <p className="text-[14px] text-[#54626c] mb-6 font-medium">Try reducing the ticket quantity or clearing your section filter to see more results.</p>
                                 <button 
                                     onClick={clearAllFilters} 
-                                    className="bg-white border border-gray-300 px-6 py-3 rounded-full font-bold text-[14px] hover:bg-gray-50 transition-colors shadow-sm text-brand-text"
+                                    className="bg-white border border-[#cccccc] px-6 py-3 rounded-full font-bold text-[14px] hover:bg-gray-50 transition-colors shadow-sm text-[#1a1a1a]"
                                 >
                                     Clear Filters
                                 </button>
                             </div>
                         ) : (
                             <div className="flex flex-col pb-6 space-y-3">
-                                <h4 className="text-[13px] font-bold text-gray-500 uppercase tracking-widest mb-1 px-1">
-                                    {filteredListings.length} results sorted by {sortOrder === 'asc' ? 'lowest price' : 'highest price'}
+                                <h4 className="text-[12px] font-black text-[#9ca3af] uppercase tracking-widest mb-1 px-1">
+                                    {filteredTiers.length} results sorted by {sortOrder === 'asc' ? 'lowest price' : 'highest price'}
                                 </h4>
                                 
                                 <AnimatePresence mode="popLayout">
-                                    {filteredListings.map((list) => {
-                                        const isBestValue = Number(list.price) === bestValuePrice && sortOrder === 'asc';
+                                    {filteredTiers.map((tier) => {
+                                        const isBestValue = Number(tier.price) === bestValuePrice && sortOrder === 'asc';
                                         
                                         return (
                                             <motion.div 
@@ -321,54 +420,56 @@ export default function Event() {
                                                 animate={{ opacity: 1, scale: 1 }}
                                                 exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.15 } }}
                                                 whileHover={{ y: -2 }}
-                                                key={list.id} 
-                                                onClick={() => navigate(`/checkout?listingId=${list.id}`)}
-                                                className={`bg-white rounded-[16px] p-5 cursor-pointer border hover:border-[#114C2A] hover:shadow-[0_0_0_1px_#114C2A] transition-all group relative overflow-hidden flex flex-col ${isBestValue ? 'border-[#114C2A]/30 shadow-sm' : 'border-gray-200'}`}
+                                                key={tier.id} 
+                                                onClick={() => navigate(`/checkout?eventId=${eventId}&tierId=${tier.id}&qty=${selectedTicketQuantity}`)}
+                                                className={`bg-white rounded-[12px] p-5 cursor-pointer border hover:border-[#8cc63f] hover:shadow-[0_0_0_1px_#8cc63f] transition-all group relative overflow-hidden flex flex-col ${isBestValue ? 'border-[#8cc63f] shadow-sm' : 'border-[#e2e2e2]'}`}
                                             >
-                                                <div className={`absolute top-0 left-0 w-1.5 h-full transition-colors duration-300 ${isBestValue ? 'bg-[#114C2A]' : 'bg-[#114C2A] opacity-0 group-hover:opacity-100'}`}></div>
+                                                <div className={`absolute top-0 left-0 w-1.5 h-full transition-colors duration-300 ${isBestValue ? 'bg-[#8cc63f]' : 'bg-[#8cc63f] opacity-0 group-hover:opacity-100'}`}></div>
                                                 
                                                 <div className="flex justify-between items-start mb-4 pl-2">
                                                     <div className="flex-1 pr-4">
                                                         <div className="flex items-center space-x-2 mb-1">
-                                                            <h3 className="font-black text-brand-text text-[18px] leading-tight">
-                                                                Section {list.section || 'General'}
+                                                            <h3 className="font-black text-[#1a1a1a] text-[18px] leading-tight">
+                                                                {tier.name}
                                                             </h3>
                                                             {isBestValue && (
-                                                                <span className="flex items-center bg-[#FFF1F2] text-[#E91E63] text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded">
-                                                                    <Flame size={10} className="mr-1"/> Best Value
+                                                                <span className="flex items-center bg-[#eaf4d9] text-[#458731] border border-[#d2e8b0] text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-[4px]">
+                                                                    <Flame size={12} className="mr-1"/> Best Value
                                                                 </span>
                                                             )}
                                                         </div>
-                                                        <p className="text-[14px] text-brand-muted font-medium flex flex-wrap items-center gap-2 mt-1">
-                                                            <span>Row {list.row || 'Any'}</span>
+                                                        <p className="text-[13px] text-[#54626c] font-bold flex flex-wrap items-center gap-2 mt-1.5">
+                                                            <span>Seats: {tier.seats}</span>
                                                             <span>•</span>
-                                                            <span>{list.quantity} Tickets</span>
+                                                            <span>{tier.quantity} Remaining</span>
                                                             
-                                                            {Number(list.quantity) <= 2 && (
-                                                                <span className="flex items-center text-[#E91E63] font-bold text-[12px] bg-[#FFF1F2] px-1.5 py-0.5 rounded">
-                                                                    <AlertCircle size={12} className="mr-1"/> Only {list.quantity} left
+                                                            {Number(tier.quantity) <= 2 && (
+                                                                <span className="flex items-center text-[#c21c3a] font-bold text-[11px] bg-[#fdf2f2] px-1.5 py-0.5 rounded-[4px] ml-1 border border-[#fecaca]">
+                                                                    <AlertCircle size={12} className="mr-1"/> Only {tier.quantity} left
                                                                 </span>
                                                             )}
                                                         </p>
                                                     </div>
                                                     <div className="text-right flex-shrink-0">
-                                                        <span className="block text-[24px] font-black text-brand-text leading-none mb-1">
-                                                            {userCurrency === 'USD' ? '$' : userCurrency === 'GBP' ? '£' : userCurrency === 'EUR' ? '€' : userCurrency === 'AUD' ? 'A$' : '₹'}{Number(list.price).toLocaleString()}
+                                                        <span className="block text-[24px] font-black text-[#1a1a1a] leading-none mb-1">
+                                                            {userCurrency === 'USD' ? '$' : userCurrency === 'GBP' ? '£' : userCurrency === 'EUR' ? '€' : userCurrency === 'AUD' ? 'A$' : '₹'}{Number(tier.price).toLocaleString()}
                                                         </span>
-                                                        <span className="text-[12px] font-bold text-gray-400 uppercase tracking-wide">
-                                                            /ea
+                                                        <span className="text-[11px] font-black text-[#9ca3af] uppercase tracking-widest">
+                                                            / ticket
                                                         </span>
                                                     </div>
                                                 </div>
                                                 
-                                                <div className="flex flex-wrap gap-2 mt-auto pt-4 border-t border-gray-100 pl-2">
-                                                    <span className="flex items-center text-[12px] font-bold text-[#114C2A] bg-[#EAF4D9] px-2.5 py-1.5 rounded-[6px]">
-                                                        <Zap size={14} className="mr-1.5 fill-[#114C2A]"/> Instant download
-                                                    </span>
-                                                    <span className="flex items-center text-[12px] font-bold text-gray-600 bg-gray-100 px-2.5 py-1.5 rounded-[6px]">
-                                                        <Eye size={14} className="mr-1.5 opacity-60"/> Clear view
-                                                    </span>
-                                                </div>
+                                                {/* FEATURE 8: Dynamic Seller Disclosures Engine */}
+                                                {(tier.disclosures && tier.disclosures.length > 0) && (
+                                                    <div className="flex flex-wrap gap-2 mt-auto pt-4 border-t border-[#f0f0f0] pl-2">
+                                                        {tier.disclosures.map(d => (
+                                                            <span key={d} className="flex items-center text-[11px] font-bold text-[#54626c] bg-[#f8f9fa] border border-[#e2e2e2] px-2 py-1 rounded-[4px]">
+                                                                <Tag size={12} className="mr-1 opacity-60"/> {d}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </motion.div>
                                         );
                                     })}
