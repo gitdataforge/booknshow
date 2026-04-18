@@ -15,12 +15,27 @@ import { uploadToCloudinary } from '../../services/cloudinaryApi';
 // Internal components for modular layout
 import EmailConfirmationModal from '../../components/EmailConfirmationModal';
 
+/**
+ * FEATURE 1: Nested Event/Tier Database Resolver
+ * FEATURE 2: Real-Time Inventory & Price Verification Gate
+ * FEATURE 3: Advanced ISO Timestamp Parser
+ * FEATURE 4: Secure Razorpay Payment Gateway Integration
+ * FEATURE 5: Manual Bank Transfer Ledger Engine
+ * FEATURE 6: Cloudinary Receipt Vault Integration
+ * FEATURE 7: Dynamic 15% Platform Fee & GST Calculator
+ * FEATURE 8: Idle Session Timer Protection (10-minute hold)
+ * FEATURE 9: Responsive Step-by-Step Accordion Wizard
+ * FEATURE 10: Strict Hardware-Accelerated Enterprise Theme
+ */
+
 export default function Checkout() {
     const [searchParams] = useSearchParams();
-    const listingId = searchParams.get('listingId');
+    const eventId = searchParams.get('eventId');
+    const tierId = searchParams.get('tierId');
+    const qtyParams = searchParams.get('qty') || '1';
+    
     const navigate = useNavigate();
     
-    // FEATURE 1: Extracted executePurchase for Real-Time Razorpay Handler
     const { 
         user, balance, isAuthenticated, openAuthModal,
         checkoutStep, setCheckoutStep,
@@ -37,7 +52,6 @@ export default function Checkout() {
     const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
     const [timeLeft, setTimeLeft] = useState('');
 
-    // FEATURE 2: Advanced Checkout States (Razorpay Compatible)
     const [paymentMethod, setPaymentMethod] = useState('card'); // 'card' | 'upi' | 'bank_transfer'
     const [showFeeBreakdown, setShowFeeBreakdown] = useState(false);
     
@@ -48,33 +62,69 @@ export default function Checkout() {
     const [isUploading, setIsUploading] = useState(false);
     const [isProcessingOrder, setIsProcessingOrder] = useState(false);
 
-    // 1. Initial Load & Auth Check
+    // FEATURE 1 & 2: Nested Event/Tier Database Resolver & Verification
     useEffect(() => {
         if (!isAuthenticated) return openAuthModal();
-        if (!listingId) return navigate('/');
+        if (!eventId || !tierId) return navigate('/');
 
-        const fetchListing = async () => {
+        const fetchSecureListing = async () => {
             try {
-                const docRef = doc(db, 'listings', listingId);
+                const docRef = doc(db, 'events', eventId);
                 const docSnap = await getDoc(docRef);
+                
                 if (docSnap.exists()) {
-                    setListing({ id: docSnap.id, ...docSnap.data() });
+                    const eventData = docSnap.data();
+                    
+                    // Resolve the specific nested ticket tier
+                    const tierData = eventData.ticketTiers?.find(t => t.id === tierId);
+                    
+                    if (!tierData) {
+                        setError('This ticket tier is no longer available or was removed by the seller.');
+                        return;
+                    }
+
+                    const requestedQty = Number(qtyParams);
+                    if (tierData.quantity < requestedQty) {
+                        setError(`Inventory mismatch. Only ${tierData.quantity} tickets remaining in this tier.`);
+                        return;
+                    }
+
+                    // Format Date securely
+                    const d = new Date(eventData.eventTimestamp);
+                    const formattedDate = !isNaN(d) 
+                        ? `${d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} • ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`
+                        : 'Date TBA';
+
+                    setListing({
+                        id: docSnap.id,
+                        tierId: tierId,
+                        eventName: eventData.title,
+                        eventLoc: `${eventData.stadium}, ${eventData.location?.split(',')[0]}`,
+                        eventDate: formattedDate,
+                        price: Number(tierData.price),
+                        quantity: requestedQty,
+                        tierName: tierData.name,
+                        sellerId: eventData.sellerId || 'system',
+                        imageUrl: eventData.imageUrl
+                    });
+
                     if (user?.email && !checkoutFormData.contact.email) {
                         updateCheckoutFormData('contact', { email: user.email });
                     }
                 } else {
-                    setError('Listing no longer available.');
+                    setError('The original event is no longer available on the marketplace.');
                 }
             } catch (err) {
-                setError('Failed to load secure checkout.');
+                console.error("[Parbet Checkout] Initialization failure:", err);
+                setError('Failed to establish a secure checkout connection. Please refresh.');
             } finally {
                 setIsLoading(false);
             }
         };
-        fetchListing();
-    }, [listingId, isAuthenticated]);
+        fetchSecureListing();
+    }, [eventId, tierId, qtyParams, isAuthenticated]);
 
-    // 2. Countdown Timer Logic
+    // FEATURE 8: Idle Session Timer Protection
     useEffect(() => {
         if (!checkoutExpiration) return;
         const interval = setInterval(() => {
@@ -82,7 +132,7 @@ export default function Checkout() {
             if (diff <= 0) {
                 clearInterval(interval);
                 resetCheckoutTimer();
-                navigate('/'); // Idle Session Protection
+                navigate('/'); // Idle Session Protection Kick
                 return;
             }
             const mins = Math.floor(diff / 60000);
@@ -92,10 +142,10 @@ export default function Checkout() {
         return () => clearInterval(interval);
     }, [checkoutExpiration]);
 
-    // 3. Price Calculations
+    // FEATURE 7: Dynamic 15% Platform Fee & GST Calculator
     const totals = useMemo(() => {
         if (!listing) return { subtotal: 0, fees: 0, tax: 0, total: 0 };
-        const subtotal = listing.price * (listing.quantity || 1);
+        const subtotal = listing.price * listing.quantity;
         const fees = subtotal * 0.15; // 15% marketplace fee
         const tax = fees * 0.18; // 18% GST on fees
         return { subtotal, fees, tax, total: subtotal + fees + tax };
@@ -116,6 +166,7 @@ export default function Checkout() {
         setCheckoutStep(2);
     };
 
+    // FEATURE 6: Cloudinary Receipt Vault Integration
     const handleReceiptSelect = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -138,32 +189,29 @@ export default function Checkout() {
         }
     };
 
-    // FEATURE 3: Secure Razorpay Integration Handler
+    // FEATURE 4: Secure Razorpay Integration Handler
     const handleFinalPayment = async () => {
         setIsProcessingOrder(true);
         setError('');
 
         try {
             if (paymentMethod === 'card' || paymentMethod === 'upi') {
-                // Verify the script loaded from index.html
                 if (!window.Razorpay) {
                     throw new Error("Payment gateway failed to load. Please check your internet connection and disable ad-blockers.");
                 }
 
-                // Configure the Razorpay UI
                 const options = {
-                    key: "rzp_test_parbet", // Replace with your production live key
-                    amount: Math.round(totals.total * 100), // Razorpay strictly expects paise
+                    key: "rzp_test_parbet", // Sandbox Key
+                    amount: Math.round(totals.total * 100), // Paise
                     currency: "INR",
                     name: "Parbet Marketplace",
                     description: `Tickets for ${listing.eventName}`,
-                    image: "https://parbet-44902.web.app/vite.svg", // Brand Logo
+                    image: "https://parbet-44902.web.app/vite.svg", 
                     handler: async function (response) {
                         try {
-                            // FEATURE 4: Instant Secure Firestore Reconciliation upon Gateway Success
-                            await executePurchase(listing.id, user.uid, totals.total);
+                            // Secure Firestore Reconciliation mapping the new tier architecture
+                            await executePurchase(listing.id, listing.tierId, user.uid, listing.quantity, totals.total);
                             resetCheckoutTimer();
-                            // Vault the user into the buyer dashboard to view their newly acquired tickets
                             navigate(`/profile/orders?success=true&payment_id=${response.razorpay_payment_id}`);
                         } catch (err) {
                             setError("Payment succeeded but order finalization failed. Please contact support.");
@@ -175,11 +223,11 @@ export default function Checkout() {
                         contact: checkoutFormData.contact.phone
                     },
                     theme: {
-                        color: "#114C2A" // 1:1 Brand Matching
+                        color: "#1a1a1a" // Strict Dark Enterprise Brand Match
                     },
                     modal: {
                         ondismiss: function() {
-                            setIsProcessingOrder(false); // Release the UI lock if user closes modal
+                            setIsProcessingOrder(false); 
                         }
                     }
                 };
@@ -192,18 +240,21 @@ export default function Checkout() {
                 rzp.open();
 
             } else if (paymentMethod === 'bank_transfer') {
+                // FEATURE 5: Manual Bank Transfer Ledger Engine
                 if (!receiptUrl) throw new Error("Please upload the payment receipt before finalizing.");
                 
-                // Write manual transfer order to Firestore
                 const newOrderRef = doc(collection(db, 'orders'));
                 await setDoc(newOrderRef, {
                     orderId: newOrderRef.id,
                     buyerId: user.uid,
-                    sellerId: listing.sellerId || 'system',
-                    listingId: listing.id,
+                    sellerId: listing.sellerId,
+                    eventId: listing.id,
+                    tierId: listing.tierId,
                     eventName: listing.eventName,
+                    tierName: listing.tierName,
+                    quantity: listing.quantity,
                     totalAmount: totals.total,
-                    status: 'pending_verification', // Requires admin verification
+                    status: 'pending_verification', 
                     receiptUrl: receiptUrl,
                     createdAt: serverTimestamp(),
                     deliveryData: checkoutFormData.delivery,
@@ -220,69 +271,45 @@ export default function Checkout() {
     };
 
     if (isLoading) return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-            <div className="w-10 h-10 border-4 border-[#114C2A] border-t-transparent rounded-full animate-spin"></div>
+        <div className="min-h-screen flex items-center justify-center bg-[#f8f9fa]">
+            <div className="w-10 h-10 border-4 border-[#8cc63f] border-t-transparent rounded-full animate-spin"></div>
         </div>
     );
 
     return (
-        <div className="min-h-screen bg-[#F4F6F8] pb-20 relative overflow-hidden">
+        <div className="min-h-screen bg-[#F4F6F8] pb-20 relative overflow-hidden font-sans">
             
-            {/* SECTION 1: Animated High-End SVG Topography Background */}
+            {/* Animated High-End Background Overlay */}
             <div className="fixed inset-0 z-0 pointer-events-none">
-                <motion.svg 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 2 }}
-                    className="absolute inset-0 w-full h-full opacity-[0.03]" 
-                    xmlns="http://www.w3.org/2000/svg"
-                >
-                    <defs>
-                        <linearGradient id="checkoutGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" style={{ stopColor: '#114C2A', stopOpacity: 1 }} />
-                            <stop offset="100%" style={{ stopColor: '#458731', stopOpacity: 1 }} />
-                        </linearGradient>
-                    </defs>
-                    {[...Array(20)].map((_, i) => (
-                        <motion.path
-                            key={i}
-                            initial={{ pathLength: 0 }}
-                            animate={{ pathLength: 1 }}
-                            transition={{ duration: 5 + i * 0.5, ease: "easeInOut", repeat: Infinity, repeatType: "reverse" }}
-                            d={`M-200 ${150 + i * 50} Q 400 ${-50 + i * 80} 800 ${350 + i * 30} T 1800 ${150 + i * 70}`}
-                            fill="none" stroke="url(#checkoutGrad)" strokeWidth={1 + (i % 2)}
-                        />
-                    ))}
-                </motion.svg>
+                <div className="absolute top-0 right-0 w-[50vw] h-[50vh] bg-[#8cc63f]/5 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/4"></div>
+                <div className="absolute bottom-0 left-0 w-[50vw] h-[50vh] bg-[#8cc63f]/5 rounded-full blur-[120px] translate-y-1/4 -translate-x-1/4"></div>
             </div>
 
             <AnimatePresence>
                 {isTimerModalOpen && (
                     <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                         <motion.div 
-                            initial={{ opacity: 0, scale: 0.9, y: 20 }} 
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }} 
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             className="bg-white rounded-[24px] p-8 max-w-md w-full text-center shadow-2xl relative overflow-hidden"
                         >
-                            <div className="absolute top-0 left-0 w-full h-1.5 bg-[#EAF4D9]">
+                            <div className="absolute top-0 left-0 w-full h-1.5 bg-[#eaf4d9]">
                                 <motion.div 
-                                    initial={{ width: '100%' }}
-                                    animate={{ width: '0%' }}
-                                    transition={{ duration: 10, ease: 'linear' }}
-                                    className="h-full bg-[#114C2A]"
+                                    initial={{ width: '100%' }} animate={{ width: '0%' }} transition={{ duration: 10, ease: 'linear' }}
+                                    className="h-full bg-[#8cc63f]"
                                 />
                             </div>
-                            <div className="w-20 h-20 bg-[#EAF4D9] rounded-full flex items-center justify-center mx-auto mb-6 mt-2 relative">
-                                <Clock size={40} className="text-[#114C2A]" />
-                                <motion.div animate={{ rotate: 360 }} transition={{ duration: 10, repeat: Infinity, ease: 'linear' }} className="absolute inset-0 border-2 border-dashed border-[#114C2A]/30 rounded-full" />
+                            <div className="w-20 h-20 bg-[#eaf4d9] rounded-full flex items-center justify-center mx-auto mb-6 mt-2 relative">
+                                <Clock size={40} className="text-[#8cc63f]" />
+                                <motion.div animate={{ rotate: 360 }} transition={{ duration: 10, repeat: Infinity, ease: 'linear' }} className="absolute inset-0 border-2 border-dashed border-[#8cc63f]/50 rounded-full" />
                             </div>
-                            <h2 className="text-[26px] font-black text-brand-text mb-3">We've reserved your tickets!</h2>
-                            <p className="text-gray-500 font-medium mb-8 leading-relaxed">
-                                Due to high demand, we can only hold these tickets for <strong>10 minutes</strong>. Please complete your purchase before the timer runs out.
+                            <h2 className="text-[26px] font-black text-[#1a1a1a] mb-3">We've reserved your tickets!</h2>
+                            <p className="text-[#54626c] font-medium mb-8 leading-relaxed">
+                                Due to high demand, we can only hold these tickets for <strong className="text-[#1a1a1a]">10 minutes</strong>. Please complete your purchase before the timer runs out.
                             </p>
                             <button 
                                 onClick={handleStartCheckout}
-                                className="w-full bg-[#114C2A] text-white font-black py-4 rounded-xl text-lg shadow-xl hover:shadow-2xl hover:-translate-y-0.5 transition-all"
+                                className="w-full bg-[#1a1a1a] text-white font-black py-4 rounded-[12px] text-[16px] shadow-xl hover:bg-black transition-all"
                             >
                                 Continue to checkout
                             </button>
@@ -298,12 +325,12 @@ export default function Checkout() {
             />
 
             {/* Header with Sticky Timer */}
-            <div className="w-full bg-white/80 backdrop-blur-md border-b border-gray-200 sticky top-0 z-40 px-4 py-4 md:px-8 shadow-sm">
+            <div className="w-full bg-white/90 backdrop-blur-md border-b border-[#e2e2e2] sticky top-0 z-40 px-4 py-4 md:px-8 shadow-sm">
                 <div className="max-w-[1200px] mx-auto flex justify-between items-center">
-                    <h1 onClick={() => navigate('/')} className="text-2xl font-black tracking-tighter text-[#114C2A] cursor-pointer flex items-center">
-                        <ShieldCheck size={28} className="mr-2" /> parbet
+                    <h1 onClick={() => navigate('/')} className="text-[24px] font-black tracking-tighter text-[#1a1a1a] cursor-pointer flex items-center">
+                        <ShieldCheck size={28} className="mr-2 text-[#8cc63f]" /> par<span className="text-[#8cc63f]">bet</span>
                     </h1>
-                    <div className="flex items-center bg-red-50 text-[#E91E63] px-4 py-2 rounded-full border border-red-100 shadow-sm">
+                    <div className="flex items-center bg-[#fdf2f2] text-[#c21c3a] px-4 py-2 rounded-full border border-[#fecaca] shadow-sm">
                         <Clock size={18} className="mr-2 animate-pulse" />
                         <span className="text-[15px] font-black tracking-wider">{timeLeft || '10:00'}</span>
                     </div>
@@ -318,7 +345,7 @@ export default function Checkout() {
                     {/* Global Error Banner */}
                     <AnimatePresence>
                         {error && (
-                            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="bg-red-50 border border-red-200 text-red-700 px-5 py-4 rounded-xl font-bold flex items-center shadow-sm">
+                            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="bg-[#fdf2f2] border border-[#fecaca] text-[#c21c3a] px-5 py-4 rounded-[12px] font-bold flex items-center shadow-sm">
                                 <ShieldAlert size={20} className="mr-3 shrink-0" /> {error}
                             </motion.div>
                         )}
@@ -339,7 +366,7 @@ export default function Checkout() {
                                 <div className="w-24"><FloatingInput label="Code" value={checkoutFormData.contact.countryCode} disabled /></div>
                                 <div className="flex-1"><FloatingInput label="Phone Number" type="tel" value={checkoutFormData.contact.phone} onChange={(v) => updateCheckoutFormData('contact', { phone: v })} /></div>
                             </div>
-                            <button type="submit" className="w-full bg-[#114C2A] text-white font-black py-4 rounded-xl mt-4 shadow-md hover:bg-[#0c361d] transition-colors">Continue</button>
+                            <button type="submit" className="w-full bg-[#1a1a1a] text-white font-black py-4 rounded-[12px] mt-4 shadow-md hover:bg-black transition-colors">Continue</button>
                         </form>
                     </CheckoutStep>
 
@@ -349,12 +376,12 @@ export default function Checkout() {
                         onHeaderClick={() => checkoutStep > 2 && setCheckoutStep(2)}
                     >
                         <div className="pt-4 space-y-6">
-                            <div className="p-5 bg-[#F0F7FF] border border-[#D0E5FF] rounded-xl flex gap-4 shadow-inner">
-                                <Zap className="text-blue-600 shrink-0 mt-1" size={24} />
+                            <div className="p-5 bg-[#f8f9fa] border border-[#e2e2e2] rounded-[12px] flex gap-4 shadow-inner">
+                                <Zap className="text-[#8cc63f] shrink-0 mt-1" size={24} />
                                 <div>
-                                    <h4 className="font-black text-brand-text text-[16px]">Mobile Ticket Transfer</h4>
-                                    <p className="text-[14px] text-gray-600 mt-1 font-medium leading-relaxed">
-                                        These tickets will be transferred directly to your email via the official venue application (e.g., Ticketmaster, AXS).
+                                    <h4 className="font-black text-[#1a1a1a] text-[16px]">Mobile Ticket Transfer</h4>
+                                    <p className="text-[14px] text-[#54626c] mt-1 font-medium leading-relaxed">
+                                        These tickets will be transferred directly to your email via the official venue application.
                                     </p>
                                 </div>
                             </div>
@@ -362,7 +389,7 @@ export default function Checkout() {
                                 <FloatingInput label="Recipient Full Name (Must match ID)" value={checkoutFormData.delivery.fullName} onChange={(v) => updateCheckoutFormData('delivery', { fullName: v })} />
                                 <FloatingInput label="Recipient Mobile Phone" value={checkoutFormData.delivery.phone} onChange={(v) => updateCheckoutFormData('delivery', { phone: v })} />
                             </div>
-                            <button onClick={() => setCheckoutStep(3)} className="w-full bg-[#114C2A] text-white font-black py-4 rounded-xl shadow-md hover:bg-[#0c361d] transition-colors">Continue</button>
+                            <button onClick={() => setCheckoutStep(3)} className="w-full bg-[#1a1a1a] text-white font-black py-4 rounded-[12px] shadow-md hover:bg-black transition-colors">Continue</button>
                         </div>
                     </CheckoutStep>
 
@@ -373,9 +400,9 @@ export default function Checkout() {
                     >
                         <div className="pt-4 space-y-4">
                             <div className="relative group">
-                                <label className="text-[11px] font-black text-gray-400 absolute left-4 top-2 uppercase tracking-widest z-10 transition-colors group-focus-within:text-[#114C2A]">Country</label>
+                                <label className="text-[11px] font-black text-[#9ca3af] absolute left-4 top-2 uppercase tracking-widest z-10 transition-colors group-focus-within:text-[#8cc63f]">Country</label>
                                 <select 
-                                    className="w-full p-4 pt-7 rounded-xl border border-gray-300 font-bold bg-white text-gray-900 outline-none focus:border-[#114C2A] focus:ring-1 focus:ring-[#114C2A] relative appearance-none"
+                                    className="w-full p-4 pt-7 rounded-[12px] border border-[#e2e2e2] font-bold bg-white text-[#1a1a1a] outline-none focus:border-[#8cc63f] focus:ring-4 focus:ring-[#8cc63f]/10 relative appearance-none"
                                     value={checkoutFormData.address.country}
                                     onChange={(e) => updateCheckoutFormData('address', { country: e.target.value })}
                                 >
@@ -384,14 +411,14 @@ export default function Checkout() {
                                     <option>United Kingdom</option>
                                     <option>United Arab Emirates</option>
                                 </select>
-                                <ChevronDown size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                <ChevronDown size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#9ca3af] pointer-events-none" />
                             </div>
                             <FloatingInput label="Address Line 1" value={checkoutFormData.address.line1} onChange={(v) => updateCheckoutFormData('address', { line1: v })} />
                             <div className="grid grid-cols-2 gap-4">
                                 <FloatingInput label="City" value={checkoutFormData.address.city} onChange={(v) => updateCheckoutFormData('address', { city: v })} />
                                 <FloatingInput label="ZIP / Postcode" value={checkoutFormData.address.zip} onChange={(v) => updateCheckoutFormData('address', { zip: v })} />
                             </div>
-                            <button onClick={() => setCheckoutStep(4)} className="w-full bg-[#114C2A] text-white font-black py-4 rounded-xl shadow-md hover:bg-[#0c361d] transition-colors">Continue</button>
+                            <button onClick={() => setCheckoutStep(4)} className="w-full bg-[#1a1a1a] text-white font-black py-4 rounded-[12px] shadow-md hover:bg-black transition-colors">Continue</button>
                         </div>
                     </CheckoutStep>
 
@@ -407,7 +434,6 @@ export default function Checkout() {
                                     description="Instant processing via Razorpay Gateway." active={paymentMethod === 'card'}
                                 />
                             </div>
-                            {/* FEATURE 5: Updated from PayPal to localized UPI natively handled by Razorpay */}
                             <div onClick={() => setPaymentMethod('upi')} className="w-full text-left">
                                 <PaymentOption 
                                     icon={<Smartphone size={24} />} 
@@ -424,9 +450,9 @@ export default function Checkout() {
                             <button 
                                 onClick={() => paymentMethod === 'bank_transfer' ? setCheckoutStep(5) : handleFinalPayment()}
                                 disabled={isProcessingOrder}
-                                className="w-full bg-[#114C2A] text-white font-black py-4 rounded-xl text-lg shadow-xl hover:bg-[#0c361d] transition-all disabled:opacity-70 mt-6 flex justify-center items-center"
+                                className="w-full bg-[#1a1a1a] text-white font-black py-4 rounded-[12px] text-[16px] shadow-xl hover:bg-black transition-all disabled:opacity-70 mt-6 flex justify-center items-center"
                             >
-                                {isProcessingOrder ? <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : paymentMethod === 'bank_transfer' ? 'Continue to Transfer Proof' : `Pay ₹${totals.total.toLocaleString()}`}
+                                {isProcessingOrder ? <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : paymentMethod === 'bank_transfer' ? 'Continue to Transfer Proof' : `Pay ₹${Math.round(totals.total).toLocaleString()}`}
                             </button>
                         </div>
                     </CheckoutStep>
@@ -437,10 +463,10 @@ export default function Checkout() {
                             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
                                 <CheckoutStep number={5} title="Transfer Proof Required" isActive={true} isDone={false}>
                                     <div className="pt-4 space-y-6">
-                                        <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 text-center">
-                                            <h4 className="font-black text-gray-900 text-lg mb-2">Parbet Escrow Account</h4>
-                                            <p className="text-gray-500 font-medium text-[14px] mb-4">Please transfer <strong className="text-gray-900">₹{totals.total.toLocaleString()}</strong> to the following UPI ID or Bank Account.</p>
-                                            <div className="bg-white border border-gray-300 p-3 rounded-lg inline-block font-mono text-[16px] font-bold text-[#114C2A] tracking-wider">
+                                        <div className="bg-[#f8f9fa] border border-[#e2e2e2] rounded-[12px] p-6 text-center">
+                                            <h4 className="font-black text-[#1a1a1a] text-[18px] mb-2">Parbet Escrow Account</h4>
+                                            <p className="text-[#54626c] font-medium text-[14px] mb-4">Please transfer <strong className="text-[#1a1a1a]">₹{Math.round(totals.total).toLocaleString()}</strong> to the following UPI ID or Bank Account.</p>
+                                            <div className="bg-white border border-[#e2e2e2] p-3 rounded-[8px] inline-block font-mono text-[16px] font-bold text-[#8cc63f] tracking-wider shadow-sm">
                                                 parbet.escrow@icici
                                             </div>
                                         </div>
@@ -450,22 +476,22 @@ export default function Checkout() {
                                                 type="file" accept="image/*,.pdf" onChange={handleReceiptSelect} disabled={isUploading}
                                                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20 disabled:cursor-not-allowed"
                                             />
-                                            <div className={`w-full border-2 border-dashed rounded-2xl flex flex-col items-center justify-center p-8 transition-all relative ${receiptPreview ? 'border-[#114C2A] bg-[#114C2A]/5' : 'border-gray-300 bg-gray-50 group-hover:border-[#114C2A] group-hover:bg-[#114C2A]/5'}`}>
+                                            <div className={`w-full border-2 border-dashed rounded-[16px] flex flex-col items-center justify-center p-8 transition-all relative ${receiptPreview ? 'border-[#8cc63f] bg-[#eaf4d9]' : 'border-[#e2e2e2] bg-[#f8f9fa] group-hover:border-[#8cc63f] group-hover:bg-[#eaf4d9]'}`}>
                                                 {isUploading ? (
                                                     <div className="flex flex-col items-center">
-                                                        <div className="w-10 h-10 border-4 border-[#114C2A] border-t-transparent rounded-full animate-spin mb-4"></div>
-                                                        <p className="font-bold text-[#114C2A]">Encrypting & Uploading...</p>
+                                                        <div className="w-10 h-10 border-4 border-[#8cc63f] border-t-transparent rounded-full animate-spin mb-4"></div>
+                                                        <p className="font-bold text-[#8cc63f]">Encrypting & Uploading...</p>
                                                     </div>
                                                 ) : receiptPreview ? (
                                                     <div className="flex flex-col items-center">
                                                         <CheckCircle2 size={48} className="text-[#458731] mb-3" />
-                                                        <p className="font-bold text-gray-900">Receipt Attached Successfully</p>
-                                                        <p className="text-[12px] text-gray-500 font-medium mt-1">Powered by Cloudinary CDN</p>
+                                                        <p className="font-bold text-[#1a1a1a]">Receipt Attached Successfully</p>
+                                                        <p className="text-[12px] text-[#54626c] font-medium mt-1">Powered by Cloudinary CDN</p>
                                                     </div>
                                                 ) : (
-                                                    <div className="flex flex-col items-center text-gray-400 group-hover:text-[#114C2A] transition-colors">
+                                                    <div className="flex flex-col items-center text-[#9ca3af] group-hover:text-[#458731] transition-colors">
                                                         <UploadCloud size={48} className="mb-4" />
-                                                        <h4 className="font-black text-[16px] text-gray-700">Click or Drag to upload receipt</h4>
+                                                        <h4 className="font-black text-[16px] text-[#1a1a1a]">Click or Drag to upload receipt</h4>
                                                         <p className="text-[13px] font-medium mt-2">Supports JPG, PNG, or PDF (Max 5MB)</p>
                                                     </div>
                                                 )}
@@ -475,7 +501,7 @@ export default function Checkout() {
                                         <button 
                                             onClick={handleFinalPayment}
                                             disabled={!receiptUrl || isProcessingOrder}
-                                            className="w-full bg-[#458731] text-white font-black py-4 rounded-xl text-lg shadow-xl hover:bg-[#386d27] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center"
+                                            className="w-full bg-[#1a1a1a] text-white font-black py-4 rounded-[12px] text-[16px] shadow-xl hover:bg-black transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center"
                                         >
                                             {isProcessingOrder ? <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : 'Verify & Complete Order'}
                                         </button>
@@ -490,49 +516,49 @@ export default function Checkout() {
                 <div className="w-full lg:w-[420px] space-y-6">
                     
                     {/* Order Summary */}
-                    <div className="bg-white border border-gray-200 rounded-[24px] overflow-hidden shadow-xl sticky top-24">
-                        <div className="p-6 border-b border-gray-100 bg-[#114C2A] text-white">
-                            <h2 className="text-xl font-black mb-4">Order Summary</h2>
+                    <div className="bg-white border border-[#e2e2e2] rounded-[16px] overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.06)] sticky top-24">
+                        <div className="p-6 border-b border-[#e2e2e2] bg-[#1a1a1a] text-white">
+                            <h2 className="text-[18px] font-black mb-4">Order Summary</h2>
                             <div className="flex gap-4">
-                                <div className="w-16 h-16 bg-white/10 rounded-xl flex items-center justify-center shrink-0 border border-white/20 backdrop-blur-sm">
+                                <div className="w-16 h-16 bg-white/10 rounded-[12px] flex items-center justify-center shrink-0 border border-white/20 backdrop-blur-sm">
                                     <Ticket size={28} className="text-white" />
                                 </div>
                                 <div>
                                     <h3 className="font-black text-[18px] leading-tight">{listing?.eventName}</h3>
-                                    <p className="text-[13px] text-green-100 font-bold mt-1">{listing?.eventDate}</p>
-                                    <p className="text-[13px] text-green-200 font-medium truncate max-w-[200px] flex items-center mt-0.5"><MapPin size={12} className="mr-1"/> {listing?.eventLoc}</p>
+                                    <p className="text-[13px] text-gray-300 font-bold mt-1">{listing?.tierName}</p>
+                                    <p className="text-[13px] text-gray-400 font-medium truncate max-w-[200px] flex items-center mt-0.5"><MapPin size={12} className="mr-1"/> {listing?.eventLoc}</p>
                                 </div>
                             </div>
                         </div>
 
                         <div className="p-6 space-y-4 bg-white">
-                            <div className="flex justify-between items-center p-4 bg-gray-50 rounded-xl border border-gray-100">
-                                <span className="text-[15px] font-bold text-gray-700">Quantity Selected</span>
-                                <span className="font-black text-[16px] text-[#114C2A] bg-[#EAF4D9] px-3 py-1 rounded-lg">{listing?.quantity || 1} Ticket(s)</span>
+                            <div className="flex justify-between items-center p-4 bg-[#f8f9fa] rounded-[12px] border border-[#e2e2e2]">
+                                <span className="text-[14px] font-bold text-[#54626c]">Quantity Selected</span>
+                                <span className="font-black text-[14px] text-[#1a1a1a] bg-white border border-[#e2e2e2] shadow-sm px-3 py-1 rounded-[6px]">{listing?.quantity || 1} Ticket(s)</span>
                             </div>
                             
                             {/* Cost Breakdown Accordion */}
-                            <div className="border border-gray-200 rounded-xl overflow-hidden">
+                            <div className="border border-[#e2e2e2] rounded-[12px] overflow-hidden">
                                 <button 
                                     onClick={() => setShowFeeBreakdown(!showFeeBreakdown)}
-                                    className="w-full flex justify-between items-center p-4 bg-white hover:bg-gray-50 transition-colors"
+                                    className="w-full flex justify-between items-center p-4 bg-white hover:bg-[#f8f9fa] transition-colors"
                                 >
-                                    <span className="font-bold text-gray-700">Cost Breakdown</span>
-                                    {showFeeBreakdown ? <ChevronUp size={20} className="text-gray-400"/> : <ChevronDown size={20} className="text-gray-400"/>}
+                                    <span className="font-bold text-[#1a1a1a] text-[14px]">Cost Breakdown</span>
+                                    {showFeeBreakdown ? <ChevronUp size={20} className="text-[#9ca3af]"/> : <ChevronDown size={20} className="text-[#9ca3af]"/>}
                                 </button>
                                 <AnimatePresence>
                                     {showFeeBreakdown && (
-                                        <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden bg-gray-50 border-t border-gray-100">
+                                        <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden bg-[#f8f9fa] border-t border-[#e2e2e2]">
                                             <div className="p-4 space-y-3">
-                                                <div className="flex justify-between text-[14px] font-medium text-gray-600">
+                                                <div className="flex justify-between text-[14px] font-medium text-[#54626c]">
                                                     <span>Base Price (x{listing?.quantity || 1})</span>
                                                     <span>₹{totals.subtotal.toLocaleString()}</span>
                                                 </div>
-                                                <div className="flex justify-between text-[14px] font-medium text-gray-600">
+                                                <div className="flex justify-between text-[14px] font-medium text-[#54626c]">
                                                     <span>Platform Fees (15%)</span>
                                                     <span>₹{Math.round(totals.fees).toLocaleString()}</span>
                                                 </div>
-                                                <div className="flex justify-between text-[14px] font-medium text-gray-600">
+                                                <div className="flex justify-between text-[14px] font-medium text-[#54626c]">
                                                     <span>Estimated Taxes (GST)</span>
                                                     <span>₹{Math.round(totals.tax).toLocaleString()}</span>
                                                 </div>
@@ -546,43 +572,43 @@ export default function Checkout() {
                                 </AnimatePresence>
                             </div>
 
-                            <div className="pt-4 border-t border-gray-200 flex justify-between items-center">
+                            <div className="pt-4 border-t border-[#e2e2e2] flex justify-between items-center">
                                 <div>
-                                    <span className="text-[14px] font-bold text-gray-500 block uppercase tracking-wider">Total Due</span>
-                                    <span className="text-[28px] font-black text-brand-text leading-none mt-1 block">₹{Math.round(totals.total).toLocaleString()}</span>
+                                    <span className="text-[13px] font-bold text-[#9ca3af] block uppercase tracking-wider">Total Due</span>
+                                    <span className="text-[28px] font-black text-[#1a1a1a] leading-none mt-1 block">₹{Math.round(totals.total).toLocaleString()}</span>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     {/* Trust & Safety Guarantee Panel */}
-                    <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+                    <div className="bg-white border border-[#e2e2e2] rounded-[16px] p-6 shadow-sm">
                         <div className="flex items-center gap-3 mb-4">
-                            <div className="w-10 h-10 bg-[#EAF4D9] rounded-full flex items-center justify-center text-[#114C2A]">
+                            <div className="w-10 h-10 bg-[#eaf4d9] rounded-full flex items-center justify-center text-[#458731]">
                                 <ShieldCheck size={20} />
                             </div>
-                            <h3 className="font-black text-[18px] text-gray-900">Parbet 100% Guarantee</h3>
+                            <h3 className="font-black text-[16px] text-[#1a1a1a]">Parbet 100% Guarantee</h3>
                         </div>
                         <ul className="space-y-3">
-                            <li className="flex items-start text-[13px] font-medium text-gray-600">
-                                <Check size={16} className="text-[#458731] mr-2 shrink-0 mt-0.5" /> Authentic tickets delivered in time for the event.
+                            <li className="flex items-start text-[13px] font-medium text-[#54626c]">
+                                <Check size={16} className="text-[#8cc63f] mr-2 shrink-0 mt-0.5" /> Authentic tickets delivered in time for the event.
                             </li>
-                            <li className="flex items-start text-[13px] font-medium text-gray-600">
-                                <Check size={16} className="text-[#458731] mr-2 shrink-0 mt-0.5" /> Full refund if the event is canceled and not rescheduled.
+                            <li className="flex items-start text-[13px] font-medium text-[#54626c]">
+                                <Check size={16} className="text-[#8cc63f] mr-2 shrink-0 mt-0.5" /> Full refund if the event is canceled and not rescheduled.
                             </li>
-                            <li className="flex items-start text-[13px] font-medium text-gray-600">
-                                <Check size={16} className="text-[#458731] mr-2 shrink-0 mt-0.5" /> Secure transactions backed by Razorpay encryption.
+                            <li className="flex items-start text-[13px] font-medium text-[#54626c]">
+                                <Check size={16} className="text-[#8cc63f] mr-2 shrink-0 mt-0.5" /> Secure transactions backed by Razorpay encryption.
                             </li>
                         </ul>
                     </div>
 
                     {/* Post-Purchase Delivery Timeline */}
-                    <div className="bg-gray-900 rounded-2xl p-6 shadow-sm text-white relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
-                        <h3 className="font-black text-[16px] mb-6 flex items-center"><Navigation size={18} className="mr-2 text-green-400"/> What happens next?</h3>
-                        <div className="space-y-6 relative before:absolute before:inset-0 before:ml-3 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-green-400 before:via-green-500/20 before:to-transparent">
+                    <div className="bg-[#1a1a1a] rounded-[16px] p-6 shadow-sm text-white relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-[#8cc63f]/20 rounded-full blur-[40px] -mr-10 -mt-10 pointer-events-none"></div>
+                        <h3 className="font-black text-[16px] mb-6 flex items-center"><Navigation size={18} className="mr-2 text-[#8cc63f]"/> What happens next?</h3>
+                        <div className="space-y-6 relative before:absolute before:inset-0 before:ml-3 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-[#8cc63f] before:via-[#8cc63f]/20 before:to-transparent">
                             <div className="relative flex items-center gap-4 pl-8 md:pl-0 md:justify-center">
-                                <div className="absolute left-0 md:left-1/2 md:-ml-3.5 w-7 h-7 bg-green-500 rounded-full border-4 border-gray-900 flex items-center justify-center shadow-lg z-10"><Check size={12} className="text-white"/></div>
+                                <div className="absolute left-0 md:left-1/2 md:-ml-3 w-6 h-6 bg-[#8cc63f] rounded-full border-4 border-[#1a1a1a] flex items-center justify-center shadow-lg z-10"><Check size={12} className="text-white"/></div>
                                 <div className="md:w-1/2 md:pr-8 text-left md:text-right hidden md:block"></div>
                                 <div className="md:w-1/2 md:pl-8 text-left">
                                     <h4 className="text-[14px] font-bold">Payment Secured</h4>
@@ -590,7 +616,7 @@ export default function Checkout() {
                                 </div>
                             </div>
                             <div className="relative flex items-center gap-4 pl-8 md:pl-0 md:justify-center">
-                                <div className="absolute left-0 md:left-1/2 md:-ml-3.5 w-7 h-7 bg-gray-800 rounded-full border-4 border-gray-900 flex items-center justify-center z-10"><div className="w-2 h-2 bg-gray-500 rounded-full"></div></div>
+                                <div className="absolute left-0 md:left-1/2 md:-ml-3 w-6 h-6 bg-gray-800 rounded-full border-4 border-[#1a1a1a] flex items-center justify-center z-10"><div className="w-2 h-2 bg-gray-500 rounded-full"></div></div>
                                 <div className="md:w-1/2 md:pr-8 text-left md:text-right hidden md:block">
                                     <h4 className="text-[14px] font-bold">Seller Notified</h4>
                                     <p className="text-[12px] text-gray-400 font-medium">Transfer process initiated.</p>
@@ -601,7 +627,7 @@ export default function Checkout() {
                                 </div>
                             </div>
                             <div className="relative flex items-center gap-4 pl-8 md:pl-0 md:justify-center">
-                                <div className="absolute left-0 md:left-1/2 md:-ml-3.5 w-7 h-7 bg-gray-800 rounded-full border-4 border-gray-900 flex items-center justify-center z-10"><div className="w-2 h-2 bg-gray-500 rounded-full"></div></div>
+                                <div className="absolute left-0 md:left-1/2 md:-ml-3 w-6 h-6 bg-gray-800 rounded-full border-4 border-[#1a1a1a] flex items-center justify-center z-10"><div className="w-2 h-2 bg-gray-500 rounded-full"></div></div>
                                 <div className="md:w-1/2 md:pr-8 text-left md:text-right hidden md:block"></div>
                                 <div className="md:w-1/2 md:pl-8 text-left">
                                     <h4 className="text-[14px] font-bold">Tickets Sent</h4>
@@ -623,19 +649,19 @@ export default function Checkout() {
 
 function CheckoutStep({ number, title, isActive, isDone, children, onHeaderClick }) {
     return (
-        <div className={`bg-white border rounded-[20px] overflow-hidden transition-all duration-300 relative ${isActive ? 'border-[#114C2A] shadow-lg ring-2 ring-[#114C2A]/20 z-20' : 'border-gray-200 z-10'}`}>
+        <div className={`bg-white border rounded-[16px] overflow-hidden transition-all duration-300 relative ${isActive ? 'border-[#1a1a1a] shadow-[0_8px_30px_rgba(0,0,0,0.06)] ring-4 ring-[#8cc63f]/10 z-20' : 'border-[#e2e2e2] z-10'}`}>
             <div 
                 onClick={onHeaderClick}
-                className={`p-6 flex items-center justify-between ${onHeaderClick ? 'cursor-pointer hover:bg-gray-50' : ''} ${isActive ? 'bg-white' : 'bg-gray-50/50'}`}
+                className={`p-6 flex items-center justify-between ${onHeaderClick ? 'cursor-pointer hover:bg-[#f8f9fa]' : ''} ${isActive ? 'bg-white' : 'bg-[#f8f9fa]'}`}
             >
                 <div className="flex items-center gap-4">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-[16px] transition-colors ${isDone ? 'bg-[#458731] text-white shadow-md' : isActive ? 'bg-[#114C2A] text-white shadow-md' : 'bg-gray-200 text-gray-500'}`}>
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-[16px] transition-colors ${isDone ? 'bg-[#8cc63f] text-white shadow-sm' : isActive ? 'bg-[#1a1a1a] text-white shadow-sm' : 'bg-[#e2e2e2] text-[#9ca3af]'}`}>
                         {isDone ? <Check size={20} strokeWidth={3} /> : number}
                     </div>
-                    <h3 className={`text-[19px] font-black tracking-tight ${isActive ? 'text-gray-900' : 'text-gray-400'}`}>{title}</h3>
+                    <h3 className={`text-[18px] font-black tracking-tight ${isActive ? 'text-[#1a1a1a]' : 'text-[#9ca3af]'}`}>{title}</h3>
                 </div>
-                {!isActive && !isDone && <ChevronRight size={24} className="text-gray-300" />}
-                {isDone && <span className="text-[14px] font-bold text-[#458731] uppercase tracking-wider hover:underline">Edit</span>}
+                {!isActive && !isDone && <ChevronRight size={24} className="text-[#e2e2e2]" />}
+                {isDone && <span className="text-[13px] font-bold text-[#0064d2] hover:underline">Edit</span>}
             </div>
             <motion.div 
                 initial={false}
@@ -657,9 +683,9 @@ function FloatingInput({ label, type = 'text', value, onChange, disabled }) {
                 type={type} value={value} disabled={disabled}
                 onChange={(e) => onChange(e.target.value)}
                 placeholder=" "
-                className="w-full bg-white border-2 border-gray-200 rounded-xl px-4 pt-7 pb-3 font-bold text-gray-900 outline-none focus:border-[#114C2A] focus:ring-4 focus:ring-[#114C2A]/10 transition-all placeholder-shown:pt-5 placeholder-shown:pb-5 disabled:bg-gray-50 disabled:text-gray-400"
+                className="w-full bg-white border-2 border-[#e2e2e2] rounded-[12px] px-4 pt-7 pb-3 font-bold text-[#1a1a1a] outline-none focus:border-[#8cc63f] focus:ring-4 focus:ring-[#8cc63f]/10 transition-all placeholder-shown:pt-5 placeholder-shown:pb-5 disabled:bg-[#f8f9fa] disabled:text-[#9ca3af]"
             />
-            <label className="absolute left-4 top-2.5 text-[11px] font-black text-gray-400 uppercase tracking-widest transition-all pointer-events-none group-focus-within:text-[#114C2A]">
+            <label className="absolute left-4 top-2.5 text-[11px] font-black text-[#9ca3af] uppercase tracking-widest transition-all pointer-events-none group-focus-within:text-[#8cc63f]">
                 {label}
             </label>
         </div>
@@ -668,14 +694,14 @@ function FloatingInput({ label, type = 'text', value, onChange, disabled }) {
 
 function PaymentOption({ icon, label, description, active }) {
     return (
-        <div className={`p-5 rounded-2xl border-2 flex items-center gap-4 transition-all ${active ? 'border-[#114C2A] bg-[#F0F7FF] shadow-sm' : 'border-gray-200 hover:border-gray-300 bg-white'}`}>
-            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${active ? 'border-[#114C2A]' : 'border-gray-300'}`}>
-                {active && <div className="w-3 h-3 bg-[#114C2A] rounded-full"></div>}
+        <div className={`p-5 rounded-[12px] border-2 flex items-center gap-4 transition-all ${active ? 'border-[#8cc63f] bg-[#eaf4d9] shadow-sm' : 'border-[#e2e2e2] hover:border-[#cccccc] bg-white'}`}>
+            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${active ? 'border-[#458731]' : 'border-[#cccccc]'}`}>
+                {active && <div className="w-3 h-3 bg-[#458731] rounded-full"></div>}
             </div>
-            <div className="text-gray-700 shrink-0 bg-white p-2 rounded-lg shadow-sm border border-gray-100">{icon}</div>
+            <div className="text-[#54626c] shrink-0 bg-white p-2 rounded-[8px] shadow-sm border border-[#e2e2e2]">{icon}</div>
             <div className="flex-1">
-                <h4 className={`font-black text-[16px] leading-tight ${active ? 'text-[#114C2A]' : 'text-gray-800'}`}>{label}</h4>
-                <p className="text-[13px] text-gray-500 font-medium mt-0.5">{description}</p>
+                <h4 className={`font-black text-[15px] leading-tight ${active ? 'text-[#1a1a1a]' : 'text-[#54626c]'}`}>{label}</h4>
+                <p className="text-[13px] text-[#9ca3af] font-medium mt-0.5">{description}</p>
             </div>
         </div>
     );
