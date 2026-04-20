@@ -3,59 +3,88 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper: Checks if the user is authenticated
+    // Helper: Checks if the user is authenticated via Firebase Auth
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // Helper: Checks if the user is the owner of the private user data
+    // Helper: Checks if the user is the explicit owner of the private data
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // FEATURE 1: Public Listings (Tickets)
-    // Path: /artifacts/{appId}/public/data/tickets/{documentId}
-    match /artifacts/{appId}/public/data/tickets/{ticketId} {
-      // Anyone (Buyer or Seller) can browse available tickets
-      allow read: if true;
+    // =========================================================================
+    // PRODUCTION ARTIFACT ARCHITECTURE (Strict Paths)
+    // =========================================================================
+    
+    match /artifacts/{appId} {
       
-      // Only authenticated sellers can create listings
-      // Ownership is established by the sellerId field in the document
-      allow create: if isAuthenticated();
-      
-      // Only the original seller can update or delete their own tickets
-      allow update, delete: if isAuthenticated() && resource.data.sellerId == request.auth.uid;
+      // FEATURE 1: Shared Marketplace Inventory (Events & Tickets)
+      // Path: /artifacts/{appId}/public/data/events/{eventId}
+      match /public/data/events/{eventId} {
+        // Anyone (unauthenticated buyers) can browse the homepage feed and PVR maps
+        allow read: if true;
+        
+        // Only authenticated sellers can create new listings
+        allow create: if isAuthenticated();
+        
+        // Authenticated users can update (e.g., buyers checking out reduces tier stock)
+        allow update: if isAuthenticated();
+        
+        // Only the original seller can delete/archive their own event
+        allow delete: if isAuthenticated() && resource.data.sellerId == request.auth.uid;
+      }
+
+      // FEATURE 2: Transactional Escrow Ledger (Orders)
+      // Path: /artifacts/{appId}/public/data/orders/{orderId}
+      match /public/data/orders/{orderId} {
+        // A user can only read an order if they are either the buyer or the seller
+        allow read: if isAuthenticated() && (
+          resource.data.sellerId == request.auth.uid || 
+          resource.data.buyerId == request.auth.uid
+        );
+        
+        // Orders are created by the Main Site (Buyer) upon successful payment
+        allow create: if isAuthenticated();
+        
+        // Strict lockdown: Orders cannot be modified or deleted once created for financial integrity
+        allow update, delete: if false;
+      }
+
+      // FEATURE 3: Private Seller/Buyer Profiles & Wallet Data
+      // Path: /artifacts/{appId}/users/{userId}/...
+      match /users/{userId}/{document=**} {
+        // Strict ID Matching: Users can only see/edit their own private records
+        allow read, write: if isOwner(userId);
+      }
     }
 
-    // FEATURE 2: Order Ledger (Sales & Purchases)
-    // Path: /artifacts/{appId}/public/data/orders/{documentId}
-    match /artifacts/{appId}/public/data/orders/{orderId} {
-      // A user can only read an order if they are either the buyer or the seller
+    // =========================================================================
+    // FALLBACK SECURITY FOR DIRECT ROOT COLLECTIONS
+    // =========================================================================
+
+    match /events/{eventId} {
+      allow read: if true;
+      allow create, update: if isAuthenticated();
+      allow delete: if isAuthenticated() && resource.data.sellerId == request.auth.uid;
+    }
+
+    match /orders/{orderId} {
+      allow create: if isAuthenticated();
       allow read: if isAuthenticated() && (
         resource.data.sellerId == request.auth.uid || 
         resource.data.buyerId == request.auth.uid
       );
-      
-      // Orders are typically created by the Main Site (Buyer)
-      allow create: if isAuthenticated();
-      
-      // Strict lockdown: Orders cannot be modified or deleted once created for financial integrity
       allow update, delete: if false;
     }
 
-    // FEATURE 3: Private Seller Profiles & Wallet Data
-    // Path: /artifacts/{appId}/users/{userId}/profile/data
-    match /artifacts/{appId}/users/{userId}/profile/data {
+    match /users/{userId}/{document=**} {
       allow read, write: if isOwner(userId);
     }
-
-    // FEATURE 4: Private Payouts Ledger
-    // Path: /artifacts/{appId}/users/{userId}/payouts/{documentId}
-    match /artifacts/{appId}/users/{userId}/payouts/{payoutId} {
-      allow read: if isOwner(userId);
-      // Payout records are system-generated or owner-requested
-      allow create: if isOwner(userId);
-      allow update, delete: if false;
+    
+    // Catch-all: Deny any rogue access to undefined collections
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
