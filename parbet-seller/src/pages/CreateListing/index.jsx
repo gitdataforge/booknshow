@@ -7,16 +7,17 @@ import {
     X, Check, CreditCard, Loader2, ShieldAlert
 } from 'lucide-react';
 import { useSellerStore } from '../../store/useSellerStore';
-// FEATURE 1: Import the shared database mutator (to be created next)
 import { useListingStore } from '../../store/useListingStore';
 
 export default function CreateListing() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
 
-    // FEATURE 2: Secure Identity Injection
+    // FEATURE 1: Secure Identity Injection & Gatekeeper Role Verification
     const { user } = useSellerStore();
     const { createListing, isLoading: isSubmitting, error: submitError, clearError } = useListingStore();
+    
+    const isAdmin = user?.email === 'testcodecfg@gmail.com';
 
     // ==========================================
     // WIZARD STATE
@@ -76,7 +77,6 @@ export default function CreateListing() {
         return () => clearTimeout(timer);
     }, []);
 
-    // Format Date matching Viagogo
     const formatEventDate = () => {
         const d = new Date(`${date}T${time}`);
         if (isNaN(d)) return 'Date/Time TBA';
@@ -120,16 +120,14 @@ export default function CreateListing() {
         }
     };
 
-    // FEATURE 3: Standardized Global Database Payload Constructor
+    // FEATURE 2: Standardized Global Database Payload Constructor
     const handleFinalSubmit = async () => {
         if (clearError) clearError();
         
         const payload = {
-            // Core Identity
             sellerId: user?.uid || 'anonymous',
             sellerEmail: user?.email || '',
             
-            // Event Details
             title: `${team1} vs ${team2}`,
             team1,
             team2,
@@ -141,7 +139,6 @@ export default function CreateListing() {
             views: Number(views) || 0,
             tags: [tag1, tag2].filter(Boolean),
             
-            // Ticket specific data (Mapped to array for Buyer compatibility)
             ticketType,
             ticketTiers: [
                 {
@@ -155,12 +152,10 @@ export default function CreateListing() {
                 }
             ],
             
-            // Financials
             faceValue: faceValue ? Number(faceValue) : null,
             payoutMethod,
             storageLocation,
             
-            // Metadata
             status: 'active',
             createdAt: new Date().toISOString()
         };
@@ -180,9 +175,6 @@ export default function CreateListing() {
     return (
         <div className="min-h-screen bg-white font-sans flex flex-col text-[#1a1a1a]">
             
-            {/* ========================================== */}
-            {/* MINIMALIST PROGRESS HEADER                 */}
-            {/* ========================================== */}
             <div className="w-full bg-white sticky top-0 z-40 border-b border-[#e2e2e2]">
                 <div className="flex justify-between items-center px-4 md:px-8 py-4 md:py-5 max-w-[1400px] mx-auto">
                     <div>
@@ -198,22 +190,16 @@ export default function CreateListing() {
                         Exit
                     </button>
                 </div>
-                {/* Progress Line */}
                 <div className="flex w-full h-[4px]">
                     <div className="bg-[#458731] transition-all duration-500 ease-in-out" style={{ width: step === 1 ? '50%' : '100%' }}></div>
                     <div className="bg-[#e2e2e2] transition-all duration-500 ease-in-out" style={{ width: step === 1 ? '50%' : '0%' }}></div>
                 </div>
             </div>
 
-            {/* ========================================== */}
-            {/* MAIN SPLIT PANE LAYOUT                     */}
-            {/* ========================================== */}
             <div className="w-full max-w-[1200px] mx-auto px-4 md:px-8 py-8 md:py-10 flex flex-col md:flex-row gap-10 lg:gap-16">
                 
-                {/* LEFT COLUMN: INTERACTIVE WIZARD */}
                 <div className="flex-1 space-y-12">
 
-                    {/* FEATURE 4: Global Error Interceptor */}
                     <AnimatePresence>
                         {submitError && (
                             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
@@ -228,7 +214,6 @@ export default function CreateListing() {
                     {step === 1 && (
                         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="space-y-12">
                             
-                            {/* CUSTOMIZABLE EVENT DETAILS */}
                             <div className="space-y-4 bg-[#f9fdf7] border border-[#d2e8b0] rounded-[12px] p-6">
                                 <h3 className="font-bold text-[#1a1a1a] text-[18px] flex items-center gap-2">
                                     <AlertCircle className="text-[#458731]" size={20} />
@@ -251,7 +236,6 @@ export default function CreateListing() {
                                 </div>
                             </div>
 
-                            {/* Perks Section */}
                             <div className="space-y-3">
                                 <h3 className="font-bold text-[#1a1a1a] text-[16px]">Perks of selling on parbet</h3>
                                 <div className="flex items-start gap-2 text-[#469e96] text-[14px]">
@@ -264,7 +248,6 @@ export default function CreateListing() {
                                 </div>
                             </div>
 
-                            {/* Seat Information */}
                             <div className="space-y-5">
                                 <h3 className="font-bold text-[#1a1a1a] text-[16px]">Seat information</h3>
                                 
@@ -297,7 +280,6 @@ export default function CreateListing() {
                                 </div>
                             </div>
 
-                            {/* Additional Details Section (Disclosures) */}
                             <div className="space-y-4">
                                 <h3 className="font-bold text-[#1a1a1a] text-[16px]">Additional details</h3>
                                 <p className="text-[14px] text-[#54626c]">Do your seats have any features or restrictions?</p>
@@ -314,7 +296,6 @@ export default function CreateListing() {
                                 </div>
                             </div>
 
-                            {/* Ticket Type Section with STRICT Conditional UI */}
                             <div className="space-y-4">
                                 <h3 className="font-bold text-[#1a1a1a] text-[16px]">Ticket type</h3>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -335,7 +316,6 @@ export default function CreateListing() {
                                     })}
                                 </div>
                                 
-                                {/* CONDITIONAL RENDERING BASED ON TICKET TYPE */}
                                 {ticketType === 'mobile_transfer' && (
                                     <label className="flex items-start gap-3 mt-4 cursor-pointer">
                                         <div className={`mt-0.5 w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-colors ${readyToTransferUpload ? 'bg-[#458731] border-[#458731]' : 'border-[#cccccc] bg-white'}`} onClick={() => setReadyToTransferUpload(!readyToTransferUpload)}>
@@ -364,7 +344,6 @@ export default function CreateListing() {
                                 )}
                             </div>
 
-                            {/* Storage Section (Hidden for Paper Tickets & QR/E-Tickets) */}
                             {ticketType === 'mobile_transfer' && (
                                 <div className="space-y-4 pt-6 border-t border-[#e2e2e2]">
                                     <h3 className="font-bold text-[#1a1a1a] text-[16px]">Where are your tickets stored?</h3>
@@ -379,7 +358,6 @@ export default function CreateListing() {
                                 </div>
                             )}
 
-                            {/* UK/Europe Section */}
                             <div className="space-y-4 pt-6 border-t border-[#e2e2e2]">
                                 <h3 className="font-bold text-[#1a1a1a] text-[16px]">Selling to people in the United Kingdom or Europe?</h3>
                                 <div className="space-y-4 mt-2 pb-6">
@@ -402,12 +380,10 @@ export default function CreateListing() {
                     {step === 2 && (
                         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-10">
                             
-                            {/* SET YOUR PRICE Section */}
                             <div className="space-y-4">
                                 <h3 className="font-bold text-[#1a1a1a] text-[18px]">Enter your price</h3>
                                 
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    {/* Strategy 1: Quick Sell */}
                                     <div 
                                         onClick={() => handleStrategyClick('quick', 43)}
                                         className={`border rounded-[12px] p-5 cursor-pointer transition-all flex flex-col justify-between ${priceStrategy === 'quick' ? 'border-[#1a1a1a] border-[2px] shadow-sm' : 'border-[#cccccc] hover:border-[#a0a0a0]'}`}
@@ -420,7 +396,6 @@ export default function CreateListing() {
                                         <p className="mt-4"><span className="text-[20px] font-black text-[#1a1a1a]">$43</span> <span className="text-[13px] text-[#54626c]">per ticket</span></p>
                                     </div>
 
-                                    {/* Strategy 2: Balanced */}
                                     <div 
                                         onClick={() => handleStrategyClick('balanced', 48)}
                                         className={`border rounded-[12px] p-5 cursor-pointer transition-all flex flex-col justify-between relative ${priceStrategy === 'balanced' ? 'border-[#1a1a1a] border-[2px] shadow-sm' : 'border-[#cccccc] hover:border-[#a0a0a0]'}`}
@@ -434,7 +409,6 @@ export default function CreateListing() {
                                         <p className="mt-4"><span className="text-[20px] font-black text-[#1a1a1a]">$48</span> <span className="text-[13px] text-[#54626c]">per ticket</span></p>
                                     </div>
 
-                                    {/* Strategy 3: Max Earnings */}
                                     <div 
                                         onClick={() => handleStrategyClick('max', 54)}
                                         className={`border rounded-[12px] p-5 cursor-pointer transition-all flex flex-col justify-between ${priceStrategy === 'max' ? 'border-[#1a1a1a] border-[2px] shadow-sm' : 'border-[#cccccc] hover:border-[#a0a0a0]'}`}
@@ -450,7 +424,6 @@ export default function CreateListing() {
 
                                 <button className="text-[#0064d2] text-[13px] font-bold hover:underline">Compare similar tickets</button>
 
-                                {/* Custom Price Input */}
                                 <div className="relative mt-4">
                                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[15px] text-[#54626c]">US$</span>
                                     <input 
@@ -462,7 +435,6 @@ export default function CreateListing() {
                                     <span className="absolute left-4 top-2 text-[10px] text-[#54626c] uppercase font-bold tracking-wider">Per ticket</span>
                                 </div>
 
-                                {/* Dynamic Real-Time Calculator */}
                                 <div className="bg-[#f8f9fa] rounded-[8px] p-4 text-center border border-[#e2e2e2]">
                                     <p className="text-[14px] text-[#1a1a1a]">If all of your tickets sell, you'll earn</p>
                                     <p className="text-[18px] font-black text-[#458731] mt-1 flex items-center justify-center gap-1">
@@ -471,7 +443,6 @@ export default function CreateListing() {
                                 </div>
                             </div>
 
-                            {/* FACE VALUE */}
                             <div className="space-y-4 pt-6 border-t border-[#e2e2e2]">
                                 <h3 className="font-bold text-[#1a1a1a] text-[16px] flex items-center gap-1">
                                     What is the face value? <AlertCircle size={14} className="text-gray-400" />
@@ -488,7 +459,6 @@ export default function CreateListing() {
                                 </div>
                             </div>
 
-                            {/* CREDIT OR DEBIT CARD */}
                             <div className="space-y-4 pt-6 border-t border-[#e2e2e2]">
                                 <h3 className="font-bold text-[#1a1a1a] text-[16px]">Credit or debit card</h3>
                                 <p className="text-[13px] text-[#54626c]">
@@ -516,7 +486,6 @@ export default function CreateListing() {
                                 )}
                             </div>
 
-                            {/* PAYOUT METHOD */}
                             <div className="space-y-4 pt-6 border-t border-[#e2e2e2]">
                                 <h3 className="font-bold text-[#1a1a1a] text-[16px]">Payout method</h3>
                                 <div className="relative">
@@ -533,7 +502,6 @@ export default function CreateListing() {
                                 </div>
                             </div>
 
-                            {/* TERMS & CONDITIONS */}
                             <div className="space-y-4 pt-6 border-t border-[#e2e2e2] pb-10">
                                 <label className="flex items-start gap-3 cursor-pointer">
                                     <div className={`mt-1 w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-colors ${terms1 ? 'bg-[#458731] border-[#458731]' : 'border-[#cccccc] bg-white'}`} onClick={() => setTerms1(!terms1)}>
@@ -557,12 +525,8 @@ export default function CreateListing() {
                     )}
                 </div>
 
-                {/* ========================================== */}
-                {/* RIGHT COLUMN: STICKY EVENT SUMMARY CARD    */}
-                {/* ========================================== */}
                 <div className="w-full md:w-[350px] lg:w-[400px] shrink-0 relative pb-24 md:pb-0">
                     <div className="sticky top-[120px] rounded-[16px] shadow-[0_8px_30px_rgba(0,0,0,0.08)] border border-gray-100 bg-white overflow-hidden">
-                        {/* Cricket Image Overlay */}
                         <div className="w-full h-[180px] md:h-[220px] overflow-hidden bg-black p-3">
                             <img src="https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=1000&auto=format&fit=crop" alt="Cricket Match" className="w-full h-full object-cover rounded-[8px] grayscale contrast-125 opacity-90"/>
                         </div>
@@ -574,7 +538,6 @@ export default function CreateListing() {
                             <p className="text-[14px] text-[#54626c] mb-1 truncate">{stadium} · {location}</p>
                             <p className="text-[14px] text-[#54626c] mb-4">{formatEventDate()}</p>
                             
-                            {/* Dynamic Ticket Selection Readout */}
                             {(quantity || ticketType) && (
                                 <div className="flex items-center gap-2 mb-4 text-[#1a1a1a] font-bold text-[14px]">
                                     <Ticket size={16} />
@@ -582,7 +545,6 @@ export default function CreateListing() {
                                 </div>
                             )}
 
-                            {/* Dynamic Custom Tags */}
                             <div className="flex flex-wrap items-center gap-2 mb-4">
                                 <div className="flex items-center gap-1.5 text-[12px] font-bold text-[#1a1a1a] bg-gray-50 border border-gray-200 rounded-full px-3 py-1.5 w-max">
                                     <Eye size={14} /> {views} people searching
@@ -591,7 +553,6 @@ export default function CreateListing() {
                                 {tag2 && <div className="text-[12px] font-bold text-[#1a1a1a] bg-gray-50 border border-gray-200 rounded-full px-3 py-1.5 w-max">{tag2}</div>}
                             </div>
 
-                            {/* Dynamic Seat Summary Bottom Bar */}
                             <div className="w-full bg-[#f8f9fa] rounded-[8px] p-3 flex justify-between items-center mt-2 border border-[#e2e2e2]">
                                 <div className="text-center w-1/3">
                                     <p className="text-[11px] text-[#54626c] uppercase tracking-wider mb-0.5">Section</p>
@@ -608,7 +569,6 @@ export default function CreateListing() {
                             </div>
                         </div>
 
-                        {/* FLOATING "JUST SOLD" NOTIFICATION */}
                         <AnimatePresence>
                             {showNotification && (
                                 <motion.div 
@@ -638,9 +598,6 @@ export default function CreateListing() {
 
             </div>
 
-            {/* ========================================== */}
-            {/* STICKY BOTTOM ACTION BAR                   */}
-            {/* ========================================== */}
             <div className="fixed bottom-0 left-0 w-full bg-white border-t border-[#e2e2e2] p-4 flex justify-between items-center z-40 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
                 <div className="w-full max-w-[1200px] mx-auto flex justify-between px-4">
                     {step === 2 ? (
@@ -649,7 +606,7 @@ export default function CreateListing() {
                         </button>
                     ) : <div></div>}
                     
-                    {/* FEATURE 5: Dynamic Final Submission Trigger */}
+                    {/* FEATURE 3: Dynamic Final Submission Trigger based on Admin Role */}
                     <button 
                         disabled={step === 1 ? !isStep1Valid : (!isStep2Valid || isSubmitting)}
                         onClick={() => step === 1 ? setStep(2) : handleFinalSubmit()}
@@ -660,17 +617,14 @@ export default function CreateListing() {
                         }`}
                     >
                         {isSubmitting ? (
-                            <><Loader2 size={18} className="animate-spin" /> Publishing...</>
+                            <><Loader2 size={18} className="animate-spin" /> {isAdmin ? 'Publishing...' : 'Processing Payment...'}</>
                         ) : (
-                            step === 1 ? 'Continue' : 'Create Listing'
+                            step === 1 ? 'Continue' : (isAdmin ? 'Publish Match (Admin)' : 'Pay ₹99 to Publish')
                         )}
                     </button>
                 </div>
             </div>
 
-            {/* ========================================== */}
-            {/* CARD DETAILS MODAL OVERLAY                 */}
-            {/* ========================================== */}
             <AnimatePresence>
                 {showCardModal && (
                     <motion.div 
