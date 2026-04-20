@@ -66,7 +66,7 @@ export const useSellerStore = create((set, get) => ({
     isLoadingIPLEvents: false,
 
     // ------------------------------------------------------------------
-    // REAL-TIME LISTENER PIPELINE (CRITICAL FIX - STRICT PATHS)
+    // REAL-TIME LISTENER PIPELINE (CRITICAL FIX - ROOT DB PATHS)
     // ------------------------------------------------------------------
     initAuth: () => {
         onAuthStateChanged(auth, async (currentUser) => {
@@ -81,7 +81,7 @@ export const useSellerStore = create((set, get) => ({
                 const newUnsubscribers = [];
 
                 try {
-                    // 1. Wallet & Profile Listener (Private Data)
+                    // 1. Wallet & Profile Listener (Private Data remains in isolated nested path)
                     const profileRef = doc(db, 'artifacts', appId, 'users', uid, 'profile', 'data');
                     const unsubProfile = onSnapshot(profileRef, (docSnap) => {
                         if (docSnap.exists()) {
@@ -99,9 +99,9 @@ export const useSellerStore = create((set, get) => ({
                     });
                     newUnsubscribers.push(unsubProfile);
 
-                    // 2. REAL-TIME LISTINGS (My Active Tickets - Public Ledger filtered by Seller)
-                    const ticketsRef = collection(db, 'artifacts', appId, 'public', 'data', 'tickets');
-                    const unsubListings = onSnapshot(query(ticketsRef, where('sellerId', '==', uid)), (snapshot) => {
+                    // 2. REAL-TIME LISTINGS (Mapped securely to Root 'events' Collection)
+                    const eventsRef = collection(db, 'events');
+                    const unsubListings = onSnapshot(query(eventsRef, where('sellerId', '==', uid)), (snapshot) => {
                         const items = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                         set({ listings: items.sort((a, b) => safeGetTime(b.createdAt) - safeGetTime(a.createdAt)) });
                     }, (err) => {
@@ -109,8 +109,8 @@ export const useSellerStore = create((set, get) => ({
                     });
                     newUnsubscribers.push(unsubListings);
 
-                    // 3. REAL-TIME SALES (Sold Tickets - Public Ledger filtered by Seller)
-                    const ordersRef = collection(db, 'artifacts', appId, 'public', 'data', 'orders');
+                    // 3. REAL-TIME SALES (Mapped securely to Root 'orders' Collection)
+                    const ordersRef = collection(db, 'orders');
                     const unsubSales = onSnapshot(query(ordersRef, where('sellerId', '==', uid)), (snapshot) => {
                         const items = snapshot.docs.map(d => ({ 
                             id: d.id, 
@@ -125,7 +125,7 @@ export const useSellerStore = create((set, get) => ({
                     });
                     newUnsubscribers.push(unsubSales);
 
-                    // 4. REAL-TIME PURCHASES (If seller also buys tickets)
+                    // 4. REAL-TIME PURCHASES (Mapped securely to Root 'orders' Collection)
                     const unsubOrders = onSnapshot(query(ordersRef, where('buyerId', '==', uid)), (snapshot) => {
                         const items = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                         set({ orders: items.sort((a, b) => safeGetTime(b.createdAt) - safeGetTime(a.createdAt)) });
@@ -153,7 +153,8 @@ export const useSellerStore = create((set, get) => ({
             const state = get();
             if (!state.user) throw new Error("Authentication Required");
 
-            const ticketsRef = collection(db, 'artifacts', appId, 'public', 'data', 'tickets');
+            // Ensure legacy writes go to the correct root collection
+            const eventsRef = collection(db, 'events');
 
             const commenceTimeStr = new Date(`${listingData.date}T${listingData.time}`).toISOString();
             
@@ -180,7 +181,7 @@ export const useSellerStore = create((set, get) => ({
                 createdAt: serverTimestamp(),
             };
 
-            await addDoc(ticketsRef, payload);
+            await addDoc(eventsRef, payload);
             set({ isSubmitting: false });
             return { success: true };
         } catch (error) {
@@ -189,8 +190,9 @@ export const useSellerStore = create((set, get) => ({
         }
     },
 
+    // Delete directly from the global events collection
     deleteListing: async (listingId) => {
-        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'tickets', listingId));
+        await deleteDoc(doc(db, 'events', listingId));
     },
 
     fetchLiveEvents: async () => {

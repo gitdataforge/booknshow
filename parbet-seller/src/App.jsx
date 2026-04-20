@@ -7,7 +7,7 @@ import { db } from './lib/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 
 // Structural Layout Components
-import MainLayout from './layouts/MainLayout'; // FEATURE 1: Imported Main Wrapper
+import MainLayout from './layouts/MainLayout'; 
 import ProfileLayout from './layouts/ProfileLayout'; 
 
 // Authentication Funnel & Security Guard (FEATURE 2)
@@ -20,8 +20,9 @@ import SetPassword from './pages/Auth/SetPassword';
 // Core Real-Time Pages
 import Home from './pages/Home';
 import CreateListing from './pages/CreateListing';
-import IPLHub from './pages/seller/IPLHub'; // The standalone 1:1 Viagogo IPL catalog page
-import PerformerEvents from './pages/seller/PerformerEvents'; // FEATURE 3: Dynamic Performer Catalog
+import EditListing from './pages/EditListing'; // FEATURE: Added Edit Listing Engine
+import IPLHub from './pages/seller/IPLHub'; 
+import PerformerEvents from './pages/seller/PerformerEvents'; 
 
 // Mobile Standalone Menu Pages
 import MobileMenu from './pages/MobileMenu';
@@ -93,6 +94,8 @@ export default function App() {
                 <Route element={<AuthGuard />}>
                     <Route path="/sell" element={<CreateListing />} />
                     <Route path="/create-listing" element={<CreateListing />} />
+                    {/* FEATURE: Registered Edit Listing dynamic route */}
+                    <Route path="/edit-listing/:id" element={<EditListing />} />
                 </Route>
 
                 {/* FEATURE 5: Primary Application Shell */}

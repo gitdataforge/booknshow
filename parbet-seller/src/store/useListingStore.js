@@ -3,14 +3,36 @@ import { collection, addDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
 /**
- * FEATURE 1: Secure Pay-to-List Razorpay Gateway Interceptor
- * FEATURE 2: Ad-Blocker Immunity & Telemetry Failsafe
+ * FEATURE 1: Dynamic Razorpay SDK Injector
+ * Bypasses global ad-blocker heuristics by only loading the payment tracker 
+ * when a standard user explicitly initiates the checkout flow.
  */
-const processListingFee = (sellerEmail, eventTitle) => {
+const loadRazorpaySDK = () => {
+    return new Promise((resolve) => {
+        if (window.Razorpay) {
+            resolve(true);
+            return;
+        }
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.onload = () => resolve(true);
+        script.onerror = () => resolve(false);
+        document.body.appendChild(script);
+    });
+};
+
+/**
+ * FEATURE 2: Secure Pay-to-List Razorpay Gateway Interceptor
+ * FEATURE 3: Ad-Blocker Immunity & Telemetry Failsafe
+ */
+const processListingFee = async (sellerEmail, eventTitle) => {
+    // Await the dynamic injection of the SDK
+    const isLoaded = await loadRazorpaySDK();
+
     return new Promise((resolve, reject) => {
-        // Failsafe: Verify Razorpay SDK is loaded
-        if (!window.Razorpay) {
-            reject(new Error("Payment gateway blocked. Please disable your ad-blocker to pay the listing fee."));
+        // Failsafe: Verify Razorpay SDK loaded correctly
+        if (!isLoaded || !window.Razorpay) {
+            reject(new Error("Payment gateway blocked or failed to load. Please disable your ad-blocker to pay the listing fee."));
             return;
         }
 
@@ -52,14 +74,14 @@ const processListingFee = (sellerEmail, eventTitle) => {
 };
 
 /**
- * FEATURE 3: Global Shared Database Integrator & Admin Gatekeeper
+ * FEATURE 4: Global Shared Database Integrator & Admin Gatekeeper
  * Manages the state and execution of pushing seller payloads to the buyer market.
  */
 export const useListingStore = create((set) => ({
     isLoading: false,
     error: null,
 
-    // FEATURE 4: Secure Payload Injection & Admin Bypass Logic
+    // FEATURE 5: Secure Payload Injection & Admin Bypass Logic
     createListing: async (payload) => {
         set({ isLoading: true, error: null });
         try {
@@ -68,8 +90,8 @@ export const useListingStore = create((set) => ({
             let listingPaymentId = null;
 
             if (!isAdmin) {
-                console.log("[Parbet Seller Gatekeeper] Standard user detected. Initiating ₹99 Listing Fee...");
-                // Halt execution and wait for Razorpay UI to resolve successfully
+                console.log("[Parbet Seller Gatekeeper] Standard user detected. Injecting SDK and initiating ₹99 Listing Fee...");
+                // Halt execution and wait for Dynamic Razorpay UI to resolve successfully
                 listingPaymentId = await processListingFee(payload.sellerEmail, payload.title);
                 console.log(`[Parbet Seller Gatekeeper] Payment verified: ${listingPaymentId}`);
             } else {
@@ -79,7 +101,7 @@ export const useListingStore = create((set) => ({
             // Target the globally shared 'events' collection
             const eventsRef = collection(db, 'events');
             
-            // FEATURE 5: Real-Time Database Mutation
+            // FEATURE 6: Real-Time Database Mutation
             // Injects the verified payload into Firestore (instantly updates Buyer Site)
             const docRef = await addDoc(eventsRef, {
                 ...payload,
@@ -95,7 +117,7 @@ export const useListingStore = create((set) => ({
         } catch (err) {
             console.error("[Parbet Ledger] Transaction failed:", err);
             
-            // FEATURE 6: Dynamic Error Trapping
+            // FEATURE 7: Dynamic Error Trapping
             set({ 
                 error: err.message || 'Failed to publish the match to the global marketplace. Verify your connection.',
                 isLoading: false 
@@ -104,6 +126,6 @@ export const useListingStore = create((set) => ({
         }
     },
 
-    // FEATURE 7: UI Error Boundary Reset
+    // FEATURE 8: UI Error Boundary Reset
     clearError: () => set({ error: null })
 }));
