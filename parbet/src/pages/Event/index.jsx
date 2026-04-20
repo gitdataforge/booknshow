@@ -1,82 +1,31 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, Calendar, ShieldCheck, Ticket, SlidersHorizontal, ChevronDown, Zap, Eye, X, AlertCircle, Flame, Heart, Upload, Loader2, Tag } from 'lucide-react';
+import { 
+    MapPin, Calendar, ShieldCheck, Ticket, SlidersHorizontal, 
+    ChevronDown, Zap, Eye, X, AlertCircle, Flame, Heart, Upload, Loader2, Tag 
+} from 'lucide-react';
 
-// --- CANVAS FIX: MOCKED IMPORTS ---
-// I have temporarily commented out the external imports that caused the Canvas compilation to fail.
-// IMPORTANT: When copying this file to your local development environment, delete these stubs and uncomment your real imports!
-
-/* import { useAppStore } from '../../store/useStore';
+// PRODUCTION IMPORTS
+import { useAppStore } from '../../store/useStore';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
-import DynamicStadiumMap from '../../components/DynamicStadiumMap';
-import DynamicArenaMap from '../../components/DynamicArenaMap';
-import DynamicTheaterMap from '../../components/DynamicTheaterMap';
-import DynamicFestivalMap from '../../components/DynamicFestivalMap';
+
+// MODULAR COMPONENTS
+import InteractiveStadiumMap from '../../components/InteractiveStadiumMap';
 import TicketQuantityModal from '../../components/TicketQuantityModal';
 import EventFilters from '../../components/EventFilters';
 import LanguageCurrencyModal from '../../components/LanguageCurrencyModal';
 import ShareEventModal from '../../components/ShareEventModal';
-*/
-
-const useAppStore = () => ({
-    isAuthenticated: true,
-    openAuthModal: () => {},
-    isTicketQuantityModalOpen: false,
-    setTicketQuantityModalOpen: () => {},
-    selectedTicketQuantity: 1,
-    userCurrency: 'USD',
-    userLanguage: 'EN',
-    favorites: [],
-    toggleFavorite: () => {}
-});
-
-const db = {};
-const doc = (database, coll, id) => ({ collection: coll, id });
-const onSnapshot = (ref, cb) => {
-    setTimeout(() => {
-        cb({
-            exists: () => true,
-            id: ref.id || '123',
-            data: () => ({
-                title: "India vs Australia - Final",
-                sportCategory: "Cricket",
-                stadium: "Wankhede Stadium",
-                location: "Mumbai, India",
-                eventTimestamp: new Date(Date.now() + 86400000).toISOString(),
-                imageUrl: "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=600&auto=format&fit=crop",
-                ticketTiers: [
-                    { id: '1', name: 'General Admission', price: 150, quantity: 10, seats: 'Unreserved', disclosures: ['No disclosures'] },
-                    { id: '2', name: 'VIP Pavilion', price: 500, quantity: 2, seats: 'A1-A2', disclosures: ['Free Food', 'Clear View'] }
-                ]
-            })
-        });
-    }, 800);
-    return () => {};
-};
-
-const DynamicStadiumMap = () => <div className="flex-1 flex flex-col items-center justify-center bg-[#EAF4D9] m-4 rounded-[16px] border-2 border-dashed border-[#8cc63f]"><MapPin size={48} className="text-[#458731] mb-2 opacity-50"/><p className="font-black text-[#458731] text-[18px]">Interactive Stadium Map</p></div>;
-const DynamicArenaMap = () => <div className="flex-1 flex flex-col items-center justify-center bg-[#EAF4D9] m-4 rounded-[16px] border-2 border-dashed border-[#8cc63f]"><MapPin size={48} className="text-[#458731] mb-2 opacity-50"/><p className="font-black text-[#458731] text-[18px]">Interactive Arena Map</p></div>;
-const DynamicTheaterMap = () => <div className="flex-1 flex flex-col items-center justify-center bg-[#EAF4D9] m-4 rounded-[16px] border-2 border-dashed border-[#8cc63f]"><MapPin size={48} className="text-[#458731] mb-2 opacity-50"/><p className="font-black text-[#458731] text-[18px]">Interactive Theater Map</p></div>;
-const DynamicFestivalMap = () => <div className="flex-1 flex flex-col items-center justify-center bg-[#EAF4D9] m-4 rounded-[16px] border-2 border-dashed border-[#8cc63f]"><MapPin size={48} className="text-[#458731] mb-2 opacity-50"/><p className="font-black text-[#458731] text-[18px]">Interactive Festival Map</p></div>;
-const TicketQuantityModal = () => null;
-const EventFilters = () => null;
-const LanguageCurrencyModal = () => null;
-const ShareEventModal = () => null;
-// ----------------------------------
 
 /**
  * FEATURE 1: Real-Time Single Document Synchronization
- * FEATURE 2: Dynamic Nested Payload Mapping (Ticket Tiers)
- * FEATURE 3: Advanced ISO Timestamp Parser
- * FEATURE 4: Fallback Image/Cover Routing
- * FEATURE 5: Hardware-Accelerated Rendering & Skeletons
- * FEATURE 6: Dynamic Map Component Router based on Category
- * FEATURE 7: Live Inventory Quantity Gate
- * FEATURE 8: Seller Disclosure UI Badge Generator
- * FEATURE 9: Price-Value Algorithmic Sorting
- * FEATURE 10: Strict Enterprise Palette Enforcement
+ * FEATURE 2: PVR-Style Interactive Map Filtering Engine
+ * FEATURE 3: Dynamic Nested Payload Mapping (Ticket Tiers)
+ * FEATURE 4: Advanced ISO Timestamp Parser
+ * FEATURE 5: Live Inventory Quantity Gate
+ * FEATURE 6: Seller Disclosure UI Badge Generator
+ * FEATURE 7: Price-Value Algorithmic Sorting
  */
 
 // Utility to strictly label dates based on the real-time API
@@ -109,7 +58,7 @@ const parseEventTimestamp = (isoString) => {
 
 export default function Event() {
     const [searchParams] = useSearchParams();
-    const eventId = searchParams.get('id') || 'mock-id-for-canvas'; // Fallback for Canvas Preview
+    const eventId = searchParams.get('id');
     const navigate = useNavigate();
     
     const { 
@@ -124,7 +73,7 @@ export default function Event() {
         toggleFavorite
     } = useAppStore();
 
-    // FEATURE 1: Real-Time Document State
+    // Real-Time Document State
     const [eventData, setEventData] = useState(null);
     const [ticketTiers, setTicketTiers] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -134,6 +83,7 @@ export default function Event() {
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isLangCurrModalOpen, setIsLangCurrModalOpen] = useState(false);
     
+    // MAP FILTER STATE
     const [activeSection, setActiveSection] = useState(null);
     const [sitTogether, setSitTogether] = useState(true);
     const [instantDownloadOnly, setInstantDownloadOnly] = useState(false);
@@ -143,7 +93,7 @@ export default function Event() {
     const hasOpenedModal = useRef(false);
     const feedScrollRef = useRef(null);
 
-    // FEATURE 2: Dynamic Document Listener
+    // Dynamic Document Listener
     useEffect(() => {
         if (!eventId) return;
 
@@ -154,7 +104,6 @@ export default function Event() {
             if (docSnap.exists()) {
                 const data = { id: docSnap.id, ...docSnap.data() };
                 setEventData(data);
-                // Extract the nested ticket tiers array created by the seller
                 setTicketTiers(data.ticketTiers || []);
                 
                 if (!hasOpenedModal.current && !isTicketQuantityModalOpen) {
@@ -199,12 +148,15 @@ export default function Event() {
         </div>
     );
 
-    // FEATURE 9: Master Filtering & Sorting Engine (On Ticket Tiers)
+    // FEATURE 2: Master Filtering Engine (Map -> Tier Interceptor)
     const filteredTiers = ticketTiers.filter(tier => {
         if (Number(tier.quantity) < selectedTicketQuantity) return false;
+        
+        // PVR Map Link: If a user clicks a section on the SVG map, it sets activeSection.
+        // We filter tiers whose name includes the section name.
         if (activeSection && !tier.name.toUpperCase().includes(activeSection.toUpperCase())) return false;
         
-        // Approximate mock filter logic based on disclosures array
+        // Disclosures filtering
         const disclosuresStr = (tier.disclosures || []).join(' ').toLowerCase();
         if (instantDownloadOnly && !disclosuresStr.includes('paperless')) return false;
         if (clearViewOnly && disclosuresStr.includes('obstructed')) return false;
@@ -229,16 +181,6 @@ export default function Event() {
         else actionFn();
     };
 
-    // FEATURE 6: Dynamic Map Router based on Real Category
-    const renderMapComponent = () => {
-        const cat = (eventData?.sportCategory || '').toLowerCase();
-        if (cat.includes('basketball') || cat.includes('esports')) return <DynamicArenaMap activeSection={activeSection} onSectionSelect={setActiveSection} />;
-        if (cat.includes('theater')) return <DynamicTheaterMap activeSection={activeSection} onSectionSelect={setActiveSection} />;
-        if (cat.includes('festival')) return <DynamicFestivalMap activeSection={activeSection} onSectionSelect={setActiveSection} />;
-        return <DynamicStadiumMap activeSection={activeSection} onSectionSelect={setActiveSection} />; // Default (Cricket/Football)
-    };
-
-    // Derived Display Data
     const displayImage = eventData.imageUrl || 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=600&auto=format&fit=crop';
     const parsedTime = parseEventTimestamp(eventData.eventTimestamp);
 
@@ -317,9 +259,13 @@ export default function Event() {
             {/* MAIN SPLIT-SCREEN LAYOUT */}
             <div className="w-full h-[85vh] min-h-[700px] flex flex-col lg:flex-row bg-white rounded-none lg:rounded-[24px] overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.08)] border-0 lg:border border-gray-200 mt-0 lg:mt-4 lg:mx-4 xl:mx-auto max-w-[1500px]">
                 
-                {/* Left Side: Dynamic Map Router */}
+                {/* Left Side: PVR Interactive Stadium Map */}
                 <div className="hidden lg:flex flex-1 relative flex-col bg-[#f8f9fa] border-r border-[#e2e2e2]">
-                    {renderMapComponent()}
+                    <InteractiveStadiumMap 
+                        activeSection={activeSection} 
+                        onSectionSelect={setActiveSection} 
+                        category={eventData?.sportCategory} 
+                    />
                 </div>
 
                 {/* Right Side: P2P Ticket Listings Panel */}
@@ -460,7 +406,6 @@ export default function Event() {
                                                     </div>
                                                 </div>
                                                 
-                                                {/* FEATURE 8: Dynamic Seller Disclosures Engine */}
                                                 {(tier.disclosures && tier.disclosures.length > 0) && (
                                                     <div className="flex flex-wrap gap-2 mt-auto pt-4 border-t border-[#f0f0f0] pl-2">
                                                         {tier.disclosures.map(d => (
