@@ -13,11 +13,24 @@ export default function CreateListing() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
 
-    // FEATURE 1: Secure Identity Injection & Gatekeeper Role Verification
-    const { user } = useSellerStore();
+    // FEATURE 1: Secure Identity Injection & Multi-Currency Engine Integration
+    const { user, currency } = useSellerStore();
     const { createListing, isLoading: isSubmitting, error: submitError, clearError } = useListingStore();
     
     const isAdmin = user?.email === 'testcodecfg@gmail.com';
+
+    // Dynamic Currency Symbol Resolver
+    const getCurrencySymbol = (code) => {
+        switch(code) {
+            case 'USD': return '$';
+            case 'GBP': return '£';
+            case 'EUR': return '€';
+            case 'AUD': return 'A$';
+            case 'INR': 
+            default: return '₹';
+        }
+    };
+    const currencySymbol = getCurrencySymbol(currency || 'INR');
 
     // ==========================================
     // WIZARD STATE
@@ -37,7 +50,7 @@ export default function CreateListing() {
     const [tag1, setTag1] = useState('Good time to sell!');
     const [tag2, setTag2] = useState('This week');
 
-    // FEATURE 2: Cloudinary Custom Promo Image State
+    // Cloudinary Custom Promo Image State
     const [promoImageUrl, setPromoImageUrl] = useState('');
     const [isUploadingImage, setIsUploadingImage] = useState(false);
     const [imageError, setImageError] = useState('');
@@ -125,7 +138,7 @@ export default function CreateListing() {
         }
     };
 
-    // FEATURE 3: Cloudinary Direct Upload Engine
+    // Cloudinary Direct Upload Engine
     const handlePromoImageUpload = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -136,7 +149,7 @@ export default function CreateListing() {
         try {
             const formData = new FormData();
             formData.append('file', file);
-            formData.append('upload_preset', 'ml_default'); // Public unsigned preset
+            formData.append('upload_preset', 'ml_default'); 
             
             const response = await fetch('https://api.cloudinary.com/v1_1/demo/image/upload', {
                 method: 'POST',
@@ -175,7 +188,7 @@ export default function CreateListing() {
             eventTimestamp: new Date(`${date}T${time}`).toISOString(),
             views: Number(views) || 0,
             tags: [tag1, tag2].filter(Boolean),
-            imageUrl: promoImageUrl || '', // Injects the custom image into the global feed
+            imageUrl: promoImageUrl || '', 
             
             ticketType,
             ticketTiers: [
@@ -206,7 +219,7 @@ export default function CreateListing() {
         }
     };
 
-    // FEATURE 4: Strict Validation Gatekeeper (Admin bypasses step 2 financial locks)
+    // Strict Validation Gatekeeper
     const isStep1Valid = team1 && stadium && date && quantity && ticketType;
     const isStep2Valid = isAdmin ? (perTicketPrice && terms1) : (perTicketPrice && payoutMethod && terms1 && cardAdded);
 
@@ -274,7 +287,7 @@ export default function CreateListing() {
                                 </div>
                             </div>
 
-                            {/* FEATURE 5: Cloudinary Promo Image Upload Zone */}
+                            {/* Cloudinary Promo Image Upload Zone */}
                             <div className="space-y-4 pt-6 border-t border-[#e2e2e2]">
                                 <h3 className="font-bold text-[#1a1a1a] text-[16px]">Promotional Image</h3>
                                 <p className="text-[14px] text-[#54626c]">Upload a high-quality image for the event. This will replace the default fallback image on the buyer marketplace.</p>
@@ -467,7 +480,7 @@ export default function CreateListing() {
                                             <p className="text-[13px] text-[#54626c] mb-3">Price for strong visibility to attract buyers quickly</p>
                                             <p className="text-[12px] font-bold text-[#458731]">80% of sellers who chose this option sold</p>
                                         </div>
-                                        <p className="mt-4"><span className="text-[20px] font-black text-[#1a1a1a]">$43</span> <span className="text-[13px] text-[#54626c]">per ticket</span></p>
+                                        <p className="mt-4"><span className="text-[20px] font-black text-[#1a1a1a]">{currencySymbol}43</span> <span className="text-[13px] text-[#54626c]">per ticket</span></p>
                                     </div>
 
                                     <div 
@@ -480,7 +493,7 @@ export default function CreateListing() {
                                             <p className="text-[13px] text-[#54626c] mb-3">Get good visibility and a strong payout</p>
                                             <p className="text-[12px] font-bold text-[#458731]">75% of sellers who chose this option sold</p>
                                         </div>
-                                        <p className="mt-4"><span className="text-[20px] font-black text-[#1a1a1a]">$48</span> <span className="text-[13px] text-[#54626c]">per ticket</span></p>
+                                        <p className="mt-4"><span className="text-[20px] font-black text-[#1a1a1a]">{currencySymbol}48</span> <span className="text-[13px] text-[#54626c]">per ticket</span></p>
                                     </div>
 
                                     <div 
@@ -492,14 +505,14 @@ export default function CreateListing() {
                                             <p className="text-[13px] text-[#54626c] mb-3">List higher to earn more - but it may take longer to sell</p>
                                             <p className="text-[12px] font-bold text-[#458731]">70% of sellers who chose this option sold</p>
                                         </div>
-                                        <p className="mt-4"><span className="text-[20px] font-black text-[#1a1a1a]">$54</span> <span className="text-[13px] text-[#54626c]">per ticket</span></p>
+                                        <p className="mt-4"><span className="text-[20px] font-black text-[#1a1a1a]">{currencySymbol}54</span> <span className="text-[13px] text-[#54626c]">per ticket</span></p>
                                     </div>
                                 </div>
 
                                 <button className="text-[#0064d2] text-[13px] font-bold hover:underline">Compare similar tickets</button>
 
                                 <div className="relative mt-4">
-                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[15px] text-[#54626c]">US$</span>
+                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[15px] text-[#54626c]">{currency}</span>
                                     <input 
                                         type="number" 
                                         value={perTicketPrice} 
@@ -509,12 +522,11 @@ export default function CreateListing() {
                                     <span className="absolute left-4 top-2 text-[10px] text-[#54626c] uppercase font-bold tracking-wider">Per ticket</span>
                                 </div>
 
-                                {/* FEATURE 6: Hide Revenue Cost Breakdown from Admin */}
                                 {!isAdmin && (
                                     <div className="bg-[#f8f9fa] rounded-[8px] p-4 text-center border border-[#e2e2e2]">
                                         <p className="text-[14px] text-[#1a1a1a]">If all of your tickets sell, you'll earn</p>
                                         <p className="text-[18px] font-black text-[#458731] mt-1 flex items-center justify-center gap-1">
-                                            US$ {calculateEarnings()} <AlertCircle size={14} className="text-gray-400 cursor-pointer" />
+                                            {currencySymbol}{calculateEarnings()} <AlertCircle size={14} className="text-gray-400 cursor-pointer" />
                                         </p>
                                     </div>
                                 )}
@@ -525,7 +537,7 @@ export default function CreateListing() {
                                     What is the face value? <AlertCircle size={14} className="text-gray-400" />
                                 </h3>
                                 <div className="relative">
-                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[15px] text-[#54626c]">US$</span>
+                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[15px] text-[#54626c]">{currency}</span>
                                     <input 
                                         type="number" 
                                         value={faceValue} 
@@ -536,7 +548,6 @@ export default function CreateListing() {
                                 </div>
                             </div>
 
-                            {/* FEATURE 7: Hide Financial Payment Gateways from Admin */}
                             {!isAdmin && (
                                 <>
                                     <div className="space-y-4 pt-6 border-t border-[#e2e2e2]">
@@ -610,7 +621,6 @@ export default function CreateListing() {
                 <div className="w-full md:w-[350px] lg:w-[400px] shrink-0 relative pb-24 md:pb-0">
                     <div className="sticky top-[120px] rounded-[16px] shadow-[0_8px_30px_rgba(0,0,0,0.08)] border border-gray-100 bg-white overflow-hidden">
                         
-                        {/* FEATURE 8: Dynamic Real-Time Image Preview Update */}
                         <div className="w-full h-[180px] md:h-[220px] overflow-hidden bg-black p-3">
                             <img 
                                 src={promoImageUrl || "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=1000&auto=format&fit=crop"} 
@@ -670,7 +680,7 @@ export default function CreateListing() {
                                         <div className="flex justify-between items-end mb-2">
                                             <p className="text-[12px] text-[#54626c] leading-tight">Sachin Tendulkar<br/>Pavilion A</p>
                                             <div className="text-right">
-                                                <p className="text-[14px] font-bold text-[#1a1a1a] leading-none">INR 5,655</p>
+                                                <p className="text-[14px] font-bold text-[#1a1a1a] leading-none">{currencySymbol} 5,655</p>
                                                 <p className="text-[11px] text-[#54626c]">1 ticket</p>
                                             </div>
                                         </div>
