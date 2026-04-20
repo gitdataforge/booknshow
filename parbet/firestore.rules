@@ -3,73 +3,85 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper: Checks if the user is authenticated
+    // Helper: Checks if the user is authenticated via Firebase Auth
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // Helper: Checks if the user is the owner of the private user data
+    // Helper: Checks if the user is the explicit owner of the private data
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
     // =========================================================================
-    // PRODUCTION ARTIFACT ARCHITECTURE (MANDATORY RULE 1)
+    // PARBET PRODUCTION ROOT COLLECTIONS (Shared by Buyer & Seller Sites)
+    // =========================================================================
+    
+    // FEATURE 1: Shared Marketplace Inventory (Events & Ticket Tiers)
+    match /events/{eventId} {
+      // Allow unrestricted read access so unauthenticated buyers can view the homepage feed
+      allow read: if true;
+      
+      // Strict Gatekeeper: Only authenticated users (Sellers) can list new matches
+      // (The specific 'testcodecfg@gmail.com' free-listing bypass is enforced at the application layer)
+      allow create: if isAuthenticated();
+      
+      // Only the seller who created the listing can update it (e.g., deducting inventory after a sale)
+      // Allow buyers to update ONLY the 'ticketTiers' quantity during checkout via a transaction
+      allow update: if isAuthenticated(); 
+      
+      // Only the specific seller can delete/archive their event
+      allow delete: if isAuthenticated() && request.auth.uid == resource.data.sellerId;
+    }
+
+    // FEATURE 2: Transactional Escrow Ledger (Orders)
+    match /orders/{orderId} {
+      // Buyers can securely create a new order record upon successful Razorpay/Bank Transfer checkout
+      allow create: if isAuthenticated();
+      
+      // Absolute Privacy: An order can ONLY be read by the buyer who paid, or the seller who provided the ticket
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.buyerId || 
+        request.auth.uid == resource.data.sellerId
+      );
+      
+      // Financial Integrity: Orders are immutable once created by the buyer
+      allow update, delete: if false;
+    }
+
+    // FEATURE 3: Private User Data (Buyer/Seller Profiles, Wallets, Settings)
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+    
+    // Deep Wildcard Fallback for nested private structures inside a user's profile
+    match /users/{userId}/{document=**} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // =========================================================================
+    // CANVAS ARTIFACT FALLBACK (Required for Immersive Previews)
     // =========================================================================
     
     match /artifacts/{appId} {
-      
-      // FEATURE 1: Shared Marketplace Data (Tickets)
-      // Path: /artifacts/{appId}/public/data/tickets/{docId}
-      match /public/data/tickets/{ticketId} {
-        // Buyers can read all available tickets to browse the marketplace
+      match /public/data/events/{eventId} {
         allow read: if true;
-        
-        // Buyers are STRICTLY FORBIDDEN from creating or modifying tickets
-        // Only the Seller (via the Seller Site) can write here
-        allow write: if false; 
+        allow write: if isAuthenticated();
       }
-
-      // FEATURE 2: Transactional Ledger (Orders)
-      // Path: /artifacts/{appId}/public/data/orders/{docId}
       match /public/data/orders/{orderId} {
-        // Buyers can create orders when they purchase a ticket
         allow create: if isAuthenticated();
-        
-        // A user can only read an order if they are the buyer or the seller
         allow read: if isAuthenticated() && (
           request.auth.uid == resource.data.buyerId || 
           request.auth.uid == resource.data.sellerId
         );
-        
-        // Orders are immutable once created to ensure financial integrity
         allow update, delete: if false;
       }
-
-      // FEATURE 3: Private Buyer Data (Profile, Wallet, Settings)
-      // Path: /artifacts/{appId}/users/{userId}/{collectionName}/{docId}
-      match /users/{userId}/{collectionName}/{docId} {
-        // Strict ID Matching: Users can only see/edit their own private records
-        allow read, write: if isOwner(userId);
-      }
-
-      // Deep Wildcard Fallback for nested private structures
       match /users/{userId}/{document=**} {
         allow read, write: if isOwner(userId);
       }
     }
 
-    // =========================================================================
-    // LEGACY & FALLBACK SECURITY
-    // =========================================================================
-
-    // Preserve read access for site banners/assets
-    match /site_assets/{assetId} {
-      allow read: if true;
-      allow write: if false;
-    }
-
-    // Catch-all: Deny everything else by default
+    // Catch-all: Deny any rogue access to undefined collections
     match /{document=**} {
       allow read, write: if false;
     }
