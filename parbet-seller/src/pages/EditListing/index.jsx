@@ -52,7 +52,7 @@ export default function EditListing() {
     const [tag1, setTag1] = useState('');
     const [tag2, setTag2] = useState('');
 
-    // Cloudinary Custom Promo Image State
+    // ImgBB Custom Promo Image State
     const [promoImageUrl, setPromoImageUrl] = useState('');
     const [isUploadingImage, setIsUploadingImage] = useState(false);
 
@@ -174,7 +174,7 @@ export default function EditListing() {
         setPerTicketPrice(price.toString());
     };
 
-    // FEATURE 3: Cloudinary Direct Upload Engine (Mutation Override)
+    // FEATURE 3: Robust ImgBB Direct Upload Engine (Replaces broken Cloudinary)
     const handlePromoImageUpload = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -184,19 +184,22 @@ export default function EditListing() {
         
         try {
             const formData = new FormData();
-            formData.append('file', file);
-            formData.append('upload_preset', 'ml_default'); 
+            formData.append('image', file); // ImgBB strictly requires the field to be named 'image'
             
-            const response = await fetch('https://api.cloudinary.com/v1_1/demo/image/upload', {
+            // Publicly accessible free-tier ImgBB API Key
+            const IMGBB_API_KEY = '017c603a1443685e1354bb85a21fa284'; 
+            
+            const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
                 method: 'POST',
                 body: formData
             });
+            
             const data = await response.json();
             
-            if (data.secure_url) {
-                setPromoImageUrl(data.secure_url);
+            if (data.success && data.data?.url) {
+                setPromoImageUrl(data.data.url);
             } else {
-                throw new Error("Invalid response from image server");
+                throw new Error("Invalid response from ImgBB image server");
             }
         } catch (err) {
             console.error("[Parbet Storage] Image Upload Error:", err);
@@ -340,7 +343,7 @@ export default function EditListing() {
                                 </div>
                             </div>
 
-                            {/* Cloudinary Promo Image Upload Zone */}
+                            {/* ImgBB Promo Image Upload Zone */}
                             <div className="space-y-4 pt-6 border-t border-[#e2e2e2]">
                                 <h3 className="font-bold text-[#1a1a1a] text-[16px]">Promotional Image</h3>
                                 <p className="text-[14px] text-[#54626c]">Replace the existing cover photo for your live listing.</p>
