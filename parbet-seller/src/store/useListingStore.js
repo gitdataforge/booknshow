@@ -22,10 +22,10 @@ const loadRazorpaySDK = () => {
 };
 
 /**
- * FEATURE 2: Secure Pay-to-List Razorpay Gateway Interceptor
+ * FEATURE 2: Secure Dynamic 15% Pay-to-List Gateway Interceptor
  * FEATURE 3: Ad-Blocker Immunity & Telemetry Failsafe
  */
-const processListingFee = async (sellerEmail, eventTitle) => {
+const processListingFee = async (sellerEmail, eventTitle, totalValue) => {
     // Await the dynamic injection of the SDK
     const isLoaded = await loadRazorpaySDK();
 
@@ -36,12 +36,18 @@ const processListingFee = async (sellerEmail, eventTitle) => {
             return;
         }
 
+        // STRICT MATHEMATICS: Calculate 15% of total ticket value, converted to paise
+        const feeInPaise = Math.round(totalValue * 0.15 * 100);
+        
+        // Failsafe: Ensure minimum transaction amount of 1 INR (100 paise) to prevent Razorpay crashes
+        const finalAmount = feeInPaise >= 100 ? feeInPaise : 100;
+
         const options = {
             key: "rzp_test_parbet", // Sandbox/Live Key
-            amount: 9900, // Strict ₹99 Listing Fee (in paise)
+            amount: finalAmount, // Dynamic 15% Platform Fee (in paise)
             currency: "INR",
             name: "Parbet Seller Portal",
-            description: `Listing Fee for: ${eventTitle}`,
+            description: `15% Platform Fee for: ${eventTitle}`,
             image: "https://parbet-44902.web.app/vite.svg", // Brand Logo
             handler: function (response) {
                 // Transaction successful, release the promise lock
@@ -88,11 +94,14 @@ export const useListingStore = create((set) => ({
             // STRICT ADMIN BYPASS: Free access for testcodecfg@gmail.com
             const isAdmin = payload.sellerEmail === 'testcodecfg@gmail.com';
             let listingPaymentId = null;
+            
+            // Calculate total ticket value for the gateway and ledger
+            const totalValue = (Number(payload.price) || 0) * (Number(payload.quantity) || 0);
 
             if (!isAdmin) {
-                console.log("[Parbet Seller Gatekeeper] Standard user detected. Injecting SDK and initiating ₹99 Listing Fee...");
+                console.log("[Parbet Seller Gatekeeper] Standard user detected. Injecting SDK and initiating 15% Platform Fee...");
                 // Halt execution and wait for Dynamic Razorpay UI to resolve successfully
-                listingPaymentId = await processListingFee(payload.sellerEmail, payload.title);
+                listingPaymentId = await processListingFee(payload.sellerEmail, payload.title, totalValue);
                 console.log(`[Parbet Seller Gatekeeper] Payment verified: ${listingPaymentId}`);
             } else {
                 console.log("[Parbet Seller Gatekeeper] Admin Bypass verified. Proceeding without charge.");
@@ -107,6 +116,7 @@ export const useListingStore = create((set) => ({
                 ...payload,
                 listingFeePaid: !isAdmin, // Boolean flag for database auditing
                 listingPaymentId: listingPaymentId, // Null for admin, String for standard sellers
+                platformFee: !isAdmin ? (totalValue * 0.15) : 0, // Ledger tracking for Admin God-Mode
                 createdAt: payload.createdAt || new Date().toISOString(),
             });
 
