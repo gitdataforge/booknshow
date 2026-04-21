@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { initializeFirestore, getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
 // CRITICAL PATH: Read directly from standard Vite environment variables (.env.local)
@@ -14,10 +14,26 @@ const firebaseConfig = {
 };
 
 // STRICT SINGLETON PATTERN: Prevent Vite HMR 'duplicate-app' crashes
-// Only initialize the app if it hasn't been initialized already
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+let app;
+let db;
 
-const db = getFirestore(app);
+if (!getApps().length) {
+    // Only initialize the app if it hasn't been initialized already
+    app = initializeApp(firebaseConfig);
+    
+    // FEATURE: Ad-Blocker Immunity & WebSocket Bypass
+    // CRITICAL FIX: Aggressive ad-blockers intercept and block WebSocket connections (WSS), 
+    // throwing net::ERR_BLOCKED_BY_CLIENT on Firestore. By explicitly declaring experimentalForceLongPolling, 
+    // we force Firebase to communicate via standard HTTPS, completely bypassing the network heuristic block.
+    db = initializeFirestore(app, {
+        experimentalForceLongPolling: true
+    });
+} else {
+    // Retrieve existing instance during hot module replacement
+    app = getApp();
+    db = getFirestore(app);
+}
+
 const auth = getAuth(app);
 
 export { app, db, auth };

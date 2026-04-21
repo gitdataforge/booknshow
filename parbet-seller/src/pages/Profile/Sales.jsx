@@ -14,7 +14,8 @@ import {
     Receipt,
     ExternalLink,
     HelpCircle,
-    ShieldAlert
+    ShieldAlert,
+    Loader2 // CRITICAL FIX: Injected missing Loader2 import to prevent fatal Uncaught ReferenceError
 } from 'lucide-react';
 import { collection, onSnapshot, query } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
