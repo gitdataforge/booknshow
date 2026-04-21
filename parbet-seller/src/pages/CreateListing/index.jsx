@@ -119,11 +119,19 @@ export default function CreateListing() {
         setActiveDisclosures(updated);
     };
 
+    // FEATURE 2: Dynamic 85% Seller Earnings Calculator
     const calculateEarnings = () => {
         const price = parseFloat(perTicketPrice) || 0;
         const qty = parseInt(quantity) || 0;
-        const payoutRate = 0.891875; 
+        const payoutRate = 0.85; // Strict 15% Platform Deduction
         return (price * qty * payoutRate).toFixed(2);
+    };
+
+    // FEATURE 3: Dynamic 15% Gateway Fee Calculator for UI Rendering
+    const calculatePlatformFee = () => {
+        const price = parseFloat(perTicketPrice) || 0;
+        const qty = parseInt(quantity) || 0;
+        return (price * qty * 0.15).toFixed(2);
     };
 
     const handleStrategyClick = (strategy, price) => {
@@ -138,7 +146,7 @@ export default function CreateListing() {
         }
     };
 
-    // FEATURE 3: Robust Cloudinary Unsigned Direct Upload Engine
+    // Robust Cloudinary Unsigned Direct Upload Engine
     const handlePromoImageUpload = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -149,11 +157,9 @@ export default function CreateListing() {
         try {
             const formData = new FormData();
             formData.append('file', file);
-            // REQUIRES SETUP: Your Cloudinary upload preset must be set to "Unsigned" in Settings
             formData.append('upload_preset', 'parbet_preset'); 
             
-            // NOTE: Replace 'dxa1m6xez' with your actual Cloudinary Cloud Name from your dashboard
-            const CLOUD_NAME = 'dzyonmksh'; 
+            const CLOUD_NAME = 'dxa1m6xez'; 
             
             const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
                 method: 'POST',
@@ -309,7 +315,7 @@ export default function CreateListing() {
                                         {isUploadingImage ? (
                                             <div className="flex flex-col items-center">
                                                 <Loader2 className="animate-spin text-[#8cc63f] mb-3" size={32} />
-                                                <p className="font-bold text-[#8cc63f] text-[14px]">Uploading to Cloudinary...</p>
+                                                <p className="font-bold text-[#8cc63f] text-[14px]">Uploading & Optimizing...</p>
                                             </div>
                                         ) : promoImageUrl ? (
                                             <div className="flex flex-col items-center">
@@ -721,7 +727,7 @@ export default function CreateListing() {
                         {isSubmitting ? (
                             <><Loader2 size={18} className="animate-spin" /> {isAdmin ? 'Publishing...' : 'Processing Payment...'}</>
                         ) : (
-                            step === 1 ? 'Continue' : (isAdmin ? 'Publish Match (Admin)' : 'Pay ₹99 to Publish')
+                            step === 1 ? 'Continue' : (isAdmin ? 'Publish Match (Admin)' : `Pay 15% Fee (${currencySymbol}${calculatePlatformFee()}) & List`)
                         )}
                     </button>
                 </div>
