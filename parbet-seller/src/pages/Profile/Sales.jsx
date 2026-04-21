@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     DollarSign, 
@@ -13,27 +13,71 @@ import {
     ShoppingBag,
     Receipt,
     ExternalLink,
-    HelpCircle
+    HelpCircle,
+    ShieldAlert
 } from 'lucide-react';
+import { collection, onSnapshot, query } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
 import { useSellerStore } from '../../store/useSellerStore';
 
 export default function Sales() {
-    // FEATURE 1: Secure Real-Time Data Binding
-    const { sales = [], isLoading } = useSellerStore();
+    // FEATURE 1: Secure Identity & Role Verification
+    const { user, sales: storeSales, isLoading: storeIsLoading, currency } = useSellerStore();
+    const isAdmin = user?.email === 'testcodecfg@gmail.com';
 
-    // FEATURE 2: Complex State Management for Financial Filters
+    // FEATURE 2: Admin God-Mode Real-Time Sync
+    const [adminSales, setAdminSales] = useState([]);
+    const [isAdminLoading, setIsAdminLoading] = useState(false);
+
+    useEffect(() => {
+        if (isAdmin) {
+            setIsAdminLoading(true);
+            const q = query(collection(db, 'orders'));
+            const unsub = onSnapshot(q, (snap) => {
+                const allOrders = snap.docs.map(d => ({
+                    id: d.id,
+                    type: 'sale',
+                    ...d.data()
+                }));
+                setAdminSales(allOrders);
+                setIsAdminLoading(false);
+            }, (error) => {
+                console.error("Admin God-Mode Sync Error:", error);
+                setIsAdminLoading(false);
+            });
+            return () => unsub();
+        }
+    }, [isAdmin]);
+
+    // Data Pipeline Routing
+    const activeSales = isAdmin ? adminSales : storeSales;
+    const isLoading = isAdmin ? isAdminLoading : storeIsLoading;
+
+    // Dynamic Currency Symbol Resolver
+    const getCurrencySymbol = (code) => {
+        switch(code) {
+            case 'USD': return '$';
+            case 'GBP': return '£';
+            case 'EUR': return '€';
+            case 'AUD': return 'A$';
+            case 'INR': 
+            default: return '₹';
+        }
+    };
+    const currencySymbol = getCurrencySymbol(currency || 'INR');
+
+    // FEATURE 3: Complex State Management for Financial Filters
     const [searchTerm, setSearchTerm] = useState('');
     const [timeFilter, setTimeFilter] = useState('All time');
     const [expandedSaleId, setExpandedSaleId] = useState(null);
 
-    // FEATURE 3: Multi-Conditional Sales Filter & Search Engine
+    // FEATURE 4: Multi-Conditional Sales Filter & Search Engine
     const filteredSales = useMemo(() => {
-        return sales.filter(sale => {
-            const matchesSearch = 
-                (sale.eventName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (sale.id || '').toLowerCase().includes(searchTerm.toLowerCase());
+        return activeSales.filter(sale => {
+            const searchTarget = `${sale.eventName || ''} ${sale.id || ''} ${sale.sellerEmail || ''}`;
+            const matchesSearch = searchTarget.toLowerCase().includes(searchTerm.toLowerCase());
             
-            const saleDate = new Date(sale.createdAt);
+            const saleDate = new Date(sale.createdAt || Date.now());
             const now = new Date();
             let matchesTime = true;
 
@@ -45,25 +89,33 @@ export default function Sales() {
             }
 
             return matchesSearch && matchesTime;
-        }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()); // FEATURE 4: Chronological Pipeline Sorting
-    }, [sales, searchTerm, timeFilter]);
+        }).sort((a, b) => new Date(b.createdAt || Date.now()).getTime() - new Date(a.createdAt || Date.now()).getTime());
+    }, [activeSales, searchTerm, timeFilter]);
 
-    // FEATURE 5: Real-Time Financial Aggregators
-    const totalRevenue = useMemo(() => {
+    // FEATURE 5: Real-Time Financial Aggregators (Strict Math)
+    const grossVolume = useMemo(() => {
         return filteredSales.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
     }, [filteredSales]);
 
-    const pendingPayouts = useMemo(() => {
-        return filteredSales
-            .filter(s => s.payoutStatus !== 'paid')
-            .reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+    const totalPlatformFees = useMemo(() => {
+        return filteredSales.reduce((acc, curr) => acc + (Number(curr.platformFee) || (Number(curr.amount) * 0.15) || 0), 0);
     }, [filteredSales]);
 
-    // FEATURE 6: Currency Formatter for INR
+    const sellerNetRevenue = useMemo(() => {
+        return grossVolume * 0.85; // Strict 85% Seller Payout
+    }, [grossVolume]);
+
+    const pendingSellerPayouts = useMemo(() => {
+        return filteredSales
+            .filter(s => s.payoutStatus !== 'paid')
+            .reduce((acc, curr) => acc + ((Number(curr.amount) || 0) * 0.85), 0);
+    }, [filteredSales]);
+
+    // FEATURE 6: Global Currency Formatter
     const formatCurrency = (amount) => {
         return new Intl.NumberFormat('en-IN', {
             style: 'currency',
-            currency: 'INR',
+            currency: currency || 'INR',
             maximumFractionDigits: 0
         }).format(amount || 0);
     };
@@ -82,8 +134,8 @@ export default function Sales() {
     if (isLoading) {
         return (
             <div className="w-full h-[60vh] flex flex-col items-center justify-center">
-                <div className="w-8 h-8 border-4 border-[#1a1a1a] border-t-transparent rounded-full animate-spin mb-4"></div>
-                <p className="text-[13px] font-bold text-[#54626c] tracking-widest uppercase">Syncing Sales Feed...</p>
+                <Loader2 className="animate-spin text-[#1a1a1a] mb-4" size={32} />
+                <p className="text-[13px] font-bold text-[#54626c] tracking-widest uppercase">Syncing Secure Ledger...</p>
             </div>
         );
     }
@@ -95,11 +147,22 @@ export default function Sales() {
             variants={containerVariants}
             className="w-full font-sans max-w-[1100px] pb-20"
         >
-            {/* FEATURE 8: Dynamic Header with Export Action */}
+            {/* FEATURE 8: Dynamic Header based on Role */}
             <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-6">
                 <div>
-                    <h1 className="text-[32px] font-black text-[#1a1a1a] tracking-tighter leading-tight mb-2">My Sales</h1>
-                    <p className="text-[#54626c] text-[15px]">View your transaction history and track pending payouts.</p>
+                    <div className="flex items-center gap-3 mb-2">
+                        <h1 className="text-[32px] font-black text-[#1a1a1a] tracking-tighter leading-tight">
+                            {isAdmin ? 'Platform Operations' : 'My Sales'}
+                        </h1>
+                        {isAdmin && (
+                            <span className="bg-[#c21c3a] text-white text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full flex items-center gap-1">
+                                <ShieldAlert size={12} /> God-Mode
+                            </span>
+                        )}
+                    </div>
+                    <p className="text-[#54626c] text-[15px]">
+                        {isAdmin ? 'Global 15% commission ledger and marketplace oversight.' : 'View your transaction history and track pending 85% net payouts.'}
+                    </p>
                 </div>
                 <button 
                     className="flex items-center justify-center gap-2 bg-white border border-[#cccccc] hover:border-[#1a1a1a] text-[#1a1a1a] px-5 py-2.5 rounded-[4px] font-bold text-[14px] transition-all shadow-sm"
@@ -108,39 +171,49 @@ export default function Sales() {
                 </button>
             </div>
 
-            {/* FEATURE 9: Real-Time Financial Metric Strip */}
+            {/* FEATURE 9: Role-Based Financial Metric Strip */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <motion.div variants={itemVariants} className="bg-[#1a1a1a] p-6 rounded-[4px] text-white shadow-lg">
                     <div className="flex items-center justify-between mb-2">
-                        <span className="text-[12px] font-bold uppercase tracking-widest text-gray-400">Total Revenue</span>
-                        <DollarSign size={18} className="text-[#8cc63f]" />
+                        <span className="text-[12px] font-bold uppercase tracking-widest text-gray-400">
+                            {isAdmin ? 'Total Platform Fees (15%)' : 'Net Revenue (85%)'}
+                        </span>
+                        <DollarSign size={18} className={isAdmin ? "text-[#0064d2]" : "text-[#8cc63f]"} />
                     </div>
-                    <div className="text-[28px] font-black">{formatCurrency(totalRevenue)}</div>
+                    <div className="text-[28px] font-black">{formatCurrency(isAdmin ? totalPlatformFees : sellerNetRevenue)}</div>
                     <div className="text-[12px] text-gray-400 mt-1 flex items-center gap-1">
-                        <ArrowUpRight size={12} className="text-[#8cc63f]" /> From {filteredSales.length} sales
+                        <ArrowUpRight size={12} className={isAdmin ? "text-[#0064d2]" : "text-[#8cc63f]"} /> From {filteredSales.length} {isAdmin ? 'global ' : ''}sales
                     </div>
                 </motion.div>
 
                 <motion.div variants={itemVariants} className="bg-white border border-[#e2e2e2] p-6 rounded-[4px] shadow-sm">
                     <div className="flex items-center justify-between mb-2">
-                        <span className="text-[12px] font-bold uppercase tracking-widest text-[#54626c]">Projected Payouts</span>
-                        <Clock size={18} className="text-orange-500" />
+                        <span className="text-[12px] font-bold uppercase tracking-widest text-[#54626c]">
+                            {isAdmin ? 'Gross Market Volume' : 'Projected Payouts'}
+                        </span>
+                        <Clock size={18} className={isAdmin ? "text-[#458731]" : "text-orange-500"} />
                     </div>
-                    <div className="text-[28px] font-black text-[#1a1a1a]">{formatCurrency(pendingPayouts)}</div>
-                    <p className="text-[12px] text-[#54626c] mt-1 italic">Pending event completion</p>
+                    <div className="text-[28px] font-black text-[#1a1a1a]">{formatCurrency(isAdmin ? grossVolume : pendingSellerPayouts)}</div>
+                    <p className="text-[12px] text-[#54626c] mt-1 italic">{isAdmin ? 'Total value traded' : 'Pending event completion'}</p>
                 </motion.div>
 
                 <motion.div variants={itemVariants} className="bg-white border border-[#e2e2e2] p-6 rounded-[4px] shadow-sm">
                     <div className="flex items-center justify-between mb-2">
-                        <span className="text-[12px] font-bold uppercase tracking-widest text-[#54626c]">Seller Rating</span>
+                        <span className="text-[12px] font-bold uppercase tracking-widest text-[#54626c]">
+                            {isAdmin ? 'Active Sellers' : 'Seller Rating'}
+                        </span>
                         <CheckCircle2 size={18} className="text-[#458731]" />
                     </div>
-                    <div className="text-[28px] font-black text-[#1a1a1a]">98.2%</div>
-                    <p className="text-[12px] text-[#54626c] mt-1 font-medium">Top Tier Performance</p>
+                    <div className="text-[28px] font-black text-[#1a1a1a]">
+                        {isAdmin ? [...new Set(activeSales.map(s => s.sellerId))].length : '98.2%'}
+                    </div>
+                    <p className="text-[12px] text-[#54626c] mt-1 font-medium">
+                        {isAdmin ? 'Generating revenue' : 'Top Tier Performance'}
+                    </p>
                 </motion.div>
             </div>
 
-            {/* FEATURE 10: Interactive Table Tools (Search & Time period) */}
+            {/* FEATURE 10: Interactive Table Tools */}
             <div className="bg-white border border-[#e2e2e2] rounded-[4px] shadow-sm mb-6 overflow-hidden">
                 <div className="p-4 border-b border-[#e2e2e2] flex flex-col md:flex-row gap-4 bg-[#f8f9fa]">
                     <div className="relative flex-1">
@@ -149,8 +222,8 @@ export default function Sales() {
                             type="text"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            placeholder="Search by Order ID or Event..."
-                            className="w-full pl-10 pr-4 py-2 bg-white border border-[#cccccc] rounded-[4px] text-[14px] outline-none focus:border-[#458731] transition-all"
+                            placeholder={isAdmin ? "Search by Event, Order ID, or Seller Email..." : "Search by Order ID or Event..."}
+                            className="w-full pl-10 pr-4 py-2 bg-white border border-[#cccccc] rounded-[4px] text-[14px] outline-none focus:border-[#1a1a1a] transition-all"
                         />
                     </div>
                     <div className="flex items-center gap-3">
@@ -170,12 +243,12 @@ export default function Sales() {
                 {/* FEATURE 11: Real-Time Chronological Table with Expandable Nodes */}
                 <div className="overflow-x-auto">
                     {filteredSales.length > 0 ? (
-                        <table className="w-full text-left border-collapse min-w-[700px]">
+                        <table className="w-full text-left border-collapse min-w-[800px]">
                             <thead>
                                 <tr className="bg-gray-50 text-[12px] font-bold uppercase tracking-wider text-[#54626c]">
                                     <th className="px-6 py-4 border-b border-[#e2e2e2]">Order & Date</th>
-                                    <th className="px-6 py-4 border-b border-[#e2e2e2]">Event Detail</th>
-                                    <th className="px-6 py-4 border-b border-[#e2e2e2]">Total Payout</th>
+                                    <th className="px-6 py-4 border-b border-[#e2e2e2]">{isAdmin ? 'Event & Seller' : 'Event Detail'}</th>
+                                    <th className="px-6 py-4 border-b border-[#e2e2e2]">{isAdmin ? 'Platform Fee (15%)' : 'Net Payout (85%)'}</th>
                                     <th className="px-6 py-4 border-b border-[#e2e2e2]">Status</th>
                                     <th className="px-6 py-4 border-b border-[#e2e2e2] text-right">Action</th>
                                 </tr>
@@ -187,15 +260,24 @@ export default function Sales() {
                                             <td className="px-6 py-5">
                                                 <div className="text-[14px] font-bold text-[#1a1a1a]">#{sale.id.substring(0, 8).toUpperCase()}</div>
                                                 <div className="text-[12px] text-[#54626c] mt-0.5 flex items-center gap-1.5">
-                                                    <Calendar size={12} /> {new Date(sale.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                    <Calendar size={12} /> {new Date(sale.createdAt || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                                                 </div>
                                             </td>
                                             <td className="px-6 py-5">
-                                                <div className="text-[14px] font-bold text-[#1a1a1a] truncate max-w-[200px]">{sale.eventName || 'IPL 2026 Ticket'}</div>
-                                                <div className="text-[12px] text-[#54626c] mt-0.5">Section {sale.section || 'Gen'} • {sale.quantity || 1} Ticket(s)</div>
+                                                <div className="text-[14px] font-bold text-[#1a1a1a] truncate max-w-[200px]">{sale.eventName || 'Event Ticket'}</div>
+                                                {isAdmin ? (
+                                                    <div className="text-[12px] text-[#0064d2] font-medium mt-0.5 truncate max-w-[200px]">{sale.sellerEmail || 'Unknown Seller'}</div>
+                                                ) : (
+                                                    <div className="text-[12px] text-[#54626c] mt-0.5">Section {sale.section || 'Gen'} • {sale.quantity || 1} Ticket(s)</div>
+                                                )}
                                             </td>
                                             <td className="px-6 py-5">
-                                                <div className="text-[16px] font-black text-[#1a1a1a]">{formatCurrency(sale.amount)}</div>
+                                                <div className="text-[16px] font-black text-[#1a1a1a]">
+                                                    {isAdmin 
+                                                        ? formatCurrency(Number(sale.platformFee) || (Number(sale.amount) * 0.15)) 
+                                                        : formatCurrency(Number(sale.amount) * 0.85)}
+                                                </div>
+                                                {isAdmin && <div className="text-[11px] text-gray-400 mt-0.5">Gross: {formatCurrency(sale.amount)}</div>}
                                             </td>
                                             <td className="px-6 py-5">
                                                 <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black uppercase tracking-wider ${sale.payoutStatus === 'paid' ? 'bg-[#eaf4d9] text-[#458731]' : 'bg-orange-50 text-orange-600'}`}>
@@ -223,19 +305,23 @@ export default function Sales() {
                                                                 <div>
                                                                     <h4 className="text-[11px] font-bold text-[#54626c] uppercase tracking-widest mb-3">Transaction Details</h4>
                                                                     <div className="space-y-2 text-[13px]">
-                                                                        <div className="flex justify-between"><span className="text-gray-400">Buyer:</span> <span className="font-bold text-[#1a1a1a]">Anonymous</span></div>
-                                                                        <div className="flex justify-between"><span className="text-gray-400">Platform Fee:</span> <span className="font-bold text-[#1a1a1a]">15% (Included)</span></div>
+                                                                        <div className="flex justify-between"><span className="text-gray-400">Buyer ID:</span> <span className="font-bold text-[#1a1a1a] truncate max-w-[120px]">{sale.buyerId || 'Anonymous'}</span></div>
+                                                                        {isAdmin && <div className="flex justify-between"><span className="text-gray-400">Seller ID:</span> <span className="font-bold text-[#1a1a1a] truncate max-w-[120px]">{sale.sellerId || 'Unknown'}</span></div>}
+                                                                        <div className="flex justify-between"><span className="text-gray-400">Platform Fee:</span> <span className="font-bold text-[#1a1a1a]">15% ({isAdmin ? 'Collected' : 'Deducted'})</span></div>
                                                                     </div>
                                                                 </div>
                                                                 <div>
                                                                     <h4 className="text-[11px] font-bold text-[#54626c] uppercase tracking-widest mb-3">Fulfillment Status</h4>
                                                                     <div className="flex items-center gap-2 text-[13px] font-bold text-[#458731]">
-                                                                        <CheckCircle2 size={14} /> Mobile Tickets Delivered
+                                                                        <CheckCircle2 size={14} /> Tickets Delivered to Buyer
+                                                                    </div>
+                                                                    <div className="text-[12px] text-[#54626c] mt-2">
+                                                                        {isAdmin ? 'Awaiting administrative payout release.' : 'Payout will be released 5-8 days post event.'}
                                                                     </div>
                                                                 </div>
                                                                 <div className="flex items-center justify-end">
                                                                     <button className="flex items-center gap-2 text-[13px] font-bold text-[#0064d2] hover:underline">
-                                                                        <Receipt size={16} /> View Full Receipt <ExternalLink size={14} />
+                                                                        <Receipt size={16} /> {isAdmin ? 'View Global Receipt' : 'View Full Receipt'} <ExternalLink size={14} />
                                                                     </button>
                                                                 </div>
                                                             </div>
@@ -249,14 +335,13 @@ export default function Sales() {
                             </tbody>
                         </table>
                     ) : (
-                        /* FEATURE 12: Production-Grade Empty State */
                         <div className="py-20 px-6 flex flex-col items-center justify-center text-center">
                             <div className="w-20 h-20 bg-[#f8f9fa] rounded-full flex items-center justify-center mb-6">
                                 <ShoppingBag size={32} className="text-[#cccccc]" />
                             </div>
-                            <h3 className="text-[20px] font-black text-[#1a1a1a] mb-2">No sales activity found</h3>
+                            <h3 className="text-[20px] font-black text-[#1a1a1a] mb-2">{isAdmin ? 'No platform activity found' : 'No sales activity found'}</h3>
                             <p className="text-[15px] text-[#54626c] max-w-sm mb-8">
-                                {searchTerm ? "We couldn't find any sales matching your search query." : "Your ticket sales will appear here in real-time once a buyer completes a purchase."}
+                                {searchTerm ? "We couldn't find any sales matching your search query." : isAdmin ? "Platform order stream is currently empty." : "Your ticket sales will appear here in real-time once a buyer completes a purchase."}
                             </p>
                         </div>
                     )}
