@@ -52,7 +52,7 @@ export default function EditListing() {
     const [tag1, setTag1] = useState('');
     const [tag2, setTag2] = useState('');
 
-    // ImgBB Custom Promo Image State
+    // Cloudinary Custom Promo Image State
     const [promoImageUrl, setPromoImageUrl] = useState('');
     const [isUploadingImage, setIsUploadingImage] = useState(false);
 
@@ -174,7 +174,7 @@ export default function EditListing() {
         setPerTicketPrice(price.toString());
     };
 
-    // FEATURE 3: Robust ImgBB Direct Upload Engine (Replaces broken Cloudinary)
+    // FEATURE 3: Robust Cloudinary Unsigned Direct Upload Engine
     const handlePromoImageUpload = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -184,26 +184,28 @@ export default function EditListing() {
         
         try {
             const formData = new FormData();
-            formData.append('image', file); // ImgBB strictly requires the field to be named 'image'
+            formData.append('file', file);
+            // REQUIRES SETUP: Your Cloudinary upload preset must be set to "Unsigned" in Settings
+            formData.append('upload_preset', 'parbet_preset'); 
             
-            // Publicly accessible free-tier ImgBB API Key
-            const IMGBB_API_KEY = '017c603a1443685e1354bb85a21fa284'; 
+            // NOTE: Replace 'dxa1m6xez' with your actual Cloudinary Cloud Name from your dashboard
+            const CLOUD_NAME = 'dzyonmksh'; 
             
-            const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+            const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
                 method: 'POST',
                 body: formData
             });
             
             const data = await response.json();
             
-            if (data.success && data.data?.url) {
-                setPromoImageUrl(data.data.url);
+            if (data.secure_url) {
+                setPromoImageUrl(data.secure_url);
             } else {
-                throw new Error("Invalid response from ImgBB image server");
+                throw new Error(data.error?.message || "Invalid response from Cloudinary server");
             }
         } catch (err) {
             console.error("[Parbet Storage] Image Upload Error:", err);
-            setError("Failed to upload image. Please try again.");
+            setError("Failed to upload image. Please verify your Cloudinary Cloud Name and Unsigned Preset.");
         } finally {
             setIsUploadingImage(false);
         }
@@ -343,7 +345,7 @@ export default function EditListing() {
                                 </div>
                             </div>
 
-                            {/* ImgBB Promo Image Upload Zone */}
+                            {/* Cloudinary Promo Image Upload Zone */}
                             <div className="space-y-4 pt-6 border-t border-[#e2e2e2]">
                                 <h3 className="font-bold text-[#1a1a1a] text-[16px]">Promotional Image</h3>
                                 <p className="text-[14px] text-[#54626c]">Replace the existing cover photo for your live listing.</p>
@@ -446,8 +448,65 @@ export default function EditListing() {
                                         );
                                     })}
                                 </div>
+                                
+                                {ticketType === 'mobile_transfer' && (
+                                    <label className="flex items-start gap-3 mt-4 cursor-pointer">
+                                        <div className={`mt-0.5 w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-colors ${readyToTransferUpload ? 'bg-[#458731] border-[#458731]' : 'border-[#cccccc] bg-white'}`} onClick={() => setReadyToTransferUpload(!readyToTransferUpload)}>
+                                            {readyToTransferUpload && <Check size={14} className="text-white" strokeWidth={3} />}
+                                        </div>
+                                        <div>
+                                            <p className="text-[14px] font-medium text-[#1a1a1a]">I'm ready to transfer</p>
+                                            <p className="text-[13px] text-[#54626c]">Transferring now boosts the visibility of your listing and increases your likelihood of selling</p>
+                                        </div>
+                                    </label>
+                                )}
+
+                                {(ticketType === 'eticket' || ticketType === 'mobile_qr') && (
+                                    <label className="flex items-start gap-3 mt-4 cursor-pointer">
+                                        <div className={`mt-0.5 w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-colors ${readyToTransferUpload ? 'bg-[#458731] border-[#458731]' : 'border-[#cccccc] bg-white'}`} onClick={() => setReadyToTransferUpload(!readyToTransferUpload)}>
+                                            {readyToTransferUpload && <Check size={14} className="text-white" strokeWidth={3} />}
+                                        </div>
+                                        <div>
+                                            <p className="text-[14px] font-medium text-[#1a1a1a]">
+                                                {ticketType === 'eticket' ? "I'm ready to upload" : "Ready to upload"}
+                                            </p>
+                                            <p className="text-[13px] text-[#54626c] mb-2">Uploading now boosts the visibility of your listing and increases your likelihood of selling</p>
+                                            <button className="border border-[#cccccc] px-4 py-2 rounded-[8px] text-[13px] font-bold text-[#1a1a1a] hover:bg-gray-50">Upload Tickets</button>
+                                        </div>
+                                    </label>
+                                )}
                             </div>
 
+                            {ticketType === 'mobile_transfer' && (
+                                <div className="space-y-4 pt-6 border-t border-[#e2e2e2]">
+                                    <h3 className="font-bold text-[#1a1a1a] text-[16px]">Where are your tickets stored?</h3>
+                                    <div className="space-y-3">
+                                        {['SeatGeek', 'Ticketmaster', 'Unknown', 'Other'].map(loc => (
+                                            <label key={loc} className="flex items-center gap-3 cursor-pointer w-max">
+                                                <input type="radio" name="storageLocation" value={loc} onChange={(e) => setStorageLocation(e.target.value)} className="w-4 h-4 accent-[#458731]" />
+                                                <span className="text-[14px] text-[#1a1a1a]">{loc}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="space-y-4 pt-6 border-t border-[#e2e2e2]">
+                                <h3 className="font-bold text-[#1a1a1a] text-[16px]">Selling to people in the United Kingdom or Europe?</h3>
+                                <div className="space-y-4 mt-2 pb-6">
+                                    <label className="flex items-center gap-3 cursor-pointer">
+                                        <input type="radio" name="ukEurope" value="normal" onChange={(e) => setUkEurope(e.target.value)} className="w-4 h-4 accent-[#458731]" />
+                                        <span className="text-[14px] text-[#1a1a1a]">Normal seller (I am not a trader)</span>
+                                    </label>
+                                    <label className="flex items-start gap-3 cursor-pointer">
+                                        <input type="radio" name="ukEurope" value="trader" onChange={(e) => setUkEurope(e.target.value)} className="w-4 h-4 mt-1 accent-[#458731]" />
+                                        <div>
+                                            <span className="text-[14px] text-[#1a1a1a] block mb-1">Trader</span>
+                                            <span className="text-[12px] text-[#54626c]">You sell tickets through a registered company, you are a sole trader, you have a VAT number or you pay people to sell tickets on your behalf.</span>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
                         </motion.div>
                     )}
 
