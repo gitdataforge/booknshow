@@ -360,6 +360,6 @@ export const useSellerStore = create((set, get) => ({
     logout: () => {
         get().unsubscribers.forEach(unsub => unsub());
         set({ user: null, isAuthenticated: false, listings: [], sales: [], orders: [], transactions: [] });
-        auth.signOut();
+        auth.signOut(); 
     }
 }));

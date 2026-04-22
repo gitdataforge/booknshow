@@ -15,11 +15,12 @@ import {
     ExternalLink,
     HelpCircle,
     ShieldAlert,
-    Loader2 // CRITICAL FIX: Injected missing Loader2 import to prevent fatal Uncaught ReferenceError
+    Loader2 
 } from 'lucide-react';
 import { collection, onSnapshot, query } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useSellerStore } from '../../store/useSellerStore';
+import { exportSalesToExcel } from '../../utils/excelExporter';
 
 export default function Sales() {
     // FEATURE 1: Secure Identity & Role Verification
@@ -132,6 +133,14 @@ export default function Sales() {
         show: { opacity: 1, y: 0, transition: { type: 'spring', damping: 25, stiffness: 120 } }
     };
 
+    // FEATURE 8: Excel Export Execution
+    const handleExport = () => {
+        if (filteredSales.length > 0) {
+            const fileName = isAdmin ? 'Parbet_Global_Sales_Report' : 'Parbet_My_Sales_Report';
+            exportSalesToExcel(filteredSales, fileName);
+        }
+    };
+
     if (isLoading) {
         return (
             <div className="w-full h-[60vh] flex flex-col items-center justify-center">
@@ -148,7 +157,7 @@ export default function Sales() {
             variants={containerVariants}
             className="w-full font-sans max-w-[1100px] pb-20"
         >
-            {/* FEATURE 8: Dynamic Header based on Role */}
+            {/* FEATURE 9: Dynamic Header based on Role */}
             <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-6">
                 <div>
                     <div className="flex items-center gap-3 mb-2">
@@ -166,13 +175,19 @@ export default function Sales() {
                     </p>
                 </div>
                 <button 
-                    className="flex items-center justify-center gap-2 bg-white border border-[#cccccc] hover:border-[#1a1a1a] text-[#1a1a1a] px-5 py-2.5 rounded-[4px] font-bold text-[14px] transition-all shadow-sm"
+                    onClick={handleExport}
+                    disabled={filteredSales.length === 0}
+                    className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-[4px] font-bold text-[14px] transition-all shadow-sm ${
+                        filteredSales.length > 0 
+                        ? 'bg-white border border-[#cccccc] hover:border-[#1a1a1a] text-[#1a1a1a]' 
+                        : 'bg-gray-100 border border-gray-200 text-gray-400 cursor-not-allowed'
+                    }`}
                 >
-                    <FileDown size={18} /> Export CSV
+                    <FileDown size={18} /> Export Excel
                 </button>
             </div>
 
-            {/* FEATURE 9: Role-Based Financial Metric Strip */}
+            {/* FEATURE 10: Role-Based Financial Metric Strip */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <motion.div variants={itemVariants} className="bg-[#1a1a1a] p-6 rounded-[4px] text-white shadow-lg">
                     <div className="flex items-center justify-between mb-2">
@@ -214,7 +229,7 @@ export default function Sales() {
                 </motion.div>
             </div>
 
-            {/* FEATURE 10: Interactive Table Tools */}
+            {/* FEATURE 11: Interactive Table Tools */}
             <div className="bg-white border border-[#e2e2e2] rounded-[4px] shadow-sm mb-6 overflow-hidden">
                 <div className="p-4 border-b border-[#e2e2e2] flex flex-col md:flex-row gap-4 bg-[#f8f9fa]">
                     <div className="relative flex-1">
@@ -241,7 +256,7 @@ export default function Sales() {
                     </div>
                 </div>
 
-                {/* FEATURE 11: Real-Time Chronological Table with Expandable Nodes */}
+                {/* FEATURE 12: Real-Time Chronological Table with Expandable Nodes */}
                 <div className="overflow-x-auto">
                     {filteredSales.length > 0 ? (
                         <table className="w-full text-left border-collapse min-w-[800px]">
