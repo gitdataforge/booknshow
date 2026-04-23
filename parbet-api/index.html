@@ -4,6 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Parbet API Gateway | Restricted Access</title>
+    
+    <!-- FEATURE: Permanent React DevTools Warning Suppression -->
+    <!-- Injected before React loads to disable the global devtools hook -->
+    <script>
+        if (typeof window !== 'undefined') {
+            window.__REACT_DEVTOOLS_GLOBAL_HOOK__ = window.__REACT_DEVTOOLS_GLOBAL_HOOK__ || {};
+            window.__REACT_DEVTOOLS_GLOBAL_HOOK__.isDisabled = true;
+        }
+    </script>
 </head>
 <body>
     <div id="root"></div>
