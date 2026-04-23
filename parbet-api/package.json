@@ -2,9 +2,10 @@
   "name": "parbet-api",
   "version": "1.0.0",
   "description": "Parbet Enterprise API Gateway & Serverless Backend",
-  "main": "index.js",
+  "main": "server.js",
   "type": "commonjs",
   "scripts": {
+    "start": "node server.js",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"
@@ -19,10 +20,12 @@
   "license": "ISC",
   "dependencies": {
     "cors": "^2.8.6",
+    "express": "^4.21.2",
     "firebase": "^12.12.0",
     "firebase-admin": "^13.8.0",
     "framer-motion": "^12.38.0",
     "lucide-react": "^1.8.0",
+    "node-cron": "^3.0.3",
     "razorpay": "^2.9.6",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
