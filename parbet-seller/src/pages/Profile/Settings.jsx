@@ -9,12 +9,14 @@ import {
     Calendar, 
     Check,
     Loader2,
-    ShieldAlert
+    ShieldAlert,
+    DatabaseZap
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useSellerStore } from '../../store/useSellerStore';
 import { auth } from '../../lib/firebase';
 import { sendPasswordResetEmail } from 'firebase/auth';
+import { executeIPLSeed } from '../../utils/seedIPL2026';
 
 const TABS = [
     { id: 'payouts', label: 'Payment and Payout Options' },
@@ -40,7 +42,10 @@ export default function Settings() {
     const [tempValue, setTempValue] = useState('');
     const [isSaving, setIsSaving] = useState(false);
 
-    // FEATURE 4: Notification Preference State Matrix
+    // FEATURE 4: IPL Seeder State
+    const [isInjecting, setIsInjecting] = useState(false);
+
+    // FEATURE 5: Notification Preference State Matrix
     const [notifState, setNotifState] = useState({
         weekly: { email: true, push: false },
         reminder: { email: false, push: false },
@@ -52,7 +57,7 @@ export default function Settings() {
         unsubscribe: { email: false, push: false }
     });
 
-    // FEATURE 5: Tax Invoice Export States
+    // FEATURE 6: Tax Invoice Export States
     const [invoiceStart, setInvoiceStart] = useState('');
     const [invoiceEnd, setInvoiceEnd] = useState('');
 
@@ -65,13 +70,19 @@ export default function Settings() {
         password: '********'
     }), [user]);
 
-    // FEATURE 6: Secure Profile Mutation Engine
+    // FEATURE 7: God-Mode Role Verification
+    const isSuperAdmin = useMemo(() => {
+        if (!user?.email) return false;
+        const validAdmins = ['testcodecfg@gmail.com', 'krishnamehta.gm@gmail.com', 'jatinseth.op@gmail.com'];
+        return validAdmins.includes(user.email.toLowerCase());
+    }, [user]);
+
+    // FEATURE 8: Secure Profile Mutation Engine
     const handleSaveField = async (fieldId) => {
         if (!tempValue.trim()) return setEditingField(null);
         setIsSaving(true);
         try {
             // Map field IDs to actual Firestore fields if connected to updateProfileData
-            // Example: await updateProfileData({ [fieldId]: tempValue });
             // Simulating network latency for authentic feel
             await new Promise(r => setTimeout(r, 600)); 
             setEditingField(null);
@@ -82,7 +93,7 @@ export default function Settings() {
         }
     };
 
-    // FEATURE 7: Firebase Password Reset Protocol
+    // FEATURE 9: Firebase Password Reset Protocol
     const handlePasswordReset = async () => {
         if (!user?.email) return;
         try {
@@ -93,12 +104,12 @@ export default function Settings() {
         }
     };
 
-    // FEATURE 8: Tax Invoice Generation Engine (SheetJS)
+    // FEATURE 10: Tax Invoice Generation Engine (SheetJS)
     const handleGenerateInvoice = () => {
         if (!invoiceStart || !invoiceEnd) return alert("Please select a valid date range.");
         
         const start = new Date(invoiceStart).getTime();
-        const end = new Date(invoiceEnd).getTime() + 86400000; // include end of day
+        const end = new Date(invoiceEnd).getTime() + 86400000;
 
         const targetSales = sales.filter(s => {
             const saleTime = s.createdAt?.seconds ? s.createdAt.seconds * 1000 : s.createdAt;
@@ -122,6 +133,24 @@ export default function Settings() {
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, 'Tax_Invoices');
         XLSX.writeFile(workbook, `Parbet_Tax_Invoices_${invoiceStart}_to_${invoiceEnd}.xlsx`);
+    };
+
+    // FEATURE 11: Production Database Seeder Execution
+    const handleInjectIPLData = async () => {
+        if (!window.confirm("WARNING: You are about to inject 20 realistic IPL 2026 matches directly into the live production database. Are you absolutely sure?")) {
+            return;
+        }
+        
+        setIsInjecting(true);
+        try {
+            const result = await executeIPLSeed();
+            alert(result.message);
+        } catch (error) {
+            console.error(error);
+            alert(`Injection Failed: ${error.message}`);
+        } finally {
+            setIsInjecting(false);
+        }
     };
 
     // Helper: Render Editable Fields
@@ -161,7 +190,7 @@ export default function Settings() {
         );
     };
 
-    // FEATURE 9: Framer Motion Transitions
+    // FEATURE 12: Framer Motion Transitions
     const tabVariants = {
         initial: { opacity: 0, y: 10 },
         animate: { opacity: 1, y: 0, transition: { duration: 0.3, ease: 'easeOut' } },
@@ -183,13 +212,36 @@ export default function Settings() {
     return (
         <div className="w-full font-sans max-w-[1000px] pb-20">
             {/* Contextual Header */}
-            <div className="mb-4">
+            <div className="mb-6">
                 <h1 className="text-[32px] md:text-[36px] font-black text-[#1a1a1a] tracking-tight leading-tight">
                     Settings
                 </h1>
             </div>
 
-            {/* FEATURE 10: Horizontal Tab Navigation (1:1 Viagogo Replica) */}
+            {/* FEATURE 13: Strictly Restricted God-Mode Admin Panel */}
+            {isSuperAdmin && (
+                <div className="mb-8 p-5 bg-red-50 border border-red-200 rounded-[4px] flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+                    <div className="flex items-start gap-3">
+                        <DatabaseZap size={24} className="text-red-600 shrink-0 mt-0.5" />
+                        <div>
+                            <h3 className="text-[16px] font-black text-red-700">Administrator Tools</h3>
+                            <p className="text-[13px] text-red-600 mt-1">
+                                Inject 20 realistic IPL 2026 matches directly into the live production marketplace.
+                            </p>
+                        </div>
+                    </div>
+                    <button 
+                        onClick={handleInjectIPLData}
+                        disabled={isInjecting}
+                        className="bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-[4px] font-bold text-[14px] transition-colors disabled:opacity-50 flex items-center justify-center gap-2 shrink-0 shadow-sm"
+                    >
+                        {isInjecting ? <Loader2 size={16} className="animate-spin" /> : <ShieldAlert size={16} />}
+                        {isInjecting ? 'Executing Batch Write...' : 'Inject IPL Data'}
+                    </button>
+                </div>
+            )}
+
+            {/* Horizontal Tab Navigation (1:1 Viagogo Replica) */}
             <div className="flex border-b border-[#cccccc] mb-8 overflow-x-auto no-scrollbar">
                 {TABS.map(tab => (
                     <button
