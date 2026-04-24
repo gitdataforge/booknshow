@@ -102,9 +102,40 @@ export default function Event() {
         
         const unsubscribe = onSnapshot(docRef, (docSnap) => {
             if (docSnap.exists()) {
-                const data = { id: docSnap.id, ...docSnap.data() };
-                setEventData(data);
-                setTicketTiers(data.ticketTiers || []);
+                const rawData = docSnap.data();
+
+                // FEATURE 3 UPDATE: Local Data Normalization Adapter
+                // Safely maps flat seeded IPL data into the nested schema required by the UI
+                const normalizedTitle = rawData.title || rawData.eventName || 'Upcoming Event';
+                const normalizedTimestamp = rawData.commence_time || rawData.eventTimestamp || rawData.date || new Date().toISOString();
+                const normalizedStadium = rawData.venue?.name || rawData.loc || 'TBA Venue';
+                const normalizedLocation = rawData.venue?.city || rawData.city || 'TBA City';
+                
+                // Synthesize missing ticket tiers mathematically
+                let synthesizedTiers = rawData.ticketTiers || [];
+                if (!rawData.ticketTiers && rawData.price) {
+                    synthesizedTiers = [{
+                        id: `tier-${docSnap.id}`,
+                        name: rawData.section ? `${rawData.section}` : 'General Admission',
+                        price: rawData.price,
+                        quantity: rawData.quantity || 1,
+                        seats: rawData.row ? `Row ${rawData.row}` : 'Any',
+                        disclosures: ['Instant Download', 'Mobile Ticket'] // Fallback disclosures
+                    }];
+                }
+
+                const mappedData = { 
+                    id: docSnap.id, 
+                    ...rawData,
+                    title: normalizedTitle,
+                    eventTimestamp: normalizedTimestamp,
+                    stadium: normalizedStadium,
+                    location: normalizedLocation,
+                    ticketTiers: synthesizedTiers
+                };
+
+                setEventData(mappedData);
+                setTicketTiers(synthesizedTiers);
                 
                 if (!hasOpenedModal.current && !isTicketQuantityModalOpen) {
                     setTicketQuantityModalOpen(true);
@@ -158,7 +189,7 @@ export default function Event() {
         
         // Disclosures filtering
         const disclosuresStr = (tier.disclosures || []).join(' ').toLowerCase();
-        if (instantDownloadOnly && !disclosuresStr.includes('paperless')) return false;
+        if (instantDownloadOnly && !disclosuresStr.includes('paperless') && !disclosuresStr.includes('instant download')) return false;
         if (clearViewOnly && disclosuresStr.includes('obstructed')) return false;
         
         return true;

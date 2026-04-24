@@ -3,9 +3,9 @@ import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
 /**
- * FEATURE 1: Global Read-Only State Manager
+ * FEATURE 1: Global Read-Only State Manager & Normalization Adapter
  * Actively synchronizes the Buyer's frontend with the Seller's Firestore payloads.
- * Re-engineered to process complex sorting and filtering securely in memory to prevent index crashes.
+ * Re-engineered to process complex sorting, filtering, and schema mapping securely in memory.
  */
 export const useMarketStore = create((set, get) => ({
     activeListings: [],
@@ -35,15 +35,37 @@ export const useMarketStore = create((set, get) => ({
                         const data = doc.data();
                         
                         // FEATURE 3: Universal Timestamp Normalization
-                        // Intelligently maps either the old schema (eventTimestamp) or the seeded schema (commence_time)
+                        // Maps either the old schema (eventTimestamp) or the seeded schema (commence_time)
                         const rawDate = data.commence_time || data.eventTimestamp || data.date || data.createdAt?.seconds * 1000 || new Date().toISOString();
                         const eventDateObj = new Date(rawDate);
+                        const displayDateString = eventDateObj.toISOString();
+
+                        // FEATURE 4: Title & Venue Normalization
+                        // Maps flat seeded schema fields to the nested objects expected by EventCard/EventDetails
+                        const normalizedTitle = data.title || data.eventName || 'Upcoming Event';
+                        const normalizedVenue = data.venue || { 
+                            name: data.loc || 'TBA Venue', 
+                            city: data.city || 'TBA City' 
+                        };
                         
-                        // FEATURE 4: Universal Price Calculator
-                        // Scans nested ticket tiers (old schema) OR grabs direct root prices (new seeded schema)
+                        // FEATURE 5: Dynamic TicketTiers Synthesis
+                        // If 'ticketTiers' array is missing (seeded data), construct it mathematically from root fields
+                        let normalizedTicketTiers = data.ticketTiers || [];
+                        if (!data.ticketTiers && data.price) {
+                            normalizedTicketTiers = [{
+                                id: `tier-${doc.id}`,
+                                name: data.section ? `${data.section} ${data.row ? `(Row ${data.row})` : ''}` : 'General Admission',
+                                price: data.price,
+                                quantity: data.quantity || 1,
+                                color: '#458731' // Signature Parbet Green
+                            }];
+                        }
+
+                        // FEATURE 6: Universal Minimum Price Calculator
+                        // Scans the newly synthesized or existing ticket tiers to find the "Starting from" price
                         let minPrice = Infinity;
-                        if (data.ticketTiers && Array.isArray(data.ticketTiers)) {
-                            data.ticketTiers.forEach(tier => {
+                        if (normalizedTicketTiers.length > 0) {
+                            normalizedTicketTiers.forEach(tier => {
                                 if (tier.quantity > 0 && tier.price < minPrice) {
                                     minPrice = tier.price;
                                 }
@@ -55,15 +77,20 @@ export const useMarketStore = create((set, get) => ({
                         return {
                             id: doc.id,
                             ...data,
+                            // Inject normalized schema overrides for the UI components
+                            title: normalizedTitle,
+                            date: displayDateString,
+                            venue: normalizedVenue,
+                            ticketTiers: normalizedTicketTiers,
                             // Inject normalized tracking fields
                             normalizedDate: eventDateObj.getTime(),
-                            displayDate: eventDateObj.toISOString(),
+                            displayDate: displayDateString,
                             startingPrice: minPrice === Infinity ? null : minPrice 
                         };
                     })
-                    // FEATURE 5: In-Memory Expiration Filter (Strips past events)
+                    // FEATURE 7: In-Memory Expiration Filter (Strips past events)
                     .filter(listing => listing.normalizedDate >= now)
-                    // FEATURE 6: In-Memory Chronological Sorter (Nearest upcoming events first)
+                    // FEATURE 8: In-Memory Chronological Sorter (Nearest upcoming events first)
                     .sort((a, b) => a.normalizedDate - b.normalizedDate);
 
                     // Update global state instantly
@@ -90,13 +117,13 @@ export const useMarketStore = create((set, get) => ({
         }
     },
 
-    // FEATURE 7: Category Filtering Engine (Client-Side)
+    // FEATURE 9: Category Filtering Engine (Client-Side)
     // Allows instant, zero-latency filtering without hitting the database again
     setActiveCategory: (category) => {
         set({ activeCategory: category });
     },
 
-    // FEATURE 8: Derived State Selector for the UI
+    // FEATURE 10: Derived State Selector for the UI
     getFilteredListings: () => {
         const { activeListings, activeCategory } = get();
         if (activeCategory === 'All') return activeListings;
