@@ -1,19 +1,7 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { 
-    Wallet, 
-    Ticket, 
-    TrendingUp, 
-    ArrowRight, 
-    Clock, 
-    CheckCircle2, 
-    PlusCircle,
-    Banknote,
-    ChevronRight,
-    Loader2,
-    ShieldAlert
-} from 'lucide-react';
+import { Loader2, ShieldAlert } from 'lucide-react';
 import { useSellerStore } from '../../store/useSellerStore';
 
 export default function ProfileOverview() {
@@ -21,7 +9,13 @@ export default function ProfileOverview() {
     
     // FEATURE 1: Production-Grade Data Extraction
     // Connects directly to the live Firebase-backed Zustand store
-    const { user, walletBalance, listings = [], sales = [], isLoading } = useSellerStore();
+    const { 
+        user, 
+        orders = [], 
+        listings = [], 
+        sales = [], 
+        isLoading 
+    } = useSellerStore();
 
     // FEATURE 2: Strict Auth Guard Interceptor
     // Prevents permission-denied crashes by halting execution and redirecting unauthorized users
@@ -32,52 +26,23 @@ export default function ProfileOverview() {
         }
     }, [user, isLoading, navigate]);
 
-    // FEATURE 3: Time-Aware Personalized Greeting
-    const [greeting, setGreeting] = useState('');
-    useEffect(() => {
-        const hour = new Date().getHours();
-        if (hour < 12) setGreeting('Good morning');
-        else if (hour < 18) setGreeting('Good afternoon');
-        else setGreeting('Good evening');
-    }, []);
-
-    // FEATURE 4: Mathematical Inventory & Revenue Engine
+    // FEATURE 3: Mathematical Inventory Engine
     const activeListingsCount = useMemo(() => {
         return listings.filter(l => l.status === 'active').length;
     }, [listings]);
 
-    const lifetimeRevenue = useMemo(() => {
-        // Calculates gross revenue from the live orders collection
-        return sales.reduce((total, sale) => total + (Number(sale.price * (sale.quantity || 1)) || 0), 0);
-    }, [sales]);
-
-    const recentSales = useMemo(() => {
-        // Orders the feed by creation timestamp (newest first)
-        return [...sales].slice(0, 3);
-    }, [sales]);
-
-    // Currency Formatter Utility (INR)
-    const formatCurrency = (amount) => {
-        return new Intl.NumberFormat('en-IN', {
-            style: 'currency',
-            currency: 'INR',
-            maximumFractionDigits: 0
-        }).format(amount || 0);
-    };
-
-    // Staggered Animation Definitions
+    // FEATURE 4: Framer Motion Staggered Physics
     const container = {
         hidden: { opacity: 0 },
-        show: { opacity: 1, transition: { staggerChildren: 0.08 } }
+        show: { opacity: 1, transition: { staggerChildren: 0.05 } }
     };
 
     const item = {
-        hidden: { opacity: 0, y: 15 },
+        hidden: { opacity: 0, y: 10 },
         show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 120, damping: 20 } }
     };
 
     // FEATURE 5: Protected Render Gate
-    // Completely blocks UI compilation until Firebase session is fully minted
     if (isLoading || !user) {
         return (
             <div className="w-full h-[60vh] flex flex-col items-center justify-center">
@@ -95,149 +60,111 @@ export default function ProfileOverview() {
             initial="hidden"
             animate="show"
             variants={container}
-            className="w-full font-sans max-w-[1000px] pb-20"
+            className="w-full font-sans max-w-[900px] pb-20"
         >
-            {/* FEATURE 6: Dynamic Greeting & Quick-List Action */}
-            <motion.div variants={item} className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
-                <div>
-                    <h1 className="text-[28px] md:text-[36px] font-black text-[#1a1a1a] tracking-tight leading-tight">
-                        {greeting}, {user?.displayName || user?.email?.split('@')[0] || 'Seller'}.
-                    </h1>
-                    <p className="text-[#54626c] text-[15px] mt-1 font-medium">
-                        Your marketplace activity is updated in real-time.
-                    </p>
+            {/* FEATURE 6: 1:1 Viagogo Main Header */}
+            <motion.h1 variants={item} className="text-[28px] md:text-[32px] font-black text-[#1a1a1a] tracking-tight leading-tight mb-6">
+                Profile
+            </motion.h1>
+
+            {/* FEATURE 7: Orders Module */}
+            <motion.div variants={item} className="bg-white border border-[#cccccc] rounded-[4px] p-5 shadow-sm mb-4">
+                <div className="pb-3 border-b border-[#e2e2e2] mb-4">
+                    <h3 className="text-[18px] font-bold text-[#1a1a1a]">Orders</h3>
                 </div>
-                <button 
-                    onClick={() => navigate('/sell')}
-                    className="flex items-center justify-center gap-2 bg-[#1a1a1a] hover:bg-black text-white px-6 py-3.5 rounded-[8px] font-bold text-[14px] transition-all shadow-md active:scale-95 shrink-0"
-                >
-                    <PlusCircle size={18} /> List New Tickets
-                </button>
-            </motion.div>
-
-            {/* FEATURE 7: Real-Time Performance Metric Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-                
-                {/* Metric 1: Wallet Balance */}
-                <motion.div variants={item} className="bg-white border border-[#e2e2e2] rounded-[12px] p-6 shadow-sm flex flex-col justify-between group hover:border-[#458731] transition-colors">
-                    <div>
-                        <div className="w-10 h-10 bg-[#eaf4d9] rounded-[8px] flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                            <Wallet size={20} className="text-[#458731]" />
-                        </div>
-                        <p className="text-[12px] font-bold text-[#54626c] uppercase tracking-widest mb-1">Available Funds</p>
-                        <h2 className="text-[32px] font-black text-[#1a1a1a] tracking-tight">
-                            {formatCurrency(walletBalance)}
-                        </h2>
-                    </div>
+                {orders.length === 0 ? (
+                    <p className="text-[15px] text-[#1a1a1a] mb-6">You don't have any upcoming events scheduled right now</p>
+                ) : (
+                    <p className="text-[15px] text-[#1a1a1a] mb-6">You have {orders.length} upcoming event{orders.length > 1 ? 's' : ''} scheduled right now</p>
+                )}
+                <div className="text-center">
                     <button 
-                        onClick={() => navigate('/profile/wallet')}
-                        className="mt-6 text-[#0064d2] text-[14px] font-bold hover:underline flex items-center"
+                        onClick={() => navigate('/profile/orders')} 
+                        className="text-[15px] text-[#0064d2] hover:underline"
                     >
-                        Manage Wallet <ArrowRight size={16} className="ml-1" />
+                        View all orders
                     </button>
-                </motion.div>
-
-                {/* Metric 2: Live Inventory */}
-                <motion.div variants={item} className="bg-white border border-[#e2e2e2] rounded-[12px] p-6 shadow-sm flex flex-col justify-between group hover:border-[#0064d2] transition-colors">
-                    <div>
-                        <div className="w-10 h-10 bg-[#ebf3fb] rounded-[8px] flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                            <Ticket size={20} className="text-[#0064d2]" />
-                        </div>
-                        <p className="text-[12px] font-bold text-[#54626c] uppercase tracking-widest mb-1">Active Listings</p>
-                        <h2 className="text-[32px] font-black text-[#1a1a1a] tracking-tight">
-                            {activeListingsCount}
-                        </h2>
-                    </div>
-                    <button 
-                        onClick={() => navigate('/profile/listings')}
-                        className="mt-6 text-[#0064d2] text-[14px] font-bold hover:underline flex items-center"
-                    >
-                        View Inventory <ArrowRight size={16} className="ml-1" />
-                    </button>
-                </motion.div>
-
-                {/* Metric 3: Gross Revenue */}
-                <motion.div variants={item} className="bg-white border border-[#e2e2e2] rounded-[12px] p-6 shadow-sm flex flex-col justify-between group hover:border-black transition-colors">
-                    <div>
-                        <div className="w-10 h-10 bg-[#f8f9fa] border border-gray-200 rounded-[8px] flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                            <TrendingUp size={20} className="text-[#1a1a1a]" />
-                        </div>
-                        <p className="text-[12px] font-bold text-[#54626c] uppercase tracking-widest mb-1">Lifetime Revenue</p>
-                        <h2 className="text-[32px] font-black text-[#1a1a1a] tracking-tight">
-                            {formatCurrency(lifetimeRevenue)}
-                        </h2>
-                    </div>
-                    <button 
-                        onClick={() => navigate('/profile/sales')}
-                        className="mt-6 text-[#0064d2] text-[14px] font-bold hover:underline flex items-center"
-                    >
-                        View All Sales <ArrowRight size={16} className="ml-1" />
-                    </button>
-                </motion.div>
-            </div>
-
-            {/* FEATURE 8: Live Activity Ledger & Production Empty States */}
-            <motion.div variants={item} className="bg-white border border-[#e2e2e2] rounded-[12px] shadow-sm overflow-hidden">
-                <div className="border-b border-[#e2e2e2] px-6 py-5 flex items-center justify-between bg-[#fcfcfc]">
-                    <h3 className="text-[15px] font-black text-[#1a1a1a] flex items-center gap-2">
-                        <Clock size={18} className="text-[#54626c]" /> Recent Sales Feed
-                    </h3>
-                    {recentSales.length > 0 && (
-                        <button onClick={() => navigate('/profile/sales')} className="text-[13px] font-bold text-[#0064d2] hover:underline">
-                            View Historical Records
-                        </button>
-                    )}
-                </div>
-
-                <div className="p-0">
-                    {recentSales.length > 0 ? (
-                        <div className="divide-y divide-[#e2e2e2]">
-                            {recentSales.map((sale) => (
-                                <div key={sale.id} className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-[#f9fdf7]/50 transition-colors">
-                                    <div className="flex items-start gap-4">
-                                        <div className="w-10 h-10 rounded-full bg-[#eaf4d9] flex items-center justify-center shrink-0 mt-0.5">
-                                            <Banknote size={20} className="text-[#458731]" />
-                                        </div>
-                                        <div>
-                                            <h4 className="text-[16px] font-bold text-[#1a1a1a] mb-0.5">{sale.eventName || 'Sold Event Tickets'}</h4>
-                                            <div className="flex items-center gap-2.5 text-[13px] text-[#54626c]">
-                                                <span className="font-medium">Order #{sale.id.substring(0, 8).toUpperCase()}</span>
-                                                <span className="w-1 h-1 rounded-full bg-[#cccccc]"></span>
-                                                <span>{sale.quantity} ticket{sale.quantity > 1 ? 's' : ''}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center justify-between md:justify-end gap-6 md:w-auto w-full border-t border-gray-100 md:border-0 pt-4 md:pt-0">
-                                        <div className="text-right">
-                                            <div className="text-[17px] font-black text-[#1a1a1a]">+{formatCurrency(sale.price * sale.quantity)}</div>
-                                            <div className="text-[11px] font-black text-[#458731] flex items-center justify-end mt-0.5 uppercase tracking-widest">
-                                                <CheckCircle2 size={12} className="mr-1" /> Paid to Wallet
-                                            </div>
-                                        </div>
-                                        <ChevronRight size={20} className="text-gray-300" />
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="py-20 px-6 flex flex-col items-center justify-center text-center">
-                            <div className="w-20 h-20 bg-[#f8f9fa] rounded-full flex items-center justify-center mb-5 border border-dashed border-gray-300">
-                                <TrendingUp size={32} className="text-gray-300" />
-                            </div>
-                            <h4 className="text-[18px] font-black text-[#1a1a1a] mb-2 tracking-tight">No Market Activity Detected</h4>
-                            <p className="text-[15px] text-[#54626c] max-w-sm mb-8 leading-relaxed font-medium">
-                                Once your tickets are purchased on the Parbet buyer platform, your real-time earnings will appear here instantly.
-                            </p>
-                            <button 
-                                onClick={() => navigate('/sell')}
-                                className="bg-white border-2 border-[#1a1a1a] hover:bg-[#1a1a1a] hover:text-white text-[#1a1a1a] px-8 py-3 rounded-[8px] font-bold text-[14px] transition-all active:scale-95 shadow-sm"
-                            >
-                                Start Selling
-                            </button>
-                        </div>
-                    )}
                 </div>
             </motion.div>
+
+            {/* FEATURE 8: Listings Module */}
+            <motion.div variants={item} className="bg-white border border-[#cccccc] rounded-[4px] p-5 shadow-sm mb-4">
+                <div className="pb-3 border-b border-[#e2e2e2] mb-4">
+                    <h3 className="text-[18px] font-bold text-[#1a1a1a]">Listings</h3>
+                </div>
+                {activeListingsCount === 0 ? (
+                    <p className="text-[15px] text-[#1a1a1a] mb-6">You don't have any listings right now</p>
+                ) : (
+                    <p className="text-[15px] text-[#1a1a1a] mb-6">You have {activeListingsCount} active listing{activeListingsCount > 1 ? 's' : ''} right now</p>
+                )}
+                <div className="text-center">
+                    <button 
+                        onClick={() => navigate('/profile/listings')} 
+                        className="text-[15px] text-[#0064d2] hover:underline"
+                    >
+                        View all listings
+                    </button>
+                </div>
+            </motion.div>
+
+            {/* FEATURE 9: Sales Module */}
+            <motion.div variants={item} className="bg-white border border-[#cccccc] rounded-[4px] p-5 shadow-sm mb-4">
+                <div className="pb-3 border-b border-[#e2e2e2] mb-4">
+                    <h3 className="text-[18px] font-bold text-[#1a1a1a]">Sales</h3>
+                </div>
+                {sales.length === 0 ? (
+                    <p className="text-[15px] text-[#1a1a1a] mb-6">You don't have any sales right now</p>
+                ) : (
+                    <p className="text-[15px] text-[#1a1a1a] mb-6">You have {sales.length} confirmed sale{sales.length > 1 ? 's' : ''} right now</p>
+                )}
+                <div className="text-center">
+                    <button 
+                        onClick={() => navigate('/profile/sales')} 
+                        className="text-[15px] text-[#0064d2] hover:underline"
+                    >
+                        View all sales
+                    </button>
+                </div>
+            </motion.div>
+
+            {/* FEATURE 10: Payments Module (Specific Green Link Override) */}
+            <motion.div variants={item} className="bg-white border border-[#cccccc] rounded-[4px] p-5 shadow-sm mb-4">
+                <div className="pb-3 border-b border-[#e2e2e2] mb-3">
+                    <h3 className="text-[18px] font-bold text-[#1a1a1a]">Payments</h3>
+                </div>
+                <div className="text-left">
+                    <button 
+                        onClick={() => navigate('/profile/payments')} 
+                        className="text-[15px] text-[#458731] hover:underline"
+                    >
+                        View payment statuses
+                    </button>
+                </div>
+            </motion.div>
+
+            {/* FEATURE 11: Contact Info Module (Split Grid Replica) */}
+            <motion.div variants={item} className="bg-white border border-[#cccccc] rounded-[4px] p-5 shadow-sm mb-4">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-end pb-3 border-b border-[#e2e2e2] mb-4 gap-3">
+                    <h3 className="text-[18px] font-bold text-[#1a1a1a]">Contact Info</h3>
+                    <div className="flex flex-wrap items-center gap-3 text-[14px] text-[#458731]">
+                        <button onClick={() => navigate('/profile/settings')} className="hover:underline">Edit contact info</button>
+                        <span className="text-[#cccccc] hidden md:inline">|</span>
+                        <button onClick={() => navigate('/profile/settings')} className="hover:underline">Edit address</button>
+                        <span className="text-[#cccccc] hidden md:inline">|</span>
+                        <button onClick={() => navigate('/profile/settings')} className="hover:underline">Change password</button>
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-[15px] text-[#54626c]">
+                    <div>
+                        <p>{user?.displayName || 'Seller Profile'}</p>
+                    </div>
+                    <div>
+                        <p className="mb-1">{user?.phoneNumber || '+91 8329004424'}</p>
+                        <p>{user?.email}</p>
+                    </div>
+                </div>
+            </motion.div>
+
         </motion.div>
     );
 }
