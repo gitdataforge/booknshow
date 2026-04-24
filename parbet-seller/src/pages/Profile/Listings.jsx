@@ -15,12 +15,19 @@ import {
     AlertCircle,
     Pause,
     Play,
-    ExternalLink
+    ExternalLink,
+    Download,
+    ChevronDown,
+    ChevronUp,
+    Info,
+    Hash,
+    DollarSign
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useSellerStore } from '../../store/useSellerStore';
+import { exportListingsToExcel } from '../../utils/excelExporter';
 
 export default function Listings() {
     const navigate = useNavigate();
@@ -45,6 +52,7 @@ export default function Listings() {
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState('Active');
     const [isMutating, setIsMutating] = useState(null);
+    const [expandedListingId, setExpandedListingId] = useState(null);
 
     // FEATURE 3: Real-Time Multi-Tab Filtering Logic
     const filteredListings = useMemo(() => {
@@ -94,6 +102,13 @@ export default function Listings() {
         }
     };
 
+    // FEATURE 6: Excel Export Handler
+    const handleExport = () => {
+        if (filteredListings.length > 0) {
+            exportListingsToExcel(filteredListings, `Parbet_${activeTab}_Inventory`);
+        }
+    };
+
     // Framer Motion Animation Physics
     const container = {
         hidden: { opacity: 0 },
@@ -127,12 +142,25 @@ export default function Listings() {
                     <h1 className="text-[32px] font-black text-[#1a1a1a] tracking-tight leading-none mb-2">My Listings</h1>
                     <p className="text-[#54626c] text-[15px] font-medium">Manage your active tickets and track your sales history.</p>
                 </div>
-                <button 
-                    onClick={() => navigate('/sell')}
-                    className="flex items-center justify-center gap-2 bg-[#458731] hover:bg-[#3a7229] text-white px-6 py-3.5 rounded-[8px] font-bold text-[14px] transition-all shadow-md active:scale-95 shrink-0"
-                >
-                    <Plus size={18} /> Create New Listing
-                </button>
+                <div className="flex items-center gap-3">
+                    <button 
+                        onClick={handleExport}
+                        disabled={filteredListings.length === 0}
+                        className={`flex items-center justify-center gap-2 px-5 py-3.5 rounded-[8px] font-bold text-[14px] transition-all shadow-sm shrink-0 ${
+                            filteredListings.length > 0 
+                            ? 'bg-white border border-[#cccccc] hover:border-[#1a1a1a] text-[#1a1a1a]' 
+                            : 'bg-gray-100 border border-gray-200 text-gray-400 cursor-not-allowed'
+                        }`}
+                    >
+                        <Download size={18} /> Export Excel
+                    </button>
+                    <button 
+                        onClick={() => navigate('/sell')}
+                        className="flex items-center justify-center gap-2 bg-[#458731] hover:bg-[#3a7229] text-white px-6 py-3.5 rounded-[8px] font-bold text-[14px] transition-all shadow-md active:scale-95 shrink-0"
+                    >
+                        <Plus size={18} /> Create New Listing
+                    </button>
+                </div>
             </div>
 
             {/* Inventory Analytics Strip */}
@@ -184,7 +212,7 @@ export default function Listings() {
                     </div>
                 </div>
 
-                {/* Dynamic Listing Ledger */}
+                {/* Dynamic Listing Ledger with Expansion */}
                 <div className="p-0">
                     <AnimatePresence mode="popLayout">
                         {filteredListings.length > 0 ? (
@@ -195,64 +223,132 @@ export default function Listings() {
                                         variants={itemAnimation}
                                         layout
                                         exit={{ opacity: 0, x: -20 }}
-                                        className={`p-5 md:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 transition-colors group ${item.status === 'paused' ? 'bg-gray-50 opacity-80' : 'bg-white hover:bg-[#fcfcfc]'}`}
+                                        className={`flex flex-col transition-colors group ${item.status === 'paused' ? 'bg-gray-50 opacity-80' : 'bg-white hover:bg-[#fcfcfc]'}`}
                                     >
-                                        <div className="flex items-start gap-5 flex-1 min-w-0">
-                                            <div className={`w-12 h-12 rounded-[10px] flex items-center justify-center border border-gray-200 shrink-0 transition-colors ${item.status === 'paused' ? 'bg-gray-100' : 'bg-[#f8f9fa] group-hover:bg-[#eaf4d9]'}`}>
-                                                <Ticket size={24} className={`transition-colors ${item.status === 'paused' ? 'text-gray-400' : 'text-[#1a1a1a] group-hover:text-[#458731]'}`} />
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                                <div className="flex items-center gap-3 mb-1.5 flex-wrap">
-                                                    <h3 className="text-[17px] font-black text-[#1a1a1a] truncate leading-none">{item.eventName || 'Cricket Event'}</h3>
-                                                    {renderStatus(item.status)}
+                                        {/* Clickable Header Row */}
+                                        <div 
+                                            onClick={() => setExpandedListingId(expandedListingId === item.id ? null : item.id)}
+                                            className="p-5 md:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 cursor-pointer"
+                                        >
+                                            <div className="flex items-start gap-5 flex-1 min-w-0">
+                                                <div className={`w-12 h-12 rounded-[10px] flex items-center justify-center border border-gray-200 shrink-0 transition-colors ${item.status === 'paused' ? 'bg-gray-100' : 'bg-[#f8f9fa] group-hover:bg-[#eaf4d9]'}`}>
+                                                    <Ticket size={24} className={`transition-colors ${item.status === 'paused' ? 'text-gray-400' : 'text-[#1a1a1a] group-hover:text-[#458731]'}`} />
                                                 </div>
-                                                <div className="flex flex-wrap items-center gap-y-1 gap-x-4 text-[13px] text-[#54626c] font-medium">
-                                                    <span className="flex items-center gap-1.5"><Calendar size={14} className="text-gray-400"/> {new Date(item.commence_time).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
-                                                    <span className="flex items-center gap-1.5"><MapPin size={14} className="text-gray-400"/> {item.loc || 'Stadium TBA'}</span>
-                                                    <span className="text-[#1a1a1a] font-bold">Sec {item.section || 'GA'} · Row {item.row || 'N/A'}</span>
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex items-center gap-3 mb-1.5 flex-wrap">
+                                                        <h3 className="text-[17px] font-black text-[#1a1a1a] truncate leading-none">{item.eventName || 'Cricket Event'}</h3>
+                                                        {renderStatus(item.status)}
+                                                    </div>
+                                                    <div className="flex flex-wrap items-center gap-y-1 gap-x-4 text-[13px] text-[#54626c] font-medium">
+                                                        <span className="flex items-center gap-1.5"><Calendar size={14} className="text-gray-400"/> {new Date(item.commence_time).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                                                        <span className="flex items-center gap-1.5"><MapPin size={14} className="text-gray-400"/> {item.loc || 'Stadium TBA'}</span>
+                                                        <span className="text-[#1a1a1a] font-bold">Sec {item.section || 'GA'} · Row {item.row || 'N/A'}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center justify-between md:justify-end gap-10 w-full md:w-auto border-t border-gray-100 md:border-0 pt-4 md:pt-0">
+                                                <div className="text-right">
+                                                    <div className="text-[11px] font-bold text-[#54626c] uppercase tracking-widest mb-0.5">List Price</div>
+                                                    <div className="text-[20px] font-black text-[#1a1a1a]">{currencySymbol}{item.price?.toLocaleString()}</div>
+                                                </div>
+                                                
+                                                {/* Explicit Data Controls (Event Propagation Stopped) */}
+                                                <div className="flex items-center gap-1">
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); window.open(`https://parbet-44902.web.app/event?id=${item.eventId}`, '_blank'); }}
+                                                        className="p-2.5 text-gray-400 hover:text-[#0064d2] hover:bg-[#ebf3fb] rounded-[8px] transition-all"
+                                                        title="View on Marketplace"
+                                                    >
+                                                        <ExternalLink size={18} />
+                                                    </button>
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); toggleListingStatus(item); }}
+                                                        disabled={isMutating === item.id || item.status === 'sold' || item.status === 'expired'}
+                                                        className="p-2.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-[8px] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                                                        title={item.status === 'active' ? 'Pause Listing' : 'Activate Listing'}
+                                                    >
+                                                        {isMutating === item.id ? <Loader2 size={18} className="animate-spin" /> : item.status === 'active' ? <Pause size={18} /> : <Play size={18} />}
+                                                    </button>
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); navigate(`/edit-listing/${item.id}`); }}
+                                                        className="p-2.5 text-gray-400 hover:text-[#458731] hover:bg-[#eaf4d9] rounded-[8px] transition-all"
+                                                        title="Edit Listing"
+                                                    >
+                                                        <Edit3 size={18} />
+                                                    </button>
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); deleteListing(item.id); }}
+                                                        className="p-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-[8px] transition-all"
+                                                        title="Delete Listing Permanently"
+                                                    >
+                                                        <Trash2 size={18} />
+                                                    </button>
+                                                    <button className="p-2.5 ml-2 text-gray-400 hover:text-[#1a1a1a] transition-all">
+                                                        {expandedListingId === item.id ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                                                    </button>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        <div className="flex items-center justify-between md:justify-end gap-10 w-full md:w-auto border-t border-gray-100 md:border-0 pt-4 md:pt-0">
-                                            <div className="text-right">
-                                                <div className="text-[11px] font-bold text-[#54626c] uppercase tracking-widest mb-0.5">Price</div>
-                                                <div className="text-[20px] font-black text-[#1a1a1a]">{currencySymbol}{item.price?.toLocaleString()}</div>
-                                            </div>
-                                            
-                                            {/* Explicit Data Controls */}
-                                            <div className="flex items-center gap-1">
-                                                <button 
-                                                    onClick={() => window.open(`https://parbet-44902.web.app/event?id=${item.eventId}`, '_blank')}
-                                                    className="p-2.5 text-gray-400 hover:text-[#0064d2] hover:bg-[#ebf3fb] rounded-[8px] transition-all"
-                                                    title="View on Marketplace"
+                                        {/* Expanded Granular Details Panel */}
+                                        <AnimatePresence>
+                                            {expandedListingId === item.id && (
+                                                <motion.div
+                                                    initial={{ height: 0, opacity: 0 }}
+                                                    animate={{ height: 'auto', opacity: 1 }}
+                                                    exit={{ height: 0, opacity: 0 }}
+                                                    transition={{ duration: 0.3, ease: 'easeInOut' }}
+                                                    className="overflow-hidden bg-[#f8f9fa] border-t border-[#e2e2e2]"
                                                 >
-                                                    <ExternalLink size={18} />
-                                                </button>
-                                                <button 
-                                                    onClick={() => toggleListingStatus(item)}
-                                                    disabled={isMutating === item.id || item.status === 'sold' || item.status === 'expired'}
-                                                    className="p-2.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-[8px] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-                                                    title={item.status === 'active' ? 'Pause Listing' : 'Activate Listing'}
-                                                >
-                                                    {isMutating === item.id ? <Loader2 size={18} className="animate-spin" /> : item.status === 'active' ? <Pause size={18} /> : <Play size={18} />}
-                                                </button>
-                                                <button 
-                                                    onClick={() => navigate(`/edit-listing/${item.id}`)}
-                                                    className="p-2.5 text-gray-400 hover:text-[#458731] hover:bg-[#eaf4d9] rounded-[8px] transition-all"
-                                                    title="Edit Listing"
-                                                >
-                                                    <Edit3 size={18} />
-                                                </button>
-                                                <button 
-                                                    onClick={() => deleteListing(item.id)}
-                                                    className="p-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-[8px] transition-all"
-                                                    title="Delete Listing Permanently"
-                                                >
-                                                    <Trash2 size={18} />
-                                                </button>
-                                            </div>
-                                        </div>
+                                                    <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-8 text-[13px]">
+                                                        {/* Core Data */}
+                                                        <div>
+                                                            <h4 className="flex items-center gap-2 font-bold text-[#1a1a1a] uppercase tracking-wider mb-4 border-b border-[#e2e2e2] pb-2">
+                                                                <Info size={14} className="text-[#54626c]" /> Core Event Data
+                                                            </h4>
+                                                            <div className="space-y-3">
+                                                                <div className="flex justify-between"><span className="text-[#54626c]">League</span> <span className="font-bold text-[#1a1a1a]">{item.league || 'Indian Premier League'}</span></div>
+                                                                <div className="flex justify-between"><span className="text-[#54626c]">City</span> <span className="font-bold text-[#1a1a1a]">{item.city || 'N/A'}</span></div>
+                                                                <div className="flex justify-between"><span className="text-[#54626c]">Country</span> <span className="font-bold text-[#1a1a1a]">{item.country || 'IN'}</span></div>
+                                                                <div className="flex justify-between"><span className="text-[#54626c]">Start Time</span> <span className="font-bold text-[#1a1a1a]">{new Date(item.commence_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span></div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Seating Specifics */}
+                                                        <div>
+                                                            <h4 className="flex items-center gap-2 font-bold text-[#1a1a1a] uppercase tracking-wider mb-4 border-b border-[#e2e2e2] pb-2">
+                                                                <Hash size={14} className="text-[#54626c]" /> Seating Specifics
+                                                            </h4>
+                                                            <div className="space-y-3">
+                                                                <div className="flex justify-between"><span className="text-[#54626c]">Total Quantity</span> <span className="font-bold text-[#1a1a1a]">{item.quantity || 1} Ticket(s)</span></div>
+                                                                <div className="flex justify-between"><span className="text-[#54626c]">Section</span> <span className="font-bold text-[#1a1a1a]">{item.section || 'General Admission'}</span></div>
+                                                                <div className="flex justify-between"><span className="text-[#54626c]">Row</span> <span className="font-bold text-[#1a1a1a]">{item.row || 'N/A'}</span></div>
+                                                                <div className="flex justify-between"><span className="text-[#54626c]">System ID</span> <span className="font-mono font-bold text-[#1a1a1a] truncate max-w-[120px]">{item.id}</span></div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Financial Breakdowns */}
+                                                        <div>
+                                                            <h4 className="flex items-center gap-2 font-bold text-[#1a1a1a] uppercase tracking-wider mb-4 border-b border-[#e2e2e2] pb-2">
+                                                                <DollarSign size={14} className="text-[#54626c]" /> Financial Breakdown
+                                                            </h4>
+                                                            <div className="space-y-3">
+                                                                <div className="flex justify-between"><span className="text-[#54626c]">Listed Price (per)</span> <span className="font-bold text-[#1a1a1a]">{currencySymbol}{item.price?.toLocaleString()}</span></div>
+                                                                <div className="flex justify-between"><span className="text-[#54626c]">Parbet Fee</span> <span className="font-bold text-[#c21c3a]">- 15%</span></div>
+                                                                <div className="flex justify-between pt-2 border-t border-gray-200">
+                                                                    <span className="font-black text-[#1a1a1a]">Projected Payout</span> 
+                                                                    <span className="font-black text-[#458731]">{currencySymbol}{Math.floor(item.price * 0.85).toLocaleString()}</span>
+                                                                </div>
+                                                                <div className="flex justify-between mt-2 text-[11px] text-gray-400">
+                                                                    <span>Created On</span> <span>{new Date(item.createdAt?.seconds ? item.createdAt.seconds * 1000 : item.createdAt).toLocaleDateString()}</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
                                     </motion.div>
                                 ))}
                             </div>
