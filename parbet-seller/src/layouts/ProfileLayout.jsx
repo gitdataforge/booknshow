@@ -1,17 +1,18 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Outlet, useLocation, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, Facebook, Twitter } from 'lucide-react';
+import { User, X } from 'lucide-react';
 import { useSellerStore } from '../store/useSellerStore';
 import FeedbackTab from '../components/FeedbackTab';
 
 export default function ProfileLayout() {
-    // FEATURE 1: Secure Identity Extraction
-    const { user } = useSellerStore();
+    // FEATURE 1: Secure Identity Extraction & Auth Actions
+    const { user, logout } = useSellerStore();
     
-    // FEATURE 2: Active Route Detection Engine
+    // FEATURE 2: Active Route Detection Engine & Mobile State
     const location = useLocation();
     const navigate = useNavigate();
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     // FEATURE 3: 1:1 Viagogo Flat Navigation Hierarchy
     const links = useMemo(() => [
@@ -32,14 +33,14 @@ export default function ProfileLayout() {
         return location.pathname.startsWith(linkPath);
     };
 
-    // FEATURE 4: Framer Motion Physics
+    // FEATURE 4: Framer Motion Physics for Page Transitions
     const pageVariants = {
         initial: { opacity: 0, y: 10 },
         in: { opacity: 1, y: 0, transition: { duration: 0.3, ease: 'easeOut' } },
         out: { opacity: 0, y: -10, transition: { duration: 0.2 } }
     };
 
-    // Initials Generator for Avatar
+    // Initials Generator for Desktop Avatar
     const getInitials = (name, email) => {
         if (name) {
             const parts = name.split(' ');
@@ -55,28 +56,93 @@ export default function ProfileLayout() {
             {/* Global Feedback Tab Injection */}
             <FeedbackTab />
 
+            {/* FEATURE 5: 1:1 Viagogo Mobile Header (Base State) */}
+            <div className="lg:hidden w-full px-4 py-3 bg-white border-b border-[#e2e2e2] shadow-sm sticky top-0 z-40 flex items-center justify-between">
+                <button onClick={() => setIsMobileMenuOpen(true)} className="p-1 text-[#54626c]">
+                    {/* Authentic Dotted-List Hamburger SVG */}
+                    <svg viewBox="0 0 24 24" width="28" height="28" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="8" y1="6" x2="21" y2="6"></line>
+                        <line x1="8" y1="12" x2="21" y2="12"></line>
+                        <line x1="8" y1="18" x2="21" y2="18"></line>
+                        <circle cx="3" cy="6" r="1"></circle>
+                        <circle cx="3" cy="12" r="1"></circle>
+                        <circle cx="3" cy="18" r="1"></circle>
+                    </svg>
+                </button>
+                <div className="text-[26px] font-black tracking-tighter text-[#54626c]">
+                    parbet <span className="text-[#71B12B]">seller</span>
+                </div>
+                <button className="w-9 h-9 bg-[#458731] rounded-full flex items-center justify-center text-white">
+                    <User size={20} strokeWidth={2.5} />
+                </button>
+            </div>
+
+            {/* FEATURE 6: Mobile Navigation Modal & Dark Overlay */}
+            <AnimatePresence>
+                {isMobileMenuOpen && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 bg-black/60 lg:hidden flex flex-col backdrop-blur-[2px]"
+                    >
+                        {/* Fake Header inside overlay to mimic exact transition */}
+                        <div className="w-full px-4 py-3 flex items-center justify-between">
+                            <button onClick={() => setIsMobileMenuOpen(false)} className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md">
+                                <X size={24} className="text-[#54626c]" />
+                            </button>
+                            <div className="text-[26px] font-black tracking-tighter text-[#54626c] opacity-0">
+                                parbet <span className="text-[#71B12B]">seller</span>
+                            </div>
+                            <button className="w-9 h-9 bg-[#458731] rounded-full flex items-center justify-center text-white shadow-md">
+                                <User size={20} strokeWidth={2.5} />
+                            </button>
+                        </div>
+                        
+                        {/* White Dropdown Navigation Card */}
+                        <motion.div
+                            initial={{ y: -20, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            exit={{ y: -10, opacity: 0 }}
+                            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                            className="bg-white mx-4 mt-2 rounded-[8px] shadow-2xl overflow-hidden py-2 w-[280px]"
+                        >
+                            <div className="flex flex-col max-h-[70vh] overflow-y-auto no-scrollbar">
+                                {links.map(link => (
+                                    <Link
+                                        key={link.name}
+                                        to={link.path}
+                                        onClick={() => setIsMobileMenuOpen(false)}
+                                        className="px-6 py-3.5 text-[15px] text-[#1a1a1a] hover:bg-gray-50 transition-colors"
+                                    >
+                                        {link.name}
+                                    </Link>
+                                ))}
+                                
+                                <div className="w-full h-[1px] bg-[#e2e2e2] my-2"></div>
+                                
+                                <button 
+                                    onClick={() => { setIsMobileMenuOpen(false); navigate('/sell'); }}
+                                    className="px-6 py-3.5 text-[15px] text-[#1a1a1a] text-left hover:bg-gray-50 transition-colors"
+                                >
+                                    Sell
+                                </button>
+                                <button 
+                                    onClick={() => { setIsMobileMenuOpen(false); logout(); }}
+                                    className="px-6 py-3.5 text-[15px] text-[#1a1a1a] text-left hover:bg-gray-50 transition-colors"
+                                >
+                                    Sign out
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             {/* Main Content Wrapper (Desktop Split, Mobile Stack) */}
             <div className="flex-1 flex flex-col lg:flex-row w-full max-w-[1400px] mx-auto bg-white border-x border-[#e2e2e2] shadow-sm">
                 
-                {/* FEATURE 5: Mobile-Native Synchronization Dropdown */}
-                <div className="lg:hidden w-full p-4 bg-[#f8f9fa] border-b border-[#e2e2e2] shadow-sm sticky top-0 z-40">
-                    <div className="relative">
-                        <select
-                            value={location.pathname}
-                            onChange={(e) => navigate(e.target.value)}
-                            className="w-full appearance-none bg-white border border-[#cccccc] rounded-[4px] px-4 py-3.5 text-[16px] font-bold text-[#1a1a1a] outline-none shadow-sm focus:border-[#458731] transition-all"
-                        >
-                            {links.map(link => (
-                                <option key={link.path} value={link.path}>
-                                    {link.name}
-                                </option>
-                            ))}
-                        </select>
-                        <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 text-[#1a1a1a] pointer-events-none rotate-90" size={20} />
-                    </div>
-                </div>
-
-                {/* FEATURE 6: Sticky Desktop Sidebar (1:1 Viagogo Replica) */}
+                {/* FEATURE 7: Sticky Desktop Sidebar (1:1 Viagogo Replica) */}
                 <aside className="hidden lg:flex flex-col w-[260px] xl:w-[300px] shrink-0 bg-[#f8f9fa] border-r border-[#e2e2e2] min-h-[calc(100vh-80px)]">
                     
                     {/* Viagogo Signature Avatar Plate */}
@@ -113,7 +179,7 @@ export default function ProfileLayout() {
                     </nav>
                 </aside>
 
-                {/* FEATURE 7: Dynamic Route Outlet Content */}
+                {/* FEATURE 8: Dynamic Route Outlet Content */}
                 <main className="flex-1 w-full min-w-0 bg-[#f4f4f4] lg:bg-white p-4 sm:p-6 md:p-10">
                     <AnimatePresence mode="wait">
                         <motion.div
@@ -129,73 +195,7 @@ export default function ProfileLayout() {
                     </AnimatePresence>
                 </main>
             </div>
-
-            {/* FEATURE 8: 1:1 Replica Global Footer */}
-            <footer className="w-full border-t border-[#e2e2e2] bg-[#f8f9fa] mt-auto">
-                <div className="max-w-[1200px] mx-auto px-6 py-12">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-10 lg:gap-16 border-b border-[#cccccc] pb-10">
-                        
-                        {/* Column 1: Our Company */}
-                        <div>
-                            <h3 className="text-[16px] font-black text-[#54626c] mb-6">Our Company</h3>
-                            <ul className="space-y-4">
-                                <li><a href="#" className="text-[14px] text-[#54626c] hover:underline">About Us</a></li>
-                                <li><a href="#" className="text-[14px] text-[#54626c] hover:underline">Affiliate Programme</a></li>
-                                <li><a href="#" className="text-[14px] text-[#54626c] hover:underline">Careers</a></li>
-                                <li><a href="#" className="text-[14px] text-[#54626c] hover:underline">Corporate Service</a></li>
-                            </ul>
-                        </div>
-
-                        {/* Column 2: Help */}
-                        <div>
-                            <h3 className="text-[16px] font-black text-[#54626c] mb-6">Have Questions?</h3>
-                            <ul className="space-y-4">
-                                <li><a href="#" className="text-[14px] text-[#54626c] hover:underline">Help Centre</a></li>
-                            </ul>
-                        </div>
-
-                        {/* Column 3: Region Selectors */}
-                        <div>
-                            <h3 className="text-[16px] font-black text-[#54626c] mb-6">Live events all over the world</h3>
-                            <div className="space-y-3">
-                                {/* Country Selector */}
-                                <div className="relative">
-                                    <select className="w-full appearance-none bg-white border border-[#cccccc] rounded-[4px] px-4 py-3 text-[14px] text-[#54626c] outline-none hover:border-[#1a1a1a] cursor-pointer transition-colors">
-                                        <option>🇺🇸 United States</option>
-                                        <option>🇮🇳 India</option>
-                                        <option>🇬🇧 United Kingdom</option>
-                                    </select>
-                                </div>
-                                {/* Language & Currency Combo */}
-                                <div className="bg-white border border-[#cccccc] rounded-[4px] overflow-hidden">
-                                    <div className="px-4 py-3 border-b border-[#e2e2e2] cursor-pointer hover:bg-gray-50 transition-colors">
-                                        <p className="text-[14px] text-[#54626c] flex items-center gap-2"><span className="font-serif">文A</span> English (UK)</p>
-                                    </div>
-                                    <div className="px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors">
-                                        <p className="text-[14px] text-[#54626c]">Rs. Indian Rupee</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Footer Bottom Strip */}
-                    <div className="pt-8 flex flex-col md:flex-row items-center md:items-start justify-between gap-6">
-                        <div className="flex gap-6 order-1 md:order-2">
-                            <a href="#" className="text-[#54626c] hover:text-[#1a1a1a] transition-colors"><Facebook size={24} /></a>
-                            <a href="#" className="text-[#54626c] hover:text-[#1a1a1a] transition-colors"><Twitter size={24} /></a>
-                        </div>
-                        <div className="text-[12px] text-[#54626c] leading-relaxed max-w-3xl order-2 md:order-1 text-center md:text-left">
-                            <p className="mb-1">
-                                Copyright © Parbet Entertainment Inc 2026 <a href="#" className="text-[#0064d2] hover:underline font-medium">Company Details</a>
-                            </p>
-                            <p>
-                                Use of this web site constitutes acceptance of the <a href="#" className="text-[#0064d2] hover:underline font-medium">Terms and Conditions</a> and <a href="#" className="text-[#0064d2] hover:underline font-medium">Privacy Policy</a> and <a href="#" className="text-[#0064d2] hover:underline font-medium">Cookies Policy</a>
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </footer>
+            {/* NOTE: Global footer has been intentionally eradicated per strict instructions. */}
         </div>
     );
 }
