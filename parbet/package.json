@@ -12,8 +12,11 @@
   "dependencies": {
     "@emailjs/browser": "^4.4.1",
     "clsx": "^2.1.1",
+    "cors": "^2.8.6",
     "date-fns": "^4.1.0",
     "firebase": "^12.11.0",
+    "firebase-admin": "^13.8.0",
+    "firebase-functions": "^7.2.5",
     "framer-motion": "^12.38.0",
     "lucide-react": "^1.7.0",
     "otpauth": "^9.5.0",
@@ -23,6 +26,7 @@
     "react-dom": "^19.2.4",
     "react-hook-form": "^7.72.1",
     "react-router-dom": "^7.14.0",
+    "resend": "^6.12.2",
     "tailwind-merge": "^3.5.0",
     "zod": "^4.3.6",
     "zustand": "^5.0.12"
