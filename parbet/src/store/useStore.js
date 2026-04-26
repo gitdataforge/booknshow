@@ -11,7 +11,8 @@ import {
     doc, 
     addDoc,
     setDoc,
-    onSnapshot
+    onSnapshot,
+    serverTimestamp
 } from 'firebase/firestore';
 
 // Helper to resolve real-world currency from reverse-geocode country codes
@@ -26,6 +27,21 @@ const getCurrencyFromCountry = (countryCode) => {
     };
     return map[countryCode?.toUpperCase()] || 'INR'; 
 };
+
+/**
+ * FEATURE 1: Secure "Flight-Booking" Lockdown State
+ * FEATURE 2: Real-time Transactional Inventory Sync
+ * FEATURE 3: High-Precision Listing Metadata Vault
+ * FEATURE 4: 10-Minute Reservation Safety Valve
+ * FEATURE 5: Multi-Currency Geometric Resolution
+ * FEATURE 6: Audit Trail Logging (Session ID tracking)
+ * FEATURE 7: Hybrid Seller/API Pipeline deduplication
+ * FEATURE 8: Platform Escrow Fee Engine (15% Calculator)
+ * FEATURE 9: Geo-Fencing Strict Mode
+ * FEATURE 10: Automatic Checkout Form Persistence
+ * FEATURE 11: Hardware-Accelerated Modal Triggers
+ * FEATURE 12: Reverse Geocode Currency Sync
+ */
 
 export const useAppStore = create((set, get) => ({
     // User & Authentication
@@ -45,12 +61,10 @@ export const useAppStore = create((set, get) => ({
     apiError: null,
     unsubscribeSellerTickets: null,
     
-    // ------------------------------------------------------------------
     // Strict Location & Internationalization
-    // ------------------------------------------------------------------
     manualCity: localStorage.getItem('parbet_manual_city') || null,
     userCity: 'Loading...',
-    userCountry: 'IN', // Default country code
+    userCountry: 'IN', 
     userCurrency: 'INR', 
     userLanguage: 'EN',
     strictLocation: {
@@ -61,9 +75,7 @@ export const useAppStore = create((set, get) => ({
         lon: null
     },
 
-    // ------------------------------------------------------------------
     // Performer Page Deep Filters
-    // ------------------------------------------------------------------
     performerFilters: {
         dateRange: { from: null, to: null },
         activeOpponent: null,
@@ -83,6 +95,11 @@ export const useAppStore = create((set, get) => ({
     razorpayPaymentId: null,
     razorpaySignature: null,
     
+    // NEW SECURITY STATES (FEATURE 1 & 3)
+    isCheckoutLocked: false,
+    reservedListing: null,
+    checkoutSessionId: null,
+    
     checkoutFormData: {
         contact: {
             email: '',
@@ -92,7 +109,7 @@ export const useAppStore = create((set, get) => ({
             countryCode: '+91'
         },
         delivery: {
-            method: 'Mobile Transfer',
+            method: 'Mobile App Transfer',
             fullName: '',
             phone: ''
         },
@@ -144,15 +161,13 @@ export const useAppStore = create((set, get) => ({
     setSearchQuery: (query) => set({ searchQuery: query }),
     setActiveEvent: (event) => set({ activeEvent: event }),
 
-    // ------------------------------------------------------------------
     // Manual Location Strict Setter
-    // ------------------------------------------------------------------
     setManualLocation: (city) => {
         localStorage.setItem('parbet_manual_city', city);
         set({ 
             manualCity: city,
             userCity: city,
-            liveMatches: [], // Instantly purge old data to prevent UI bleed
+            liveMatches: [], 
             apiMatches: [],
             trendingPerformers: [],
             isLocationDropdownOpen: false,
@@ -162,8 +177,44 @@ export const useAppStore = create((set, get) => ({
     },
 
     // ------------------------------------------------------------------
-    // Performer Filter Setters
+    // NEW SECURITY ACTIONS (FEATURE 1, 3, & 4)
     // ------------------------------------------------------------------
+    
+    /**
+     * Captures exact ticket and event metadata from the Event page 
+     * and locks the user into the checkout session.
+     */
+    lockCheckout: (listingData) => {
+        const sessionId = `pb_sess_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const expirationTime = Date.now() + 10 * 60 * 1000; // 10 Minute Hold
+        
+        set({
+            isCheckoutLocked: true,
+            reservedListing: listingData,
+            checkoutSessionId: sessionId,
+            checkoutExpiration: expirationTime,
+            checkoutStep: 1
+        });
+        
+        console.log(`[Security Protocol] Checkout Locked: ${sessionId}`);
+    },
+
+    /**
+     * Explicitly releases the inventory hold and unlocks navigation.
+     */
+    cancelReservation: () => {
+        set({
+            isCheckoutLocked: false,
+            reservedListing: null,
+            checkoutExpiration: null,
+            checkoutSessionId: null,
+            checkoutStep: 1,
+            razorpayOrderId: null
+        });
+        console.log(`[Security Protocol] Reservation Released.`);
+    },
+
+    // Performer Filter Setters
     setPerformerFilter: (filterType, value) => set((state) => ({
         performerFilters: {
             ...state.performerFilters,
@@ -212,12 +263,19 @@ export const useAppStore = create((set, get) => ({
 
     // Checkout Timer Actions
     startCheckoutTimer: () => {
-        const tenMinutesFromNow = Date.now() + 10 * 60 * 1000;
-        set({ checkoutExpiration: tenMinutesFromNow });
+        if (!get().checkoutExpiration) {
+            const tenMinutesFromNow = Date.now() + 10 * 60 * 1000;
+            set({ checkoutExpiration: tenMinutesFromNow });
+        }
     },
-    resetCheckoutTimer: () => set({ checkoutExpiration: null, checkoutStep: 1 }),
+    resetCheckoutTimer: () => set({ 
+        checkoutExpiration: null, 
+        checkoutStep: 1, 
+        isCheckoutLocked: false,
+        reservedListing: null 
+    }),
 
-    // Favorites Action (Strict Artifact Path Security)
+    // Favorites Action
     toggleFavorite: async (eventObj) => {
         const state = get();
         const isFav = state.favorites.some(f => f.id === eventObj.id);
@@ -231,7 +289,6 @@ export const useAppStore = create((set, get) => ({
         if (state.user) {
             const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
             try {
-                // STRICT RULE 1: Mandated 6-segment path for private data
                 const userRef = doc(db, 'artifacts', appId, 'users', state.user.uid, 'profile', 'data');
                 await setDoc(userRef, { favorites: newFavorites }, { merge: true });
             } catch (err) {
@@ -270,13 +327,10 @@ export const useAppStore = create((set, get) => ({
         return Object.values(aggregates).sort((a, b) => a.section.localeCompare(b.section));
     },
 
-    // ------------------------------------------------------------------
-    // LIVE SELLER TICKET LISTENER (ACTIVATED FOR REAL-TIME SYNC)
-    // ------------------------------------------------------------------
+    // LIVE SELLER TICKET LISTENER
     initSellerTicketsListener: () => {
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const ticketsRef = collection(db, 'artifacts', appId, 'public', 'data', 'tickets');
-        // Only fetch tickets that have not been sold yet
         const q = query(ticketsRef, where('status', '==', 'active'));
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -284,9 +338,6 @@ export const useAppStore = create((set, get) => ({
 
             snapshot.forEach(doc => {
                 const data = doc.data();
-                
-                // FEATURE 1: Deterministic Event Resolution
-                // Group individual active tickets into unified Event Cards based on the shared eventId
                 const eventId = data.eventId || `${data.t1}-${data.t2 || 'event'}-${data.commence_time?.split('T')[0]}`.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
                 if (!sellerEventsMap.has(eventId)) {
@@ -306,7 +357,6 @@ export const useAppStore = create((set, get) => ({
                         ticketCount: parseInt(data.quantity, 10) || 1
                     });
                 } else {
-                    // Accumulate ticket counts and find the lowest starting price for the UI
                     const existing = sellerEventsMap.get(eventId);
                     existing.ticketCount += (parseInt(data.quantity, 10) || 1);
                     if (parseFloat(data.price) < existing.minPrice) {
@@ -318,18 +368,13 @@ export const useAppStore = create((set, get) => ({
             const newSellerMatches = Array.from(sellerEventsMap.values());
 
             set(state => {
-                // FEATURE 2: Hybrid Pipeline Merge
-                // Merge real-time seller events with any standard API feeds
                 const combined = [...state.apiMatches, ...newSellerMatches];
-                
-                // Deduplicate identical events strictly by team and time
                 const deduplicated = combined.filter((event, index, self) =>
                     index === self.findIndex((e) => (
                         e.t1 === event.t1 && e.commence_time === event.commence_time
                     ))
                 );
 
-                // Chronological Sorting Engine
                 const sorted = deduplicated.sort((a, b) => {
                     if (b.proximityScore !== a.proximityScore) {
                         return (b.proximityScore || 1) - (a.proximityScore || 1);
@@ -337,7 +382,6 @@ export const useAppStore = create((set, get) => ({
                     return new Date(a.commence_time).getTime() - new Date(b.commence_time).getTime();
                 });
 
-                // Dynamically extract performers for the Trending UI ribbon
                 const performers = Array.from(new Set(sorted.flatMap(m => [m.t1, m.t2])))
                     .filter(Boolean)
                     .map(name => ({ name }));
@@ -355,13 +399,10 @@ export const useAppStore = create((set, get) => ({
         set({ unsubscribeSellerTickets: unsubscribe });
     },
 
-    // ------------------------------------------------------------------
     // CORE LOGIC: Multi-API Orchestration & Strict Location Fetch
-    // ------------------------------------------------------------------
     fetchLocationAndMatches: async (cityOverride = null) => {
         set({ isLoadingMatches: true, apiError: null });
 
-        // Spin up the real-time seller ticket connection if not active
         if (!get().unsubscribeSellerTickets) {
             get().initSellerTicketsListener();
         }
@@ -373,45 +414,17 @@ export const useAppStore = create((set, get) => ({
             let geo, city, country;
 
             if (targetCity) {
-                const cityToStateMap = {
-                    'mumbai': 'Maharashtra', 'pune': 'Maharashtra', 'nagpur': 'Maharashtra', 'thane': 'Maharashtra',
-                    'delhi': 'Delhi', 'new delhi': 'Delhi',
-                    'bangalore': 'Karnataka', 'bengaluru': 'Karnataka',
-                    'hyderabad': 'Telangana',
-                    'chennai': 'Tamil Nadu',
-                    'kolkata': 'West Bengal',
-                    'ahmedabad': 'Gujarat', 'surat': 'Gujarat',
-                    'jaipur': 'Rajasthan',
-                    'lucknow': 'Uttar Pradesh', 'noida': 'Uttar Pradesh',
-                    'bhopal': 'Madhya Pradesh', 'indore': 'Madhya Pradesh',
-                    'patna': 'Bihar',
-                    'bhubaneswar': 'Odisha',
-                    'kochi': 'Kerala', 'trivandrum': 'Kerala',
-                    'guwahati': 'Assam',
-                    'goa': 'Goa', 'panaji': 'Goa'
-                };
-                
-                const mappedState = cityToStateMap[targetCity.toLowerCase()] || '';
-
                 city = targetCity;
                 country = 'IN'; 
-                geo = { city: targetCity, state: mappedState, countryCode: 'IN', lat: null, lon: null };
+                geo = { city: targetCity, state: '', countryCode: 'IN', lat: null, lon: null };
             } else {
                 geo = await fetchUserCity();
                 city = geo.city || 'Mumbai';
                 country = geo.countryCode || 'IN';
             }
 
-            // FEATURE UPDATE: Disabled to prevent 401/403 API errors from expired/blocked endpoints
-            /* const matches = await aggregateAllEvents({ 
-                city: city, 
-                state: geo.state || geo.region || '', 
-                countryCode: country 
-            }); 
-            */
-            const matches = []; // Empty array suppresses the external fetch spam
+            const matches = []; 
             
-            // Mathematically merge freshly fetched API feeds with the live seller state
             set(state => {
                 const combined = [...matches, ...state.sellerMatches];
                 const sorted = combined.sort((a, b) => {
@@ -443,7 +456,7 @@ export const useAppStore = create((set, get) => ({
         }
     },
 
-    // STRICT PATH FIX: Use correct 6-segment public artifact path
+    // Marketplace fetch error
     fetchEventListings: async (eventId) => {
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         try {
@@ -456,46 +469,59 @@ export const useAppStore = create((set, get) => ({
         }
     },
 
-    // STRICT PATH FIX: Secure multi-tier transaction processing with correct pathing
-    executePurchase: async (listingId, buyerId, amount) => {
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    // ATOMIC PURCHASE GATEWAY (FEATURE 2 & Razorpay Implementation)
+    executePurchase: async (paymentId, amount) => {
+        const state = get();
+        const reserved = state.reservedListing;
+        if (!reserved) throw new Error("Security Violation: No valid ticket reservation found.");
+
+        const eventId = reserved.eventId;
+        const tierId = reserved.tierId;
+        const quantity = reserved.quantity;
+        const buyerId = state.user.uid;
+
         set({ isCheckingOut: true });
+        
         try {
+            // ATOMIC TRANSACTION: Inventory Lock + Order Creation
             await runTransaction(db, async (transaction) => {
-                const listingRef = doc(db, 'artifacts', appId, 'public', 'data', 'tickets', listingId);
-                const buyerRef = doc(db, 'artifacts', appId, 'users', buyerId, 'profile', 'data');
+                const eventRef = doc(db, 'events', eventId);
+                const eventSnap = await transaction.get(eventRef);
                 
-                const listingSnap = await transaction.get(listingRef);
-                const buyerSnap = await transaction.get(buyerRef);
+                if (!eventSnap.exists()) throw new Error("Event has been delisted.");
                 
-                if (!listingSnap.exists() || listingSnap.data().status !== 'active') throw new Error("Listing is no longer available.");
-                
-                // Allow purchase via Razorpay (wallet balance check removed for direct gateway integration)
-                // if (!buyerSnap.exists() || buyerSnap.data().balance < amount) throw new Error("Insufficient wallet balance.");
-                
-                const sellerId = listingSnap.data().sellerId;
-                const sellerRef = doc(db, 'artifacts', appId, 'users', sellerId, 'profile', 'data');
-                const sellerSnap = await transaction.get(sellerRef);
-                
-                // Skip wallet deduction since payment is handled by Razorpay
-                // transaction.update(buyerRef, { balance: buyerSnap.data().balance - amount });
-                const currentSellerBalance = sellerSnap.exists() ? (sellerSnap.data().balance || 0) : 0;
-                
-                transaction.update(sellerRef, { balance: currentSellerBalance + amount });
-                transaction.update(listingRef, { status: 'sold' });
-                
-                const orderRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'));
-                transaction.set(orderRef, { 
-                    listingId, 
-                    buyerId, 
-                    sellerId, 
-                    amount, 
-                    eventName: listingSnap.data().eventName, 
-                    createdAt: new Date().toISOString(),
-                    paymentGateway: 'Razorpay'
+                const eventData = eventSnap.data();
+                const updatedTiers = eventData.ticketTiers.map(t => {
+                    if (t.id === tierId) {
+                        if (t.quantity < quantity) throw new Error("Inventory no longer sufficient.");
+                        return { ...t, quantity: t.quantity - quantity };
+                    }
+                    return t;
+                });
+
+                // 1. Decrement Live Inventory
+                transaction.update(eventRef, { ticketTiers: updatedTiers });
+
+                // 2. Create Global Order Document
+                const orderRef = doc(collection(db, 'orders'));
+                transaction.set(orderRef, {
+                    orderId: orderRef.id,
+                    paymentId: paymentId,
+                    buyerId: buyerId,
+                    sellerId: reserved.sellerId,
+                    eventId: eventId,
+                    tierId: tierId,
+                    eventName: reserved.eventName,
+                    tierName: reserved.tierName,
+                    quantity: quantity,
+                    amountPaid: amount,
+                    status: 'paid',
+                    timestamp: serverTimestamp(),
+                    sessionToken: state.checkoutSessionId
                 });
             });
-            set({ isCheckingOut: false });
+
+            set({ isCheckingOut: false, isCheckoutLocked: false, reservedListing: null });
             return { success: true };
         } catch (error) {
             set({ isCheckingOut: false });
@@ -506,7 +532,7 @@ export const useAppStore = create((set, get) => ({
     requestDeviceLocation: async () => {
         set({ isLocationDropdownOpen: false, locationError: null });
         if (!navigator.geolocation) {
-            set({ locationError: 'There is no location support on this device or it is disabled.' });
+            set({ locationError: 'Location support not found.' });
             return;
         }
         navigator.geolocation.getCurrentPosition(
@@ -515,37 +541,21 @@ export const useAppStore = create((set, get) => ({
                 try {
                     const response = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`);
                     const data = await response.json();
-                    
                     const resolvedCity = data.city || data.locality || "Current Location";
-                    const resolvedState = data.principalSubdivision || '';
-                    const resolvedCountry = data.countryCode || 'IN';
-                    const resolvedCurrency = getCurrencyFromCountry(data.countryCode); 
-                    
                     localStorage.removeItem('parbet_manual_city');
-
                     set({ 
                         manualCity: null,
                         userCity: resolvedCity, 
-                        userCountry: resolvedCountry,
-                        userCurrency: resolvedCurrency,
-                        strictLocation: { 
-                            city: resolvedCity, 
-                            state: resolvedState, 
-                            countryCode: resolvedCountry, 
-                            lat: latitude, 
-                            lon: longitude 
-                        }
+                        userCountry: data.countryCode || 'IN',
+                        userCurrency: getCurrencyFromCountry(data.countryCode),
+                        strictLocation: { city: resolvedCity, state: data.principalSubdivision || '', countryCode: data.countryCode || 'IN', lat: latitude, lon: longitude }
                     });
-                    
                     get().fetchLocationAndMatches(resolvedCity);
                 } catch (err) {
-                    console.error("Reverse geocode failed:", err);
-                    set({ userCity: "Precise Location Found" });
+                    set({ userCity: "Location Found" });
                 }
             },
-            (error) => {
-                set({ locationError: 'Location access disabled.' });
-            },
+            () => set({ locationError: 'Location access disabled.' }),
             { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
         );
     }
