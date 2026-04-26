@@ -89,11 +89,12 @@ export default function Home() {
                 
                 <div className="relative">
                     <div ref={scrollRef} className="flex overflow-x-auto hide-scrollbar space-x-4 md:space-x-5 pb-4 snap-x">
-                        {events.map((event) => (
+                        {events.map((event, index) => (
                             <ViagogoEventCard 
-                                key={event.id} 
+                                // STRICT FALLBACK KEY FIX: Ensures mapping never crashes if document ID is malformed
+                                key={event?.id || `event-fallback-${index}`} 
                                 event={event} 
-                                onClick={() => navigate(`/event?id=${event.id}`)} 
+                                onClick={() => navigate(`/event?id=${event?.id}`)} 
                             />
                         ))}
                     </div>
@@ -150,11 +151,13 @@ export default function Home() {
                             </motion.div>
                         ) : (
                             <AnimatePresence>
+                                {/* STRICT ANIMATION KEY FIX: Added unique static keys to prevent AnimatePresence mapping crashes */}
+                                
                                 {/* DYNAMIC REAL-TIME RAILS */}
-                                <EventRail title="Trending Now" events={trendingMatches} />
+                                <EventRail key="trending-rail" title="Trending Now" events={trendingMatches} />
                                 
                                 {/* SPOTIFY PROMO BANNER */}
-                                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full bg-black rounded-[12px] p-5 md:p-6 mb-10 md:mb-14 flex flex-col md:flex-row justify-between items-center cursor-pointer hover:shadow-xl transition-all">
+                                <motion.div key="spotify-promo" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full bg-black rounded-[12px] p-5 md:p-6 mb-10 md:mb-14 flex flex-col md:flex-row justify-between items-center cursor-pointer hover:shadow-xl transition-all">
                                     <div className="flex flex-col md:flex-row items-center w-full md:w-auto justify-center md:justify-start mb-5 md:mb-0 space-y-4 md:space-y-0 md:space-x-5">
                                         <div className="flex items-center space-x-3">
                                             <svg viewBox="0 0 24 24" width="32" height="32" fill="#1DB954"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.24 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.36.18.54.84.24 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.6.18-1.2.72-1.38 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.239.54-.959.72-1.56.3z"/></svg>
@@ -170,7 +173,7 @@ export default function Home() {
                                     </button>
                                 </motion.div>
 
-                                <EventRail title="Top Cricket Matches" events={cricketMatches} />
+                                <EventRail key="cricket-rail" title="Top Cricket Matches" events={cricketMatches} />
                             </AnimatePresence>
                         )}
                     </>
