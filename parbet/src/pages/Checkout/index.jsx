@@ -13,9 +13,9 @@ import { db } from '../../lib/firebase';
 import { uploadEventImage } from '../../lib/pocketbase';
 
 /**
- * FEATURE 1: Navigation Trap (Interprets and blocks browser back button)
- * FEATURE 2: Infinite Loading Resolution (Failsafe Auth/Fetch Gates)
- * FEATURE 3: Atomic State Lock (reservedListing metadata capture)
+ * FEATURE 1: React Router Native Payload Engine (Bypasses Zustand store crash)
+ * FEATURE 2: Navigation Trap (Interprets and blocks browser back button)
+ * FEATURE 3: Infinite Loading Resolution (Failsafe Auth/Fetch Gates)
  * FEATURE 4: Explicit Cancel & Release Logic (Restores inventory visibility)
  * FEATURE 5: Razorpay L3 Secure Redirection
  * FEATURE 6: Real-time GST & Platform Fee Escrow Logic (15% + 18%)
@@ -36,14 +36,18 @@ export default function Checkout() {
     const navigate = useNavigate();
     const location = useLocation();
 
+    // CRITICAL FIX: Removed broken `lockCheckout`, `isCheckoutLocked`, and `reservedListing` 
+    // dependencies from the global store to permanently prevent TypeError crashes.
     const { 
         user, isAuthenticated, openAuthModal,
         checkoutStep, setCheckoutStep,
         checkoutFormData, updateCheckoutFormData,
         checkoutExpiration, startCheckoutTimer, resetCheckoutTimer,
-        isCheckoutLocked, reservedListing, lockCheckout, cancelReservation,
-        executePurchase
+        cancelReservation, executePurchase
     } = useAppStore();
+
+    // FEATURE 1: Native Router Local State Hydration
+    const [localListing, setLocalListing] = useState(location.state?.reservedListing || null);
 
     // Internal UI States
     const [isLoading, setIsLoading] = useState(true);
@@ -56,10 +60,10 @@ export default function Checkout() {
     const [receiptUrl, setReceiptUrl] = useState('');
     const [timeLeft, setTimeLeft] = useState('');
 
-    // FEATURE 1: Navigation Lockdown Guard
+    // FEATURE 2: Navigation Lockdown Guard
     // Intercepts browser 'popstate' to prevent back button navigation without cancellation
     useEffect(() => {
-        if (!isCheckoutLocked) return;
+        if (!localListing) return;
 
         const handleBackButton = (e) => {
             e.preventDefault();
@@ -72,9 +76,9 @@ export default function Checkout() {
         window.addEventListener('popstate', handleBackButton);
         
         return () => window.removeEventListener('popstate', handleBackButton);
-    }, [isCheckoutLocked]);
+    }, [localListing]);
 
-    // FEATURE 2 & 3: Infinite Loader Fix & Metadata Capture
+    // FEATURE 3: Infinite Loader Fix & Native Metadata Capture
     useEffect(() => {
         // FAILSAFE: If not authenticated, kill loader immediately and demand auth
         if (!isAuthenticated) {
@@ -87,18 +91,25 @@ export default function Checkout() {
             try {
                 setIsLoading(true);
                 
-                // If already locked from the Event page, use the vault data directly
-                if (isCheckoutLocked && reservedListing) {
+                // 1. NATIVE PAYLOAD INTERCEPTOR (Seamless Transition)
+                if (location.state && location.state.reservedListing) {
+                    setLocalListing(location.state.reservedListing);
+                    startCheckoutTimer();
+                    
+                    if (user?.email && !checkoutFormData.contact.email) {
+                        updateCheckoutFormData('contact', { email: user.email });
+                    }
+                    
                     setIsLoading(false);
                     return;
                 }
 
+                // 2. FALLBACK DB RESOLVER (If user hard-refreshes the checkout page)
                 if (!eventId || !tierId) {
                     navigate('/');
                     return;
                 }
 
-                // If user refreshed directly on checkout, re-fetch and lock
                 const docRef = doc(db, 'events', eventId);
                 const docSnap = await getDoc(docRef);
                 
@@ -127,10 +138,11 @@ export default function Checkout() {
                         price: Number(tierData.price),
                         quantity: requestedQty,
                         tierName: tierData.name,
-                        sellerId: eventData.sellerId || 'system'
+                        sellerId: eventData.sellerId || 'system',
+                        imageUrl: eventData.imageUrl
                     };
 
-                    lockCheckout(captureData);
+                    setLocalListing(captureData);
                     startCheckoutTimer();
 
                     if (user?.email && !checkoutFormData.contact.email) {
@@ -149,7 +161,7 @@ export default function Checkout() {
         };
 
         syncInventoryLock();
-    }, [eventId, tierId, qtyParams, isAuthenticated, user, isCheckoutLocked, reservedListing]);
+    }, [eventId, tierId, qtyParams, isAuthenticated, user, location.state]); 
 
     // FEATURE 10: Precision Countdown
     useEffect(() => {
@@ -170,12 +182,12 @@ export default function Checkout() {
 
     // FEATURE 6: Dynamic Cost Computation
     const totals = useMemo(() => {
-        if (!reservedListing) return { subtotal: 0, fees: 0, tax: 0, total: 0 };
-        const subtotal = reservedListing.price * reservedListing.quantity;
+        if (!localListing) return { subtotal: 0, fees: 0, tax: 0, total: 0 };
+        const subtotal = localListing.price * localListing.quantity;
         const fees = subtotal * 0.15; // 15% Platform Service Fee
         const tax = fees * 0.18;    // 18% GST
         return { subtotal, fees, tax, total: subtotal + fees + tax };
-    }, [reservedListing]);
+    }, [localListing]);
 
     // FEATURE 4: Explicit Exit Logic
     const handleExplicitCancel = () => {
@@ -372,15 +384,15 @@ export default function Checkout() {
                                     <Ticket size={40} className="text-gray-300" />
                                 </div>
                                 <div className="space-y-1.5 flex-1 min-w-0">
-                                    <h3 className="font-black text-[20px] leading-tight truncate text-[#1a1a1a]">{reservedListing?.eventName || 'Loading...'}</h3>
-                                    <p className="text-[14px] text-[#8cc63f] font-black uppercase tracking-wide">{reservedListing?.tierName || '---'}</p>
-                                    <p className="text-[13px] text-gray-400 font-bold flex items-center gap-1.5 truncate"><MapPin size={14} className="shrink-0" /> {reservedListing?.eventLoc || '---'}</p>
+                                    <h3 className="font-black text-[20px] leading-tight truncate text-[#1a1a1a]">{localListing?.eventName || 'Loading...'}</h3>
+                                    <p className="text-[14px] text-[#8cc63f] font-black uppercase tracking-wide">{localListing?.tierName || '---'}</p>
+                                    <p className="text-[13px] text-gray-400 font-bold flex items-center gap-1.5 truncate"><MapPin size={14} className="shrink-0" /> {localListing?.eventLoc || '---'}</p>
                                 </div>
                             </div>
 
                             <div className="space-y-5 border-t border-gray-100 pt-8">
                                 <div className="flex justify-between items-center p-4 bg-gray-50 rounded-[18px]">
-                                    <span className="text-[15px] font-bold text-gray-500">Tickets (x{reservedListing?.quantity || 0})</span>
+                                    <span className="text-[15px] font-bold text-gray-500">Tickets (x{localListing?.quantity || 0})</span>
                                     <span className="font-black text-[18px]">₹{totals.subtotal.toLocaleString()}</span>
                                 </div>
                                 <div className="px-2 space-y-4">

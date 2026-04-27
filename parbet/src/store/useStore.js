@@ -29,9 +29,9 @@ const getCurrencyFromCountry = (countryCode) => {
 };
 
 /**
- * FEATURE 1: Secure "Flight-Booking" Lockdown State
- * FEATURE 2: Real-time Transactional Inventory Sync
- * FEATURE 3: High-Precision Listing Metadata Vault
+ * FEATURE 1: Advanced Telemetry Error Logging (Diagnoses Permission Crashes)
+ * FEATURE 2: Dynamic Payload Hydration (Bypasses lockCheckout undefined crashes)
+ * FEATURE 3: Real-time Transactional Inventory Sync (Atomic Decrements)
  * FEATURE 4: 10-Minute Reservation Safety Valve
  * FEATURE 5: Multi-Currency Geometric Resolution
  * FEATURE 6: Audit Trail Logging (Session ID tracking)
@@ -95,7 +95,7 @@ export const useAppStore = create((set, get) => ({
     razorpayPaymentId: null,
     razorpaySignature: null,
     
-    // NEW SECURITY STATES (FEATURE 1 & 3)
+    // SECURITY STATES
     isCheckoutLocked: false,
     reservedListing: null,
     checkoutSessionId: null,
@@ -177,31 +177,25 @@ export const useAppStore = create((set, get) => ({
     },
 
     // ------------------------------------------------------------------
-    // NEW SECURITY ACTIONS (FEATURE 1, 3, & 4)
+    // SECURE PAYLOAD HYDRATION & CHECKOUT ACTIONS
     // ------------------------------------------------------------------
     
     /**
-     * Captures exact ticket and event metadata from the Event page 
-     * and locks the user into the checkout session.
+     * FEATURE 2: Hydrates the checkout memory from React Router state
+     * Eliminates the 'lockCheckout is not a function' TypeError.
      */
-    lockCheckout: (listingData) => {
+    hydrateCheckoutPayload: (listingData) => {
         const sessionId = `pb_sess_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        const expirationTime = Date.now() + 10 * 60 * 1000; // 10 Minute Hold
-        
         set({
             isCheckoutLocked: true,
             reservedListing: listingData,
             checkoutSessionId: sessionId,
-            checkoutExpiration: expirationTime,
             checkoutStep: 1
         });
-        
-        console.log(`[Security Protocol] Checkout Locked: ${sessionId}`);
+        get().startCheckoutTimer();
+        console.log(`[Security Protocol] Checkout Hydrated & Locked: ${sessionId}`);
     },
 
-    /**
-     * Explicitly releases the inventory hold and unlocks navigation.
-     */
     cancelReservation: () => {
         set({
             isCheckoutLocked: false,
@@ -214,7 +208,10 @@ export const useAppStore = create((set, get) => ({
         console.log(`[Security Protocol] Reservation Released.`);
     },
 
-    // Performer Filter Setters
+    // ------------------------------------------------------------------
+    // FILTER & SYSTEM SETTERS
+    // ------------------------------------------------------------------
+
     setPerformerFilter: (filterType, value) => set((state) => ({
         performerFilters: {
             ...state.performerFilters,
@@ -232,21 +229,15 @@ export const useAppStore = create((set, get) => ({
         }
     }),
 
-    // Explore Filter Setters
     setExploreCategory: (category) => set({ exploreCategory: category }),
     setExploreDateFilter: (dateFilter) => set({ exploreDateFilter: dateFilter }),
     setExplorePriceFilter: (priceFilter) => set({ explorePriceFilter: priceFilter }),
-
-    // Ticket Selection Setters
     setTicketQuantityModalOpen: (isOpen) => set({ isTicketQuantityModalOpen: isOpen }),
     setSelectedTicketQuantity: (qty) => set({ selectedTicketQuantity: qty }),
-
-    // Language & Currency Setters
     setUserLanguage: (lang) => set({ userLanguage: lang }),
     setUserCurrency: (currency) => set({ userCurrency: currency }),
-
-    // Checkout Step & Form Setters
     setCheckoutStep: (step) => set({ checkoutStep: step }),
+
     updateCheckoutFormData: (section, data) => set((state) => ({
         checkoutFormData: {
             ...state.checkoutFormData,
@@ -254,20 +245,19 @@ export const useAppStore = create((set, get) => ({
         }
     })),
     
-    // Razorpay Integration Setters
     setRazorpayOrder: (orderId) => set({ razorpayOrderId: orderId }),
     setRazorpayVerification: (paymentId, signature) => set({ 
         razorpayPaymentId: paymentId, 
         razorpaySignature: signature 
     }),
 
-    // Checkout Timer Actions
     startCheckoutTimer: () => {
         if (!get().checkoutExpiration) {
             const tenMinutesFromNow = Date.now() + 10 * 60 * 1000;
             set({ checkoutExpiration: tenMinutesFromNow });
         }
     },
+    
     resetCheckoutTimer: () => set({ 
         checkoutExpiration: null, 
         checkoutStep: 1, 
@@ -275,7 +265,10 @@ export const useAppStore = create((set, get) => ({
         reservedListing: null 
     }),
 
-    // Favorites Action
+    // ------------------------------------------------------------------
+    // FIREBASE SYNC & ATOMIC TRANSACTIONS
+    // ------------------------------------------------------------------
+
     toggleFavorite: async (eventObj) => {
         const state = get();
         const isFav = state.favorites.some(f => f.id === eventObj.id);
@@ -297,13 +290,13 @@ export const useAppStore = create((set, get) => ({
         }
     },
 
-    // Recent Searches Actions
     addRecentSearch: (searchQuery) => set((state) => {
         if (!searchQuery || !searchQuery.trim()) return state;
         const updatedSearches = [searchQuery, ...state.recentSearches.filter(q => q.toLowerCase() !== searchQuery.toLowerCase())].slice(0, 5);
         localStorage.setItem('parbet_recent_searches', JSON.stringify(updatedSearches));
         return { recentSearches: updatedSearches };
     }),
+    
     clearRecentSearches: () => set(() => {
         localStorage.removeItem('parbet_recent_searches');
         return { recentSearches: [] };
@@ -327,7 +320,10 @@ export const useAppStore = create((set, get) => ({
         return Object.values(aggregates).sort((a, b) => a.section.localeCompare(b.section));
     },
 
-    // LIVE SELLER TICKET LISTENER
+    /**
+     * FEATURE 1: Advanced Telemetry Error Logging
+     * Actively maps exact path failures to diagnose Firestore rule blocks.
+     */
     initSellerTicketsListener: () => {
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const ticketsRef = collection(db, 'artifacts', appId, 'public', 'data', 'tickets');
@@ -389,17 +385,20 @@ export const useAppStore = create((set, get) => ({
                 return { 
                     sellerMatches: newSellerMatches,
                     liveMatches: sorted,
-                    trendingPerformers: performers
+                    trendingPerformers: performers,
+                    isLoadingMatches: false // Failsafe kill loader
                 };
             });
         }, (error) => {
-            console.error("Failed to sync public seller tickets:", error);
+            // ADVANCED TELEMETRY: Log exact path causing the permission denial
+            console.error("[Parbet Escrow] Firebase Synchronization Failure:", error.message);
+            console.warn(`[Parbet Escrow] Path Attempted: artifacts/${appId}/public/data/tickets`);
+            set({ apiError: error.message, isLoadingMatches: false });
         });
 
         set({ unsubscribeSellerTickets: unsubscribe });
     },
 
-    // CORE LOGIC: Multi-API Orchestration & Strict Location Fetch
     fetchLocationAndMatches: async (cityOverride = null) => {
         set({ isLoadingMatches: true, apiError: null });
 
@@ -456,7 +455,6 @@ export const useAppStore = create((set, get) => ({
         }
     },
 
-    // Marketplace fetch error
     fetchEventListings: async (eventId) => {
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         try {
@@ -469,11 +467,18 @@ export const useAppStore = create((set, get) => ({
         }
     },
 
-    // ATOMIC PURCHASE GATEWAY (FEATURE 2 & Razorpay Implementation)
-    executePurchase: async (paymentId, amount) => {
+    /**
+     * ATOMIC PURCHASE GATEWAY
+     * Accepts dynamic directPayload from Checkout to guarantee state hydration.
+     */
+    executePurchase: async (paymentId, amount, directPayload = null) => {
         const state = get();
-        const reserved = state.reservedListing;
-        if (!reserved) throw new Error("Security Violation: No valid ticket reservation found.");
+        // Priority: Use the directly passed router payload, fallback to global store vault
+        const reserved = directPayload || state.reservedListing;
+        
+        if (!reserved) {
+            throw new Error("Security Violation: No valid ticket reservation payload found.");
+        }
 
         const eventId = reserved.eventId;
         const tierId = reserved.tierId;
@@ -488,18 +493,18 @@ export const useAppStore = create((set, get) => ({
                 const eventRef = doc(db, 'events', eventId);
                 const eventSnap = await transaction.get(eventRef);
                 
-                if (!eventSnap.exists()) throw new Error("Event has been delisted.");
+                if (!eventSnap.exists()) throw new Error("Event has been delisted by the seller.");
                 
                 const eventData = eventSnap.data();
                 const updatedTiers = eventData.ticketTiers.map(t => {
                     if (t.id === tierId) {
-                        if (t.quantity < quantity) throw new Error("Inventory no longer sufficient.");
+                        if (t.quantity < quantity) throw new Error("Inventory insufficient. Tickets sold out.");
                         return { ...t, quantity: t.quantity - quantity };
                     }
                     return t;
                 });
 
-                // 1. Decrement Live Inventory
+                // 1. Decrement Live Inventory Atomically
                 transaction.update(eventRef, { ticketTiers: updatedTiers });
 
                 // 2. Create Global Order Document
@@ -511,13 +516,13 @@ export const useAppStore = create((set, get) => ({
                     sellerId: reserved.sellerId,
                     eventId: eventId,
                     tierId: tierId,
-                    eventName: reserved.eventName,
-                    tierName: reserved.tierName,
+                    eventName: reserved.eventName || 'Premium Event',
+                    tierName: reserved.tierName || 'General Admission',
                     quantity: quantity,
                     amountPaid: amount,
                     status: 'paid',
                     timestamp: serverTimestamp(),
-                    sessionToken: state.checkoutSessionId
+                    sessionToken: state.checkoutSessionId || 'sess_native_route'
                 });
             });
 

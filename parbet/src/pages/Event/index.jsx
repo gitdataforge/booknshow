@@ -21,7 +21,7 @@ import ShareEventModal from '../../components/ShareEventModal';
 import AdminEditEventModal from '../../components/AdminEditEventModal';
 
 /**
- * FEATURE 1: Secure "lockCheckout" Metadata Capture Engine
+ * FEATURE 1: React Router Native Payload Engine (Bypasses Zustand store crash)
  * FEATURE 2: Explicit Button Event Binding (Fixes broken checkout redirection)
  * FEATURE 3: PocketBase Image URL Scrubber (Fixes Cloudinary 404 banner crash)
  * FEATURE 4: PVR-Style Interactive Map Filtering Engine
@@ -75,8 +75,8 @@ export default function Event() {
         userCurrency,
         userLanguage,
         favorites,
-        toggleFavorite,
-        lockCheckout // FEATURE 1: Inject state lockdown engine
+        toggleFavorite
+        // FEATURE 1: Removed undefined 'lockCheckout' to prevent TypeError crash
     } = useAppStore();
 
     // Real-Time Document State
@@ -182,14 +182,14 @@ export default function Event() {
         }
     }, [activeSection, sortOrder, instantDownloadOnly, clearViewOnly]);
 
-    // FEATURE 1 & 2: Secure "Buy" Action with Explicit Event Binding
+    // FEATURE 1 & 2: Secure "Book" Action with Native React Router Payload Delivery
     const handlePurchaseInitiation = (tier) => {
         if (!isAuthenticated) {
             openAuthModal();
             return;
         }
 
-        // CAPTURE: Strict metadata bundle for the lockdown engine
+        // CAPTURE: Strict metadata bundle
         const captureData = {
             eventId: eventId,
             tierId: tier.id,
@@ -202,11 +202,12 @@ export default function Event() {
             imageUrl: eventData.imageUrl
         };
 
-        // Commit capture to the global security vault
-        lockCheckout(captureData);
-
-        // Transition to locked checkout environment
-        navigate(`/checkout?eventId=${eventId}&tierId=${tier.id}&qty=${selectedTicketQuantity}`);
+        // SECURE TRANSITION: Inject payload directly into the Router state to guarantee delivery
+        // This permanently bypasses the broken/undefined lockCheckout Zustand function
+        navigate(
+            `/checkout?eventId=${eventId}&tierId=${tier.id}&qty=${selectedTicketQuantity}`, 
+            { state: { reservedListing: captureData } }
+        );
     };
 
     if (!eventId) return <div className="min-h-screen p-10 font-bold text-center text-[#1a1a1a]">Invalid Event ID.</div>;
@@ -499,7 +500,7 @@ export default function Event() {
                                                         <span className="text-[11px] font-black text-[#9ca3af] uppercase tracking-widest mb-3">
                                                             / ticket
                                                         </span>
-                                                        {/* FEATURE 2: Explicit Binding applied directly to the button to prevent event-bubbling failures */}
+                                                        {/* FEATURE 2: Changed to Book tickets & Event Binding explicitly maintained */}
                                                         <button 
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
@@ -507,7 +508,7 @@ export default function Event() {
                                                             }}
                                                             className="w-full md:w-auto px-6 py-2.5 rounded-[8px] font-bold text-[14px] bg-[#8cc63f] text-[#1a1a1a] hover:bg-[#7ab332] transition-colors shadow-sm whitespace-nowrap"
                                                         >
-                                                            See tickets
+                                                            Book tickets
                                                         </button>
                                                     </div>
                                                 </div>
