@@ -18,19 +18,19 @@ import TicketQuantityModal from '../../components/TicketQuantityModal';
 import EventFilters from '../../components/EventFilters';
 import LanguageCurrencyModal from '../../components/LanguageCurrencyModal';
 import ShareEventModal from '../../components/ShareEventModal';
-import AdminEditEventModal from '../../components/AdminEditEventModal'; // NEW: Admin Editor
+import AdminEditEventModal from '../../components/AdminEditEventModal';
 
 /**
- * FEATURE 1: Real-Time Single Document Synchronization
- * FEATURE 2: PVR-Style Interactive Map Filtering Engine
- * FEATURE 3: Dynamic Nested Payload Mapping (Ticket Tiers)
- * FEATURE 4: Advanced ISO Timestamp Parser
- * FEATURE 5: Live Inventory Quantity Gate
- * FEATURE 6: Seller Disclosure UI Badge Generator
- * FEATURE 7: Price-Value Algorithmic Sorting
- * FEATURE 8: Localized Schema Normalization Adapter
- * FEATURE 9: Real-Time Admin Identity Verification
- * FEATURE 10: God-Mode Mutator Component Injection
+ * FEATURE 1: Secure "lockCheckout" Metadata Capture Engine
+ * FEATURE 2: Real-Time Single Document Synchronization
+ * FEATURE 3: PocketBase Image URL Resolution & 404 Failsafe
+ * FEATURE 4: PVR-Style Interactive Map Filtering Engine
+ * FEATURE 5: Dynamic Nested Payload Mapping (Ticket Tiers)
+ * FEATURE 6: Advanced ISO Timestamp Parser
+ * FEATURE 7: Live Inventory Quantity Gate
+ * FEATURE 8: Price-Value Algorithmic Sorting
+ * FEATURE 9: Localized Schema Normalization Adapter
+ * FEATURE 10: Real-Time Admin Identity Verification
  */
 
 // Utility to strictly label dates based on the real-time API
@@ -75,7 +75,8 @@ export default function Event() {
         userCurrency,
         userLanguage,
         favorites,
-        toggleFavorite
+        toggleFavorite,
+        lockCheckout // FEATURE 1: Inject state lockdown engine
     } = useAppStore();
 
     // Real-Time Document State
@@ -181,6 +182,33 @@ export default function Event() {
         }
     }, [activeSection, sortOrder, instantDownloadOnly, clearViewOnly]);
 
+    // FEATURE 1: Secure "Buy" Action with State Lock
+    const handlePurchaseInitiation = (tier) => {
+        if (!isAuthenticated) {
+            openAuthModal();
+            return;
+        }
+
+        // CAPTURE: Strict metadata bundle for the lockdown engine
+        const captureData = {
+            eventId: eventId,
+            tierId: tier.id,
+            eventName: eventData.title,
+            eventLoc: `${eventData.stadium}, ${eventData.location?.split(',')[0]}`,
+            price: Number(tier.price),
+            quantity: selectedTicketQuantity,
+            tierName: tier.name,
+            sellerId: eventData.sellerId || 'system',
+            imageUrl: eventData.imageUrl
+        };
+
+        // Commit capture to the global security vault
+        lockCheckout(captureData);
+
+        // Transition to locked checkout environment
+        navigate(`/checkout?eventId=${eventId}&tierId=${tier.id}&qty=${selectedTicketQuantity}`);
+    };
+
     if (!eventId) return <div className="min-h-screen p-10 font-bold text-center text-[#1a1a1a]">Invalid Event ID.</div>;
     
     if (isLoading) return (
@@ -225,7 +253,11 @@ export default function Event() {
         else actionFn();
     };
 
-    const displayImage = eventData.imageUrl || 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=600&auto=format&fit=crop';
+    // FEATURE 3: Advanced Image Resolution with Failsafe Fallbacks
+    const fallbackImage = 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=600&auto=format&fit=crop';
+    const displayImage = eventData.imageUrl && eventData.imageUrl.startsWith('http') 
+        ? eventData.imageUrl 
+        : fallbackImage;
     const parsedTime = parseEventTimestamp(eventData.eventTimestamp);
 
     return (
@@ -254,7 +286,7 @@ export default function Event() {
                         src={displayImage} 
                         alt="Event Thumbnail" 
                         className="w-[60px] h-[60px] rounded-lg object-cover shadow-sm border border-gray-200"
-                        onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=150&auto=format&fit=crop'; }}
+                        onError={(e) => { e.target.src = fallbackImage; }}
                     />
                     <div>
                         <div className="flex items-center gap-3">
@@ -425,7 +457,8 @@ export default function Event() {
                                                 exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.15 } }}
                                                 whileHover={{ y: -2 }}
                                                 key={tier.id} 
-                                                onClick={() => navigate(`/checkout?eventId=${eventId}&tierId=${tier.id}&qty=${selectedTicketQuantity}`)}
+                                                // FEATURE 1: State Lockdown Trigger via handlePurchaseInitiation
+                                                onClick={() => handlePurchaseInitiation(tier)}
                                                 className={`bg-white rounded-[12px] p-5 cursor-pointer border hover:border-[#8cc63f] hover:shadow-[0_0_0_1px_#8cc63f] transition-all group relative overflow-hidden flex flex-col ${isBestValue ? 'border-[#8cc63f] shadow-sm' : 'border-[#e2e2e2]'}`}
                                             >
                                                 <div className={`absolute top-0 left-0 w-1.5 h-full transition-colors duration-300 ${isBestValue ? 'bg-[#8cc63f]' : 'bg-[#8cc63f] opacity-0 group-hover:opacity-100'}`}></div>
