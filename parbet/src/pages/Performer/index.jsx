@@ -4,23 +4,31 @@ import { motion } from 'framer-motion';
 import { 
     Heart, MapPin, Calendar, ChevronDown, 
     Download, QrCode, ShieldCheck, Flame, Users,
-    Clock, ChevronLeft, ChevronRight, Navigation, Loader2
+    Clock, ChevronLeft, ChevronRight, Navigation, Loader2,
+    Pencil, ShieldAlert
 } from 'lucide-react';
+import { onAuthStateChanged } from 'firebase/auth';
 
-// Global Stores
+// Global Stores & Firebase
 import { useAppStore } from '../../store/useStore';
 import { useMarketStore } from '../../store/useMarketStore';
+import { auth } from '../../lib/firebase';
 
 // UI Components
 import LocationDropdown from '../../components/LocationDropdown';
+import AdminEditEventModal from '../../components/AdminEditEventModal';
 
 /**
  * FEATURE 1: Real-Time Shared Database Integration (No Mock Data)
- * FEATURE 2: Dynamic Performer/Team Filtering Engine
- * FEATURE 3: Strict ISO Timestamp Parsing
- * FEATURE 4: Algorithmic "Trending" & "Fans Also Love" Derivation
- * FEATURE 5: Hardware-Accelerated Viagogo-Style Layout
- * FEATURE 6: Live Inventory Validation (See Tickets vs Sold Out)
+ * FEATURE 2: Strict IPL/Category Aggregation Engine
+ * FEATURE 3: PocketBase Image Failsafe Scrubber (Fixes Cloudinary 404s)
+ * FEATURE 4: Admin God-Mode Injector (Direct feed mutation)
+ * FEATURE 5: Dynamic Performer/Team Filtering Engine
+ * FEATURE 6: Strict ISO Timestamp Parsing
+ * FEATURE 7: Algorithmic "Trending" & "Fans Also Love" Derivation
+ * FEATURE 8: Hardware-Accelerated Viagogo-Style Layout
+ * FEATURE 9: Live Inventory Validation (See Tickets vs Sold Out)
+ * FEATURE 10: Automatic State Hydration Failsafes
  */
 
 // Strict Date Formatters mimicking the enterprise UI
@@ -58,6 +66,13 @@ const getRelativeDateLabel = (dateStr) => {
     return '';
 };
 
+// FEATURE 3: Cloudinary Legacy Scrubber for Fans Also Love images
+const getSafeImage = (url) => {
+    if (!url) return 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=400';
+    if (url.includes('res.cloudinary.com/dtz0urit6')) return 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=400';
+    return url;
+};
+
 export default function Performer() {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -65,13 +80,32 @@ export default function Performer() {
 
     const { userCity, isLocationDropdownOpen, setLocationDropdownOpen } = useAppStore();
     
-    // FEATURE 1: Shared Market State (Real-Time Firestore Pipe)
+    // Shared Market State
     const { activeListings, isLoading, initMarketListener } = useMarketStore();
 
+    // Local UI States
     const [activeDropdown, setActiveDropdown] = useState(null);
-    const [emailInput, setEmailInput] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 12;
+
+    // Admin States
+    const [isAdmin, setIsAdmin] = useState(false);
+    const [adminModalOpen, setAdminModalOpen] = useState(false);
+    const [selectedAdminEvent, setSelectedAdminEvent] = useState(null);
+    const [showLoader, setShowLoader] = useState(true);
+
+    // Verify Admin Identity
+    useEffect(() => {
+        const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+            if (user && user.email) {
+                const validAdmins = ['testcodecfg@gmail.com', 'krishnamehta.gm@gmail.com', 'jatinseth.op@gmail.com'];
+                setIsAdmin(validAdmins.includes(user.email.toLowerCase()));
+            } else {
+                setIsAdmin(false);
+            }
+        });
+        return () => unsubscribeAuth();
+    }, []);
 
     // Initialize Real-Time Listener
     useEffect(() => {
@@ -82,13 +116,30 @@ export default function Performer() {
         };
     }, [initMarketListener]);
 
-    // FEATURE 2: Strict Real-Time API Filtering
-    const { filteredEvents, trendingGroups, fansAlsoLove } = useMemo(() => {
-        // 1. Filter globally by performer/team name
+    // Failsafe Loading Resolver
+    useEffect(() => {
+        if (activeListings && activeListings.length > 0) {
+            setShowLoader(false);
+        }
+        const failsafe = setTimeout(() => setShowLoader(false), 4000);
+        return () => clearTimeout(failsafe);
+    }, [activeListings]);
+
+    // FEATURE 2: Strict Real-Time API Filtering & IPL Aggregation
+    const { filteredEvents, fansAlsoLove } = useMemo(() => {
+        
+        // 1. Filter globally by performer/category strict overrides
         const base = activeListings.filter(m => {
-            const searchString = `${m.title} ${m.team1} ${m.team2} ${m.league}`.toLowerCase();
+            const searchString = `${m.title} ${m.eventName} ${m.team1} ${m.team2} ${m.league} ${m.sportCategory}`.toLowerCase();
             const query = performerName.toLowerCase();
-            return searchString.includes(query) || (query.includes('ipl') && m.sportCategory === 'Cricket');
+            
+            // Strict Aggregation Hooks
+            if (query === 'ipl') return searchString.includes('ipl') || searchString.includes('premier league') || searchString.includes('cricket');
+            if (query === 'cricket') return searchString.includes('cricket') || searchString.includes('t20') || searchString.includes('test');
+            if (query === 'kabaddi') return searchString.includes('kabaddi') || searchString.includes('pkl');
+            if (query === 'world cup') return searchString.includes('world cup') || searchString.includes('icc');
+            
+            return searchString.includes(query);
         });
 
         // 2. Filter locally by user's city drop-down
@@ -99,39 +150,44 @@ export default function Performer() {
             return true;
         });
 
-        // 3. Derive Trending Groups based on volume
+        // 3. Derive "Fans Also Love" dynamically
         const tGroups = {};
         activeListings.forEach(e => {
-            const key = e.team1 || e.title;
+            const key = e.sportCategory || e.team1 || e.title;
             if (!tGroups[key]) tGroups[key] = { id: e.id, name: key, imageId: e.imageUrl, events: [] };
             tGroups[key].events.push(e);
         });
-        const trendingArr = Object.values(tGroups).sort((a, b) => b.events.length - a.events.length).slice(0, 4);
 
-        // 4. Derive "Fans Also Love" dynamically from the database
         const fansArr = Object.values(tGroups)
             .filter(g => !g.name.toLowerCase().includes(performerName.toLowerCase()))
             .slice(0, 4);
 
         return { 
             filteredEvents: filtered, 
-            trendingGroups: trendingArr,
             fansAlsoLove: fansArr 
         };
     }, [activeListings, performerName, userCity]);
 
     // Derived State for Analytics & Pagination
-    const viewerCount = useMemo(() => Math.floor(filteredEvents.length * 451.08) || 5413, [filteredEvents.length]);
+    const viewerCount = useMemo(() => Math.floor((filteredEvents.length * 451.08) || 5413), [filteredEvents.length]);
     const totalPages = Math.ceil(filteredEvents.length / itemsPerPage);
     const paginatedEvents = filteredEvents.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-    const toggleDropdown = (dropdownName) => {
-        if (activeDropdown === dropdownName) setActiveDropdown(null);
-        else { setActiveDropdown(dropdownName); setLocationDropdownOpen(false); }
+    const getDisplayName = () => {
+        if (performerName.toUpperCase() === 'IPL') return 'Indian Premier League';
+        if (performerName.toUpperCase() === 'ICC') return 'ICC World Cup';
+        return performerName;
     };
 
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }} className="w-full pb-20 bg-white font-sans text-[#1a1a1a]">
+            
+            {/* INJECT: Global Admin Edit Modal */}
+            <AdminEditEventModal 
+                isOpen={adminModalOpen} 
+                onClose={() => { setAdminModalOpen(false); setSelectedAdminEvent(null); }} 
+                eventData={selectedAdminEvent} 
+            />
             
             {/* EXACT VIAGOGO DARK GREEN HERO BANNER */}
             <div className="w-full bg-[#112d1e] h-[240px] md:h-[280px] relative overflow-hidden flex items-center">
@@ -147,8 +203,8 @@ export default function Performer() {
                 </div>
                 
                 <div className="relative z-20 max-w-[1200px] mx-auto px-4 md:px-8 w-full flex justify-between items-center">
-                    <h1 className="text-[36px] md:text-[56px] font-black text-white leading-[1.05] tracking-tight max-w-[600px]">
-                        {performerName === 'IPL' ? 'Indian Premier League' : performerName} <br /> Tickets
+                    <h1 className="text-[36px] md:text-[56px] font-black text-white leading-[1.05] tracking-tight max-w-[600px] capitalize">
+                        {getDisplayName()} <br /> Tickets
                     </h1>
                     <div className="hidden md:flex items-center gap-2 border border-white/40 rounded-full px-4 py-2 text-white bg-black/20 backdrop-blur-sm cursor-pointer hover:bg-black/40 transition-colors">
                         <span className="text-[14px] font-bold">10.8K</span>
@@ -163,7 +219,7 @@ export default function Performer() {
                 <div className="w-full bg-[#eaf4fd] text-[#0064d2] rounded-[8px] p-4 flex items-center mb-6 shadow-sm border border-[#d2e8fa]">
                     <Users size={20} className="mr-3 shrink-0" strokeWidth={2.5}/>
                     <span className="text-[14px] md:text-[15px] font-medium tracking-tight">
-                        {viewerCount.toLocaleString()} people viewed {performerName === 'IPL' ? 'Indian Premier League' : performerName} events in the past hour
+                        {viewerCount.toLocaleString()} people viewed {getDisplayName()} events in the past hour
                     </span>
                 </div>
 
@@ -191,22 +247,29 @@ export default function Performer() {
                 </div>
 
                 {/* EVENT LIST HEADER */}
-                <h2 className="text-[18px] md:text-[20px] font-black text-[#1a1a1a] mb-5 tracking-tight">
-                    {filteredEvents.length} events in {userCity !== 'All Cities' ? userCity : 'all locations'}
-                </h2>
+                <div className="flex items-center justify-between mb-5">
+                    <h2 className="text-[18px] md:text-[20px] font-black text-[#1a1a1a] tracking-tight flex items-center gap-3">
+                        {filteredEvents.length} events in {userCity !== 'All Cities' ? userCity : 'all locations'}
+                        {isAdmin && (
+                            <span className="hidden md:inline-flex items-center gap-1 bg-red-50 text-red-600 border border-red-200 px-2 py-0.5 rounded-[4px] text-[10px] font-black uppercase tracking-widest">
+                                <ShieldAlert size={12} /> Admin
+                            </span>
+                        )}
+                    </h2>
+                </div>
 
                 {/* MAIN EVENT LEDGER */}
                 <div className="flex flex-col gap-3 mb-12">
-                    {isLoading ? (
+                    {showLoader ? (
                         <div className="w-full py-20 flex flex-col items-center justify-center border border-[#e2e2e2] rounded-[12px] bg-[#f8f9fa]">
                             <Loader2 size={32} className="text-[#8cc63f] animate-spin mb-4" />
                             <p className="text-[14px] font-bold text-[#1a1a1a]">Syncing live secure inventory...</p>
                         </div>
                     ) : filteredEvents.length === 0 ? (
-                        <div className="w-full py-16 flex flex-col items-center justify-center bg-white border border-[#e2e2e2] rounded-[12px]">
+                        <div className="w-full py-16 flex flex-col items-center justify-center bg-white border border-[#e2e2e2] rounded-[12px] shadow-sm">
                             <ShieldCheck size={48} className="text-[#9ca3af] mb-4" />
                             <h3 className="text-[18px] font-black text-[#1a1a1a]">No Active Events Found</h3>
-                            <p className="text-[14px] text-[#54626c] mt-2">Sellers are currently updating inventory for this performer.</p>
+                            <p className="text-[14px] text-[#54626c] mt-2">Sellers are currently updating inventory for this category.</p>
                         </div>
                     ) : (
                         paginatedEvents.map((m, index) => {
@@ -223,8 +286,23 @@ export default function Performer() {
                                 <div 
                                     key={m.id} 
                                     onClick={() => navigate(`/event?id=${m.id}`)}
-                                    className="bg-white border border-[#e2e2e2] rounded-[12px] p-4 flex flex-col md:flex-row md:items-center hover:shadow-md hover:border-[#8cc63f] transition-all cursor-pointer group"
+                                    className="relative bg-white border border-[#e2e2e2] rounded-[12px] p-4 flex flex-col md:flex-row md:items-center hover:shadow-md hover:border-[#8cc63f] transition-all cursor-pointer group/item"
                                 >
+                                    {/* FEATURE 4: Hover Admin Edit Injector */}
+                                    {isAdmin && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedAdminEvent(m);
+                                                setAdminModalOpen(true);
+                                            }}
+                                            className="absolute -top-3 -right-3 md:top-1/2 md:-translate-y-1/2 md:right-4 z-[60] bg-red-600 text-white p-2.5 rounded-full shadow-[0_4px_15px_rgba(220,38,38,0.4)] opacity-100 md:opacity-0 group-hover/item:opacity-100 transition-all hover:scale-110 hover:bg-red-700"
+                                            title="God Mode: Edit Event"
+                                        >
+                                            <Pencil size={16} />
+                                        </button>
+                                    )}
+
                                     {/* Exact Viagogo Date Tear-off */}
                                     <div className="flex items-center flex-1">
                                         <div className="flex flex-col items-center justify-center pr-5 md:pr-6 border-r border-[#e2e2e2] min-w-[70px]">
@@ -235,11 +313,11 @@ export default function Performer() {
                                         
                                         {/* Event Details */}
                                         <div className="pl-5 md:pl-6 flex-1 min-w-0">
-                                            <h3 className="text-[16px] md:text-[18px] font-bold text-[#1a1a1a] leading-tight mb-1 truncate group-hover:text-[#458731] transition-colors">
-                                                {m.title}
+                                            <h3 className="text-[16px] md:text-[18px] font-bold text-[#1a1a1a] leading-tight mb-1 truncate group-hover/item:text-[#458731] transition-colors pr-8">
+                                                {m.title || m.eventName}
                                             </h3>
                                             <p className="text-[13px] text-[#54626c] flex items-center mb-2 truncate">
-                                                {getTimeStr(m.eventTimestamp)} • <MapPin size={12} className="mx-1" /> {m.stadium}, {m.location?.split(',')[0]}
+                                                {getTimeStr(m.eventTimestamp)} • <MapPin size={12} className="mx-1 shrink-0" /> <span className="truncate">{m.stadium}, {m.location?.split(',')[0]}</span>
                                             </p>
                                             
                                             {/* Dynamic Tags */}
@@ -269,7 +347,7 @@ export default function Performer() {
                                     </div>
 
                                     {/* See Tickets Button mapped to Live Inventory */}
-                                    <div className="mt-4 md:mt-0 pt-4 md:pt-0 border-t border-[#e2e2e2] md:border-t-0 flex justify-end shrink-0 md:pl-4">
+                                    <div className="mt-4 md:mt-0 pt-4 md:pt-0 border-t border-[#e2e2e2] md:border-t-0 flex justify-end shrink-0 md:pl-4 md:pr-12">
                                         {hasTickets ? (
                                             <button className="w-full md:w-auto px-6 py-2.5 rounded-[8px] font-bold text-[14px] bg-[#8cc63f] text-[#1a1a1a] hover:bg-[#7ab332] transition-colors shadow-sm">
                                                 See tickets
@@ -311,15 +389,16 @@ export default function Performer() {
                     <div className="mb-12">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-[20px] md:text-[24px] font-bold text-[#1a1a1a] tracking-tight">
-                                {performerName === 'IPL' ? 'Indian Premier League' : performerName} fans also love
+                                {getDisplayName()} fans also love
                             </h2>
                         </div>
                         
-                        <div className="flex overflow-x-auto hide-scrollbar space-x-4 pb-4">
+                        <div className="flex overflow-x-auto custom-scrollbar space-x-4 pb-4">
                             {fansAlsoLove.map((item, idx) => (
                                 <div key={idx} className="min-w-[240px] max-w-[240px] cursor-pointer group" onClick={() => navigate(`/performer/${encodeURIComponent(item.name)}`)}>
                                     <div className="w-full h-[150px] relative rounded-[12px] overflow-hidden mb-3 border border-[#e2e2e2]">
-                                        <img src={item.imageId || 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=400'} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                        {/* FEATURE 3: Safe Image Rendering */}
+                                        <img src={getSafeImage(item.imageId)} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                                     </div>
                                     <h3 className="font-bold text-[#1a1a1a] text-[15px] leading-tight truncate group-hover:text-[#458731] transition-colors">{item.name}</h3>
                                 </div>
