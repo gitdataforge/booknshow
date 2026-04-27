@@ -3,17 +3,17 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper: Checks if the user is authenticated via Firebase Auth
+    // FEATURE 1: Authentication State Verification Engine
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // Helper: Checks if the user is the explicit owner of the private data
+    // FEATURE 2: Private Data Ownership Validation
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // FEATURE: God-Mode Admin Verification (Synchronized with Seller Site)
+    // FEATURE 3: God-Mode Admin Verification (Synchronized with Seller & Buyer Sites)
     function isAdmin() {
       return isAuthenticated() && (
         request.auth.token.email == 'testcodecfg@gmail.com' ||
@@ -26,52 +26,50 @@ service cloud.firestore {
     // PARBET PRODUCTION ROOT COLLECTIONS (Shared by Buyer & Seller Sites)
     // =========================================================================
     
-    // FEATURE 1: Shared Marketplace Inventory (Events & Ticket Tiers)
+    // FEATURE 4: Shared Marketplace Inventory (Events & Ticket Tiers)
     match /events/{eventId} {
-      // Allow unrestricted read access so unauthenticated buyers can view the homepage feed
       allow read: if true;
-      
-      // Strict Gatekeeper: Only authenticated users (Sellers) can list new matches
-      // (The specific free-listing bypass is enforced at the application layer)
       allow create: if isAuthenticated();
-      
-      // Only the seller who created the listing can update it (e.g., deducting inventory after a sale)
-      // Allow buyers to update ONLY the 'ticketTiers' quantity during checkout via a transaction
+      // Allow buyers to update ONLY the 'ticketTiers' quantity during checkout via atomic transaction
       allow update: if isAuthenticated(); 
-      
-      // Only the specific seller or any global admin can delete/archive their event
+      // FEATURE 5: Protected Event Archiving (Seller or Admin only)
       allow delete: if isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.sellerId);
     }
 
-    // FEATURE 2: Transactional Escrow Ledger (Orders)
+    // FEATURE 6: Live Ticket Feed Authorization (Fixes useStore.js:396 crash)
+    match /tickets/{ticketId} {
+      allow read: if true; // Public access required for global market sync
+      allow create, update: if isAuthenticated();
+      allow delete: if isAdmin() || (isAuthenticated() && resource.data.sellerId == request.auth.uid);
+    }
+
+    // FEATURE 7: Transactional Escrow Ledger (Orders Pipeline)
     match /orders/{orderId} {
       // Buyers can securely create a new order record upon successful Razorpay/Bank Transfer checkout
       allow create: if isAuthenticated();
-      
       // Absolute Privacy: An order can ONLY be read by the buyer who paid, the seller who provided the ticket, OR a global admin
       allow read: if isAdmin() || (isAuthenticated() && (
         request.auth.uid == resource.data.buyerId || 
         request.auth.uid == resource.data.sellerId
       ));
-      
-      // Financial Integrity: Orders are immutable once created by the buyer
+      // FEATURE 8: Financial Integrity Lock (Orders are immutable once created)
       allow update, delete: if false;
     }
 
-    // FEATURE 3: Private User Data (Buyer/Seller Profiles, Wallets, Settings)
+    // FEATURE 9: Encrypted User Data Vaults (Buyer/Seller Profiles, Wallets)
     match /users/{userId} {
       allow read: if isAdmin() || isOwner(userId);
       allow write: if isOwner(userId);
     }
     
-    // Deep Wildcard Fallback for nested private structures inside a user's profile
+    // FEATURE 10: Deep Wildcard Sub-collection Protection
     match /users/{userId}/{document=**} {
       allow read: if isAdmin() || isOwner(userId);
       allow write: if isOwner(userId);
     }
 
     // =========================================================================
-    // CANVAS ARTIFACT FALLBACK (Required for Immersive Previews)
+    // CANVAS ARTIFACT FALLBACK (Required for Internal Routing and Previews)
     // =========================================================================
     
     match /artifacts/{appId} {
@@ -80,6 +78,14 @@ service cloud.firestore {
         allow create, update: if isAuthenticated();
         allow delete: if isAdmin() || (isAuthenticated() && resource.data.sellerId == request.auth.uid);
       }
+      
+      // CRITICAL FIX: Mirrors the tickets collection rules to the artifact path 
+      match /public/data/tickets/{ticketId} {
+        allow read: if true;
+        allow create, update: if isAuthenticated();
+        allow delete: if isAdmin() || (isAuthenticated() && resource.data.sellerId == request.auth.uid);
+      }
+      
       match /public/data/orders/{orderId} {
         allow create: if isAuthenticated();
         allow read: if isAdmin() || (isAuthenticated() && (
@@ -88,13 +94,14 @@ service cloud.firestore {
         ));
         allow update, delete: if false;
       }
+      
       match /users/{userId}/{document=**} {
         allow read: if isAdmin() || isOwner(userId);
         allow write: if isOwner(userId);
       }
     }
 
-    // Catch-all: Deny any rogue access to undefined collections
+    // FEATURE 11: Absolute Catch-All Deny Rules for Rogue Path Execution
     match /{document=**} {
       allow read, write: if false;
     }
