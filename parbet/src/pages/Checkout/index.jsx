@@ -13,7 +13,7 @@ import { db } from '../../lib/firebase';
 import { uploadEventImage } from '../../lib/pocketbase';
 
 /**
- * FEATURE 1: React Router Native Payload Engine (Bypasses Zustand store crash)
+ * FEATURE 1: React Router Native Payload Hydration (Bypasses Zustand store crash)
  * FEATURE 2: Navigation Trap (Interprets and blocks browser back button)
  * FEATURE 3: Infinite Loading Resolution (Failsafe Auth/Fetch Gates)
  * FEATURE 4: Explicit Cancel & Release Logic (Restores inventory visibility)
@@ -36,14 +36,14 @@ export default function Checkout() {
     const navigate = useNavigate();
     const location = useLocation();
 
-    // CRITICAL FIX: Removed broken `lockCheckout`, `isCheckoutLocked`, and `reservedListing` 
-    // dependencies from the global store to permanently prevent TypeError crashes.
+    // CRITICAL FIX: Injected `hydrateCheckoutPayload` to catch the native router state
+    // and correctly initialize the secure checkout session without crashing.
     const { 
         user, isAuthenticated, openAuthModal,
         checkoutStep, setCheckoutStep,
         checkoutFormData, updateCheckoutFormData,
-        checkoutExpiration, startCheckoutTimer, resetCheckoutTimer,
-        cancelReservation, executePurchase
+        checkoutExpiration, cancelReservation, executePurchase,
+        hydrateCheckoutPayload 
     } = useAppStore();
 
     // FEATURE 1: Native Router Local State Hydration
@@ -93,8 +93,9 @@ export default function Checkout() {
                 
                 // 1. NATIVE PAYLOAD INTERCEPTOR (Seamless Transition)
                 if (location.state && location.state.reservedListing) {
-                    setLocalListing(location.state.reservedListing);
-                    startCheckoutTimer();
+                    const payload = location.state.reservedListing;
+                    setLocalListing(payload);
+                    hydrateCheckoutPayload(payload); // Securely lock the session
                     
                     if (user?.email && !checkoutFormData.contact.email) {
                         updateCheckoutFormData('contact', { email: user.email });
@@ -143,7 +144,7 @@ export default function Checkout() {
                     };
 
                     setLocalListing(captureData);
-                    startCheckoutTimer();
+                    hydrateCheckoutPayload(captureData); // Securely lock the session
 
                     if (user?.email && !checkoutFormData.contact.email) {
                         updateCheckoutFormData('contact', { email: user.email });
@@ -161,7 +162,7 @@ export default function Checkout() {
         };
 
         syncInventoryLock();
-    }, [eventId, tierId, qtyParams, isAuthenticated, user, location.state]); 
+    }, [eventId, tierId, qtyParams, isAuthenticated, user, location.state, hydrateCheckoutPayload]); 
 
     // FEATURE 10: Precision Countdown
     useEffect(() => {
@@ -228,8 +229,8 @@ export default function Checkout() {
                     description: `Order #${Date.now().toString().slice(-6)}`,
                     handler: async (response) => {
                         try {
-                            // Execute the atomic transaction via Zustand Store
-                            await executePurchase(response.razorpay_payment_id, totals.total);
+                            // Execute the atomic transaction via Zustand Store explicitly injecting the localListing
+                            await executePurchase(response.razorpay_payment_id, totals.total, localListing);
                             navigate(`/order-confirmation/${response.razorpay_payment_id}`);
                         } catch (err) { 
                             setError(`Payment succeeded, but inventory update failed: ${err.message}. Contact support.`); 
@@ -250,8 +251,8 @@ export default function Checkout() {
                 new window.Razorpay(options).open();
             } else {
                 if (!receiptUrl) throw new Error("Transfer proof is mandatory for manual approval.");
-                // Execute atomic transaction for bank transfer
-                await executePurchase(`manual_${Date.now()}`, totals.total);
+                // Execute atomic transaction for bank transfer explicitly injecting the localListing
+                await executePurchase(`manual_${Date.now()}`, totals.total, localListing);
                 navigate('/order-pending');
             }
         } catch (err) {
