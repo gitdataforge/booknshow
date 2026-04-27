@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, X, MessageSquare, Send, Loader2, AlertCircle } from 'lucide-react';
 import { useAppStore } from '../../store/useStore';
@@ -14,6 +14,7 @@ import { sendCustomPasswordResetEmail } from '../../utils/resendEmailHelper';
  * FEATURE 3: Intelligent Error Boundaries & Fallbacks
  * FEATURE 4: Email Sanitization Pipeline
  * FEATURE 5: Firestore Identity Sync
+ * FEATURE 6: Seamless Pre-Auth Intent Routing (Return-To Payload Interception)
  */
 
 // Helper Component for exact input styling
@@ -33,6 +34,7 @@ const CustomInput = ({ label, required, type = "text", value, onChange, disabled
 
 export default function Login() {
     const navigate = useNavigate();
+    const location = useLocation(); // FEATURE 6: Router memory extraction
     const { isAuthenticated, setUser, setOnboarded } = useAppStore();
     
     // Exact View States: 'email' -> 'password' -> 'forgot' -> 'forgot-success'
@@ -54,12 +56,14 @@ export default function Login() {
 
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'parbet-44902';
 
-    // Auto-redirect if already logged in
+    // FEATURE 6: Auto-redirect if already logged in (Honors returnTo payload)
     useEffect(() => {
         if (isAuthenticated) {
-            navigate('/profile');
+            const returnTo = location.state?.returnTo || '/profile';
+            const reservedListing = location.state?.reservedListing;
+            navigate(returnTo, { state: { reservedListing } });
         }
-    }, [isAuthenticated, navigate]);
+    }, [isAuthenticated, navigate, location.state]);
 
     // Secure Firestore 6-Segment Path Sync
     const syncUserToFirestore = async (user, additionalData = {}) => {
@@ -101,7 +105,12 @@ export default function Login() {
                 photo: result.user.photoURL
             });
             setOnboarded();
-            navigate('/profile');
+            
+            // FEATURE 6: Direct user back to their intended checkout session if payload exists
+            const returnTo = location.state?.returnTo || '/profile';
+            const reservedListing = location.state?.reservedListing;
+            navigate(returnTo, { state: { reservedListing } });
+            
         } catch (err) {
             console.error("Google Auth Error Intercepted:", err);
             setError('Failed to securely authenticate with Google.');
@@ -140,7 +149,12 @@ export default function Login() {
                 photo: userCredential.user.photoURL
             });
             setOnboarded();
-            navigate('/profile');
+            
+            // FEATURE 6: Direct user back to their intended checkout session if payload exists
+            const returnTo = location.state?.returnTo || '/profile';
+            const reservedListing = location.state?.reservedListing;
+            navigate(returnTo, { state: { reservedListing } });
+            
         } catch (err) {
             console.error("Login Error Intercepted:", err.code, err.message);
             

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     MapPin, Calendar, ShieldCheck, Ticket, SlidersHorizontal, 
@@ -22,16 +22,17 @@ import AdminEditEventModal from '../../components/AdminEditEventModal';
 
 /**
  * FEATURE 1: React Router Native Payload Engine (Bypasses Zustand store crash)
- * FEATURE 2: Explicit Button Event Binding (Fixes broken checkout redirection)
- * FEATURE 3: PocketBase Image URL Scrubber (Fixes Cloudinary 404 banner crash)
- * FEATURE 4: PVR-Style Interactive Map Filtering Engine
- * FEATURE 5: Dynamic Nested Payload Mapping (Ticket Tiers)
- * FEATURE 6: Advanced ISO Timestamp Parser
- * FEATURE 7: Live Inventory Quantity Gate
- * FEATURE 8: Price-Value Algorithmic Sorting
- * FEATURE 9: Localized Schema Normalization Adapter
- * FEATURE 10: Real-Time Admin Identity Verification
- * FEATURE 11: Native Auth Redirection (Fixes phantom openAuthModal dead clicks)
+ * FEATURE 2: Seamless Return-To-Checkout Routing (Passes payload to login page)
+ * FEATURE 3: Explicit Button Event Binding (Fixes broken checkout redirection)
+ * FEATURE 4: PocketBase Image URL Scrubber (Fixes Cloudinary 404 banner crash)
+ * FEATURE 5: PVR-Style Interactive Map Filtering Engine
+ * FEATURE 6: Dynamic Nested Payload Mapping (Ticket Tiers)
+ * FEATURE 7: Advanced ISO Timestamp Parser
+ * FEATURE 8: Live Inventory Quantity Gate
+ * FEATURE 9: Price-Value Algorithmic Sorting
+ * FEATURE 10: Localized Schema Normalization Adapter
+ * FEATURE 11: Real-Time Admin Identity Verification
+ * FEATURE 12: Native Auth Redirection (Fixes phantom openAuthModal dead clicks)
  */
 
 // Utility to strictly label dates based on the real-time API
@@ -66,6 +67,7 @@ export default function Event() {
     const [searchParams] = useSearchParams();
     const eventId = searchParams.get('id');
     const navigate = useNavigate();
+    const location = useLocation();
     
     const { 
         isAuthenticated,
@@ -181,13 +183,8 @@ export default function Event() {
         }
     }, [activeSection, sortOrder, instantDownloadOnly, clearViewOnly]);
 
-    // FEATURE 1, 2 & 11: Secure "Book" Action with Native Login Redirect
+    // FEATURE 1, 2 & 11: Secure "Book" Action with Native Login Redirect & Return Payload
     const handlePurchaseInitiation = (tier) => {
-        if (!isAuthenticated) {
-            navigate('/login');
-            return;
-        }
-
         // CAPTURE: Strict metadata bundle
         const captureData = {
             eventId: eventId,
@@ -200,6 +197,17 @@ export default function Event() {
             sellerId: eventData.sellerId || 'system',
             imageUrl: eventData.imageUrl
         };
+
+        if (!isAuthenticated) {
+            // FEATURE 2: Pass the return URL and the captured payload to the Login screen
+            navigate('/login', { 
+                state: { 
+                    returnTo: `/checkout?eventId=${eventId}&tierId=${tier.id}&qty=${selectedTicketQuantity}`,
+                    reservedListing: captureData
+                } 
+            });
+            return;
+        }
 
         // SECURE TRANSITION: Inject payload directly into the Router state to guarantee delivery
         navigate(
@@ -248,11 +256,14 @@ export default function Event() {
     
     const handleRestrictedAction = (e, actionFn) => {
         e.stopPropagation();
-        if (!isAuthenticated) navigate('/login');
-        else actionFn();
+        if (!isAuthenticated) {
+            navigate('/login', { state: { returnTo: location.pathname + location.search } });
+        } else {
+            actionFn();
+        }
     };
 
-    // FEATURE 3: Advanced Image Resolution with Failsafe Scrubber
+    // FEATURE 4: Advanced Image Resolution with Failsafe Scrubber
     // Completely strips dead Cloudinary proxies causing 404s in the console
     const fallbackImage = 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=600&auto=format&fit=crop';
     
