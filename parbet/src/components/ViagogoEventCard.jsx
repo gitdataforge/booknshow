@@ -3,12 +3,12 @@ import { Heart, Eye, MapPin, Calendar } from 'lucide-react';
 import { useAppStore } from '../store/useStore';
 
 /**
- * FEATURE 1: Strict Image Interceptor (Forces Kabaddi imagery)
+ * FEATURE 1: PocketBase / Cloudinary Scrubber (Fixes 404 console errors from legacy DB seeds)
  * FEATURE 2: Real-Time Universal Payload Mapping (Handles both old and new seeded schemas)
  * FEATURE 3: Dynamic Starting Price Engine (Calculated lowest tier or direct root price)
  * FEATURE 4: Secure Interaction Guard (Heart / Favorites)
  * FEATURE 5: ISO Timestamp Parsing Engine
- * FEATURE 6: Real-time Fallback Image Handler
+ * FEATURE 6: Strict Image Interceptor (Forces Kabaddi imagery)
  * FEATURE 7: Hardware-Accelerated Hover Image Scale
  * FEATURE 8: Glassmorphism Action Elements
  * FEATURE 9: Conditional "Sold Out" Status State
@@ -50,8 +50,7 @@ export default function ViagogoEventCard({ event, onClick }) {
         return `${dayStr}, ${monthStr} ${dayNum} • ${timeStr}`;
     };
 
-    // FEATURE 1: Strict Image Interceptor
-    // Strips Cloudinary proxies to prevent 401 Unauthorized crashes
+    // FEATURE 1 & 6: PocketBase Resolution & Cloudinary Scrubber
     const determineDisplayImage = () => {
         const isKabaddi = (event.sportCategory?.toLowerCase().includes('kabaddi')) || 
                           (displayTitle.toLowerCase().includes('kabaddi')) ||
@@ -61,7 +60,14 @@ export default function ViagogoEventCard({ event, onClick }) {
             return 'https://images.unsplash.com/photo-1555215695-3004980ad54e?q=80&w=600&auto=format&fit=crop';
         }
         
-        return event.imageUrl || 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=600&auto=format&fit=crop';
+        let rawUrl = event.imageUrl || event.image || event.thumb;
+
+        // CRITICAL FIX: Scrub broken legacy Cloudinary links from the old database schema
+        if (rawUrl && rawUrl.includes('res.cloudinary.com/dtz0urit6')) {
+            rawUrl = null; // Force standard fallback
+        }
+        
+        return rawUrl || 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=600&auto=format&fit=crop';
     };
 
     const displayImage = determineDisplayImage();

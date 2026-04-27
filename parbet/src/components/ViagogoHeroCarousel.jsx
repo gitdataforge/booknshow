@@ -9,7 +9,7 @@ import { useAppStore } from '../store/useStore';
 // Unsplash natively handles ?auto=format&fit=crop optimizations via direct URL parameters.
 const optimizeImage = (url, width = 1200) => {
     if (!url) return '';
-    // Direct passthrough to prevent Cloudinary 401 proxy blocks
+    // Direct passthrough to prevent Cloudinary 401 proxy blocks and support PocketBase
     return url;
 };
 
@@ -100,7 +100,7 @@ export default function ViagogoHeroCarousel() {
                                 {heroSlides[currentHeroIndex].title}
                             </h2>
                             
-                            {/* Hidden on Mobile as per image_db9a7e.png */}
+                            {/* Hidden on Mobile */}
                             <div className="hidden md:block mt-6">
                                 <button className="border border-[#1f7f45] bg-transparent text-white hover:bg-[#1f7f45] px-6 py-2.5 rounded-[8px] text-[14px] font-bold transition-all">
                                     See Tickets
