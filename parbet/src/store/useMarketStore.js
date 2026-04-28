@@ -6,6 +6,7 @@ import { db } from '../lib/firebase';
  * FEATURE 1: Global Read-Only State Manager & Normalization Adapter
  * Actively synchronizes the Buyer's frontend with the Seller's Firestore payloads.
  * Re-engineered to process complex sorting, filtering, and schema mapping securely in memory.
+ * FEATURE 13: Strict Singleton Network Lock (Kills ERR_QUIC_PROTOCOL_ERROR infinite loops)
  */
 export const useMarketStore = create((set, get) => ({
     activeListings: [],
@@ -13,10 +14,22 @@ export const useMarketStore = create((set, get) => ({
     activeCategory: 'All',
     isLoading: true,
     error: null,
+    
+    // FEATURE 13: Singleton Lock States
+    isListenerActive: false,
+    unsubscribe: null,
 
     // FEATURE 2: Schema-Agnostic Real-Time Market Synchronization
     initMarketListener: () => {
-        set({ isLoading: true, error: null });
+        const state = get();
+        
+        // CRITICAL FIX: If listener is already running, block subsequent calls instantly
+        if (state.isListenerActive) {
+            return state.unsubscribe;
+        }
+
+        set({ isListenerActive: true, isLoading: true, error: null });
+        
         try {
             // Simplified Query: Only fetch events that are marked active.
             // Complex date filtering and sorting are moved to memory to bypass index constraints.
@@ -101,18 +114,23 @@ export const useMarketStore = create((set, get) => ({
                     console.error("[Parbet Market Sync] Listener failed:", error);
                     set({ 
                         error: "Market synchronization interrupted. Please check your connection.", 
-                        isLoading: false 
+                        isLoading: false,
+                        isListenerActive: false // Release lock on error
                     });
                 }
             );
 
+            // Store the active subscription to prevent duplicates
+            set({ unsubscribe });
+            
             // Return the cleanup function to prevent memory leaks when unmounting
             return unsubscribe;
         } catch (err) {
             console.error("[Parbet Market Sync] Critical initialization failure:", err);
             set({ 
                 error: "Failed to initialize global market feed. Ensure database index exists.", 
-                isLoading: false 
+                isLoading: false,
+                isListenerActive: false // Release lock on error
             });
         }
     },
