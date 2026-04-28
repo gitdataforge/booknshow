@@ -210,6 +210,7 @@ export default function Event() {
             return;
         }
 
+        // CRITICAL BUGFIX: If user IS authenticated, proceed directly to checkout.
         // FEATURE 13: Store fallback payload in session storage in case state is lost during a hard redirect
         sessionStorage.setItem('parbet_checkout_fallback', JSON.stringify(captureData));
 
