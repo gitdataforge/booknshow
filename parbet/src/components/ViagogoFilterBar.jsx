@@ -14,7 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion';
  * FEATURE 7: Horizontal Category Scroll with Dynamic Underline
  * FEATURE 8: Price Tier Mapping (All, $, $$, $$$, $$$$)
  * FEATURE 9: Date Context Mapping (Today, Weekend, Month)
- * FEATURE 10: Hardware-Accelerated Mobile Responsiveness
+ * FEATURE 10: CSS Clipping Failsafe (flex-wrap replaces overflow-x-auto to prevent dropdown cutoffs)
  */
 
 export default function ViagogoFilterBar() {
@@ -83,7 +83,7 @@ export default function ViagogoFilterBar() {
     ];
 
     return (
-        <div className="w-full bg-white z-20 relative font-sans">
+        <div className="w-full bg-white z-40 relative font-sans">
             
             {/* ROW 1: SVG Category Links */}
             <div className="w-full border-b border-gray-200">
@@ -112,7 +112,8 @@ export default function ViagogoFilterBar() {
 
             {/* ROW 2: Rounded Filter Pills */}
             <div className="w-full bg-white border-b border-gray-200 py-3.5 shadow-sm">
-                <div className="max-w-[1400px] mx-auto px-4 md:px-8 flex items-center space-x-3 overflow-x-auto hide-scrollbar relative">
+                {/* CRITICAL FIX: Replaced overflow-x-auto space-x-3 with flex-wrap gap-3 to prevent CSS clipping of absolute dropdowns */}
+                <div className="max-w-[1400px] mx-auto px-4 md:px-8 flex flex-wrap items-center gap-3 relative">
                     
                     {/* Location Dropdown Pill */}
                     <div className="relative shrink-0">
@@ -124,7 +125,11 @@ export default function ViagogoFilterBar() {
                             {getCleanCityName(userCity)} 
                             <ChevronDown size={16} className={`ml-2 transition-transform ${userCity && userCity !== 'All Cities' && userCity !== 'Global' ? 'text-[#458731]' : 'text-[#54626c]'} ${isLocationDropdownOpen ? 'rotate-180' : ''}`}/>
                         </button>
-                        <LocationDropdown />
+                        {isLocationDropdownOpen && (
+                            <div className="absolute left-0 top-[calc(100%+8px)] z-[999]">
+                                <LocationDropdown />
+                            </div>
+                        )}
                     </div>
 
                     {/* Date Context Pill with Animated Dropdown */}
@@ -145,7 +150,7 @@ export default function ViagogoFilterBar() {
                                     animate={{ opacity: 1, y: 0, scale: 1 }}
                                     exit={{ opacity: 0, y: -10, scale: 0.95 }}
                                     transition={{ duration: 0.15, ease: "easeOut" }}
-                                    className="absolute top-[115%] left-0 w-56 bg-white border border-gray-200 shadow-[0_10px_40px_rgba(0,0,0,0.12)] rounded-[12px] py-2 z-[100] overflow-hidden"
+                                    className="absolute top-[calc(100%+8px)] left-0 w-56 bg-white border border-gray-200 shadow-xl rounded-[12px] py-2 z-[999] overflow-hidden"
                                 >
                                     {dateOptions.map(opt => (
                                         <div 
@@ -180,7 +185,7 @@ export default function ViagogoFilterBar() {
                                     animate={{ opacity: 1, y: 0, scale: 1 }}
                                     exit={{ opacity: 0, y: -10, scale: 0.95 }}
                                     transition={{ duration: 0.15, ease: "easeOut" }}
-                                    className="absolute top-[115%] left-0 w-48 bg-white border border-gray-200 shadow-[0_10px_40px_rgba(0,0,0,0.12)] rounded-[12px] py-2 z-[100] overflow-hidden"
+                                    className="absolute top-[calc(100%+8px)] left-0 w-48 bg-white border border-gray-200 shadow-xl rounded-[12px] py-2 z-[999] overflow-hidden"
                                 >
                                     {priceOptions.map(opt => (
                                         <div 
