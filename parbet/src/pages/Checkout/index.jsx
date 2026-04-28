@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
     CreditCard, Ticket, Clock, Check, Lock, MapPin, 
     UploadCloud, Building, CheckCircle2, ShieldAlert, 
-    Loader2, AlertTriangle, Info, Eye, Zap, X
+    Loader2, AlertTriangle, Info, Eye, Zap, X, ChevronDown, Smartphone
 } from 'lucide-react';
 import CryptoJS from 'crypto-js';
 import { useAppStore } from '../../store/useStore';
@@ -622,7 +622,7 @@ export default function Checkout() {
                                 <div className="w-6 h-6 bg-gray-100 rounded-[4px] flex items-center justify-center shrink-0 mt-0.5"><Ticket size={14} className="text-[#1a1a1a]" /></div>
                                 <div>
                                     <h4 className="font-bold text-[14px] text-[#1a1a1a] mb-1">Resell Anytime</h4>
-                                    <p className="text-[13px] text-gray-500 leading-relaxed">Not sure if you can make it to this event? No worries! You can <span className="text-[#0066cc] cursor-pointer hover:underline">resell your tickets</span> on parbet at any time.</p>
+                                    <p className="text-[13px] text-gray-500 leading-relaxed">Not sure if you can make it to this event? No worries! You can <span className="text-[#0066cc] cursor-pointer hover:underline">resell your tickets</span> on viagogo at any time.</p>
                                 </div>
                             </div>
                         </div>
