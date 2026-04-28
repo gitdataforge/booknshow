@@ -3,26 +3,22 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Search, User, X, Menu, ChevronRight, ChevronLeft, TrendingUp, Bell } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '../store/useStore';
-import SearchDropdown from './SearchDropdown';
-import NavHoverMenu from './NavHoverMenu';
 
 /**
  * FEATURE 1: Strict Keyword Enforcement Engine (Locks queries to IPL, Cricket, Kabaddi, World Cup)
  * FEATURE 2: Dynamic Auto-Correction (Intercepts invalid searches and defaults to approved categories)
- * FEATURE 3: Quick-Filter Dynamic Pills (One-tap strict category execution)
- * FEATURE 4: Isolated Profile Routing (Hides global search on profile paths)
- * FEATURE 5: Hardware-Accelerated Mobile Drawer (Smooth off-canvas translation)
- * FEATURE 6: Cross-Network Seller Bridge (Secure routing to parbet-seller)
- * FEATURE 7: Glassmorphism Header Overlays (backdrop-blur-md)
- * FEATURE 8: Keyboard Accessibility Trap (Enter key interception)
- * FEATURE 9: Nested Drawer Navigation (Sub-menus for Sell/Tickets)
- * FEATURE 10: Visual Focus Rings (Custom #8cc63f input states)
- * FEATURE 11: Ghost-Hover Prevention (Strict exact-name state tracking)
- * FEATURE 12: Z-Index Stacking Context Resolution (Drawer detached from header blur context)
- * FEATURE 13: Background Scroll-Lock (Prevents body scroll when drawer is active)
- * FEATURE 14: Isolated Route-Based Desktop Header (1:1 UI replication for /explore)
- * FEATURE 15: Deep-Nested Dropdown Navigations (Sell, My Tickets, Profile, Notifications)
- * FEATURE 16: Route-Based SearchDropdown Unmount (Fixes duplicate pill overlaps on Explore)
+ * FEATURE 3: Isolated Profile Routing (Hides global search on profile paths)
+ * FEATURE 4: Hardware-Accelerated Mobile Drawer (Smooth off-canvas translation)
+ * FEATURE 5: Cross-Network Seller Bridge (Secure routing to parbet-seller)
+ * FEATURE 6: Glassmorphism Header Overlays (backdrop-blur-md)
+ * FEATURE 7: Keyboard Accessibility Trap (Enter key interception)
+ * FEATURE 8: Nested Drawer Navigation (Sub-menus for Sell/Tickets)
+ * FEATURE 9: Visual Focus Rings (Custom input states)
+ * FEATURE 10: Z-Index Stacking Context Resolution
+ * FEATURE 11: Background Scroll-Lock (Prevents body scroll when drawer is active)
+ * FEATURE 12: Isolated Route-Based Desktop Header (1:1 UI replication for /explore)
+ * FEATURE 13: Deep-Nested Dropdown Navigations (Sell, My Tickets, Profile, Notifications)
+ * FEATURE 14: LEGACY PURGE (Removed SearchDropdown & NavHoverMenu to permanently fix Explore page duplication)
  */
 
 // High-end Green User SVG Icon Component
@@ -51,11 +47,10 @@ export default function Header() {
     const isProfilePage = location.pathname.startsWith('/profile');
     const isExplorePage = location.pathname === '/explore';
 
-    const [hoveredName, setHoveredName] = useState(null);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [menuView, setMenuView] = useState('main'); 
 
-    // FEATURE 13: Scroll Lock logic for mobile drawer
+    // FEATURE 11: Scroll Lock logic for mobile drawer
     useEffect(() => {
         if (mobileMenuOpen) {
             document.body.style.overflow = 'hidden';
@@ -122,7 +117,7 @@ export default function Header() {
                     </div>
                 )}
 
-                {/* FEATURE 14: ISOLATED EXPLORE PAGE DESKTOP NAV (Exact 1:1 UI Replication) */}
+                {/* FEATURE 12: ISOLATED EXPLORE PAGE DESKTOP NAV (Exact 1:1 UI Replication) */}
                 {isExplorePage && (
                     <div className="hidden lg:flex max-w-[1400px] mx-auto px-6 py-3 items-center justify-between relative z-50">
                         {/* Interactive Logo */}
@@ -227,8 +222,6 @@ export default function Header() {
                                 <div 
                                     key={link.name}
                                     className="relative py-3 cursor-pointer"
-                                    onMouseEnter={() => setHoveredName(link.name)}
-                                    onMouseLeave={() => setHoveredName(null)}
                                 >
                                     <button 
                                         onClick={() => { 
@@ -237,19 +230,10 @@ export default function Header() {
                                                 navigate('/explore'); 
                                             }
                                         }} 
-                                        className={`transition-colors pointer-events-none ${hoveredName === link.name ? 'text-[#458731]' : 'hover:text-[#458731]'}`}
+                                        className="transition-colors hover:text-[#458731]"
                                     >
                                         {link.name}
                                     </button>
-                                    {link.category && (
-                                        <NavHoverMenu 
-                                            isOpen={hoveredName === link.name} 
-                                            category={link.category}
-                                            name={link.name}
-                                            onMouseEnter={() => setHoveredName(link.name)}
-                                            onMouseLeave={() => setHoveredName(null)}
-                                        />
-                                    )}
                                 </div>
                             ))}
                         </nav>
@@ -330,9 +314,6 @@ export default function Header() {
                                     </motion.div>
                                 )}
                             </AnimatePresence>
-
-                            {/* FEATURE 16: Route-Based Unmount fixes Explore page duplication issues */}
-                            {!isExplorePage && <SearchDropdown />}
                         </div>
                     </div>
                 )}
