@@ -5,7 +5,7 @@ import {
     Ticket, Plus, Trash2, ShieldAlert, Loader2, AlertCircle,
     UploadCloud, CheckCircle2, RefreshCw, FileImage
 } from 'lucide-react';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp, collection, addDoc } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 import { uploadEventImage } from '../lib/pocketbase';
 
@@ -21,7 +21,7 @@ import { uploadEventImage } from '../lib/pocketbase';
  * FEATURE 9: Dynamic Minimum Price Auto-Calculator
  * FEATURE 10: Multi-State Feedback (Success/Error/Loading)
  * FEATURE 11: Audit Trail (lastEditedByAdmin log)
- * FEATURE 12: Legacy Data Sync (Mapping section/row to ticketTiers)
+ * FEATURE 12: Split-Path Transaction Gateway (Create vs Update Fix)
  */
 
 export default function AdminEditEventModal({ isOpen, onClose, eventData }) {
@@ -60,7 +60,7 @@ export default function AdminEditEventModal({ isOpen, onClose, eventData }) {
             }
         } catch (err) {
             console.error("[Admin Protocol] Upload Exception:", err);
-            setError("Failed to stream image to PocketBase. Verify your Hugging Face Space is active.");
+            setError("Failed to stream image to PocketBase. Verify your network connection.");
         } finally {
             setIsUploading(false);
         }
@@ -69,7 +69,7 @@ export default function AdminEditEventModal({ isOpen, onClose, eventData }) {
     // Populate form securely when modal opens or eventData changes
     useEffect(() => {
         if (isOpen && eventData) {
-            setTitle(eventData.title || eventData.eventName || '');
+            setTitle(eventData.title || eventData.eventName || eventData.t1 ? `${eventData.t1} vs ${eventData.t2}` : '');
             setImageUrl(eventData.imageUrl || '');
             
             const rawDate = eventData.commence_time || eventData.eventTimestamp || eventData.date;
@@ -112,7 +112,7 @@ export default function AdminEditEventModal({ isOpen, onClose, eventData }) {
             price: 5000,
             quantity: 2,
             seats: 'Any',
-            disclosures: ['Instant Download']
+            disclosures: ['Instant Download', 'Mobile Ticket']
         }]);
     };
 
@@ -142,7 +142,7 @@ export default function AdminEditEventModal({ isOpen, onClose, eventData }) {
             }
 
             if (!title || !dateStr || !stadium || !city) {
-                throw new Error("Missing required core metadata.");
+                throw new Error("Missing required core metadata. Please fill out all fields.");
             }
 
             const finalIsoDate = new Date(dateStr).toISOString();
@@ -166,16 +166,27 @@ export default function AdminEditEventModal({ isOpen, onClose, eventData }) {
                 ticketTiers: ticketTiers,
                 price: minPrice,
                 lastEditedByAdmin: currentUser.email,
-                lastEditedAt: serverTimestamp()
+                lastEditedAt: serverTimestamp(),
+                status: 'active'
             };
 
-            const eventRef = doc(db, 'events', eventData.id);
-            await updateDoc(eventRef, updatePayload);
+            // CRITICAL FIX: Split-Path Transaction Gateway
+            // If the event has an ID, we update it. If it doesn't, it's a new event and we add it.
+            if (eventData && eventData.id) {
+                const eventRef = doc(db, 'events', eventData.id);
+                await updateDoc(eventRef, updatePayload);
+                console.log("[Admin Protocol] Existing event updated successfully.");
+            } else {
+                const eventsCollectionRef = collection(db, 'events');
+                await addDoc(eventsCollectionRef, updatePayload);
+                console.log("[Admin Protocol] New event minted successfully.");
+            }
 
             setSuccess(true);
             setTimeout(() => onClose(), 1500);
 
         } catch (err) {
+            console.error("[Admin Protocol] Transaction Failure:", err);
             setError(err.message || "Failed to commit mutation to Firestore.");
         } finally {
             setIsLoading(false);
@@ -237,7 +248,7 @@ export default function AdminEditEventModal({ isOpen, onClose, eventData }) {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-1.5">
                                     <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest px-1">Display Title</label>
-                                    <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-[12px] px-4 py-3 text-[15px] font-bold focus:bg-white focus:border-red-600 outline-none transition-all shadow-sm" />
+                                    <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Royal Challengers vs Chennai Super Kings" className="w-full bg-gray-50 border border-gray-200 rounded-[12px] px-4 py-3 text-[15px] font-bold focus:bg-white focus:border-red-600 outline-none transition-all shadow-sm" />
                                 </div>
                                 <div className="space-y-1.5">
                                     <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest px-1">Commencement Date</label>
@@ -250,12 +261,12 @@ export default function AdminEditEventModal({ isOpen, onClose, eventData }) {
                                     <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest px-1">Venue Infrastructure</label>
                                     <div className="relative">
                                         <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18}/>
-                                        <input type="text" value={stadium} onChange={(e) => setStadium(e.target.value)} className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-[12px] text-[15px] font-bold focus:bg-white focus:border-red-600 outline-none transition-all shadow-sm" />
+                                        <input type="text" value={stadium} onChange={(e) => setStadium(e.target.value)} placeholder="e.g. Wankhede Stadium" className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-[12px] text-[15px] font-bold focus:bg-white focus:border-red-600 outline-none transition-all shadow-sm" />
                                     </div>
                                 </div>
                                 <div className="space-y-1.5">
                                     <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest px-1">Geographic Location</label>
-                                    <input type="text" value={city} onChange={(e) => setCity(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-[12px] px-4 py-3 text-[15px] font-bold focus:bg-white focus:border-red-600 outline-none transition-all shadow-sm" />
+                                    <input type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. Mumbai" className="w-full bg-gray-50 border border-gray-200 rounded-[12px] px-4 py-3 text-[15px] font-bold focus:bg-white focus:border-red-600 outline-none transition-all shadow-sm" />
                                 </div>
                             </div>
                         </section>
@@ -289,7 +300,7 @@ export default function AdminEditEventModal({ isOpen, onClose, eventData }) {
                                     </div>
                                     <div className="mt-4 space-y-2">
                                         <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest px-1">Network Asset URL (Auto-Generated)</label>
-                                        <input type="text" value={imageUrl} readOnly className="w-full bg-gray-100 border border-gray-200 rounded-[8px] px-3 py-2 text-[12px] font-mono text-gray-600 cursor-not-allowed" />
+                                        <input type="text" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="Paste direct image URL if not uploading" className="w-full bg-white border border-gray-200 rounded-[8px] px-3 py-2 text-[12px] font-mono text-gray-600" />
                                     </div>
                                 </div>
 
