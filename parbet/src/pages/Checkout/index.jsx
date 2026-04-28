@@ -24,6 +24,8 @@ import { loadRazorpayScript } from '../../utils/razorpay';
  * FEATURE 8: Native Router Payload Hydration
  * FEATURE 9: Navigation Trap (Blocks browser back button)
  * FEATURE 10: Client-Side HMAC SHA256 Signature Verification
+ * FEATURE 11: Distraction-Free Checkout (Header & Footer Hidden)
+ * FEATURE 12: Strict Expiration Redirect Engine
  */
 
 export default function Checkout() {
@@ -35,12 +37,13 @@ export default function Checkout() {
     const navigate = useNavigate();
     const location = useLocation();
 
+    // CRITICAL FIX: Imported startCheckoutTimer to actually trigger the global countdown
     const { 
         user, isAuthenticated, openAuthModal,
         checkoutStep, setCheckoutStep,
         checkoutFormData, updateCheckoutFormData,
         checkoutExpiration, cancelReservation, executePurchase,
-        hydrateCheckoutPayload 
+        hydrateCheckoutPayload, startCheckoutTimer
     } = useAppStore();
 
     const [localListing, setLocalListing] = useState(location.state?.reservedListing || null);
@@ -143,13 +146,14 @@ export default function Checkout() {
         syncInventoryLock();
     }, [eventId, tierId, qtyParams, isAuthenticated, user, location.state, hydrateCheckoutPayload]); 
 
-    // Precision Timer (Starts only after user clicks "Start" in Viagogo modal)
+    // CRITICAL FIX: Precision Timer Engine with Auto-Redirect
     useEffect(() => {
         if (!checkoutExpiration || !isTimerStarted) return;
         const interval = setInterval(() => {
             const diff = checkoutExpiration - Date.now();
             if (diff <= 0) {
                 clearInterval(interval);
+                alert("Your 10-minute reservation window has expired. Please select your tickets again.");
                 handleExplicitCancel();
                 return;
             }
@@ -173,7 +177,9 @@ export default function Checkout() {
         navigate(eventId ? `/event?id=${eventId}` : '/');
     };
 
+    // CRITICAL FIX: Trigger global timer execution
     const handleStartTimer = () => {
+        startCheckoutTimer(); // Ignites the global countdown
         setIsTimerStarted(true);
         setPriceLockedMsg(true);
         setTimeout(() => setPriceLockedMsg(false), 4000);
@@ -383,20 +389,13 @@ export default function Checkout() {
                 )}
             </AnimatePresence>
 
-            {/* Viagogo Global Header */}
-            <header className="w-full bg-white border-b border-gray-200 sticky top-0 z-40 px-4 md:px-8 py-4 flex justify-between items-center">
-                <h1 className="text-[24px] font-black tracking-tighter text-[#1a1a1a] cursor-pointer" onClick={() => setIsCancelModalOpen(true)}>Checkout</h1>
-                <div className="flex items-center gap-4 text-[14px] font-bold text-[#1a1a1a]">
-                    <div className="flex items-center gap-2">
-                        <Clock size={18} /> {timeLeft} <Info size={14} className="text-gray-400" />
-                    </div>
-                    <span className="hidden md:inline">INR</span>
-                    <span className="hidden md:inline">EN <ChevronDown size={14} className="inline ml-1" /></span>
-                </div>
-            </header>
+            {/* Top Distraction-Free Header (Just Logo) */}
+            <div className="w-full pt-8 pb-4 flex justify-center items-center cursor-pointer" onClick={() => setIsCancelModalOpen(true)}>
+                <h1 className="text-[32px] font-black tracking-tighter text-[#1a1a1a]">par<span className="text-[#8cc63f]">bet</span></h1>
+            </div>
 
             {/* Two-Column Checkout Layout */}
-            <div className="max-w-[1100px] mx-auto mt-8 px-4 flex flex-col lg:flex-row gap-12">
+            <div className="max-w-[1100px] mx-auto mt-4 px-4 flex flex-col lg:flex-row gap-12">
                 
                 {/* LEFT COLUMN: Forms */}
                 <div className="flex-1 space-y-8">
@@ -557,10 +556,20 @@ export default function Checkout() {
                     )}
                 </div>
 
-                {/* RIGHT COLUMN: Sticky Order Summary */}
+                {/* RIGHT COLUMN: Sticky Order Summary & Embedded Timer */}
                 <aside className="w-full lg:w-[400px]">
-                    <div className="sticky top-24">
+                    <div className="sticky top-10">
                         <div className="border border-[#e2e2e2] rounded-[12px] bg-white overflow-hidden shadow-sm mb-6">
+                            
+                            {/* CRITICAL FIX: Timer is now embedded clearly in the order summary */}
+                            <div className="bg-[#f0f9f0] border-b border-[#d4edda] py-3 px-4 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <Clock size={16} className="text-[#427A1A]" />
+                                    <span className="text-[14px] font-bold text-[#1a1a1a]">Time left to buy</span>
+                                </div>
+                                <span className="text-[16px] font-black text-[#427A1A] tabular-nums">{timeLeft}</span>
+                            </div>
+
                             {/* Top Badge */}
                             <div className="bg-[#fff0f5] border-b border-[#ffe6ee] py-2 px-4 flex items-center justify-center gap-2">
                                 <Ticket size={16} className="text-[#ff0066]" />
@@ -622,25 +631,13 @@ export default function Checkout() {
                                 <div className="w-6 h-6 bg-gray-100 rounded-[4px] flex items-center justify-center shrink-0 mt-0.5"><Ticket size={14} className="text-[#1a1a1a]" /></div>
                                 <div>
                                     <h4 className="font-bold text-[14px] text-[#1a1a1a] mb-1">Resell Anytime</h4>
-                                    <p className="text-[13px] text-gray-500 leading-relaxed">Not sure if you can make it to this event? No worries! You can <span className="text-[#0066cc] cursor-pointer hover:underline">resell your tickets</span> on viagogo at any time.</p>
+                                    <p className="text-[13px] text-gray-500 leading-relaxed">Not sure if you can make it to this event? No worries! You can <span className="text-[#0066cc] cursor-pointer hover:underline">resell your tickets</span> on parbet at any time.</p>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </aside>
             </div>
-
-            {/* Global Footer */}
-            <footer className="max-w-[1300px] mx-auto mt-20 px-4 pt-6 border-t border-gray-200 flex flex-col md:flex-row justify-between items-center text-[13px] text-gray-500 gap-4">
-                <div className="flex gap-4">
-                    <span className="hover:underline cursor-pointer">User Agreement</span>
-                    <span className="hover:underline cursor-pointer">Privacy Notice</span>
-                    <span className="hover:underline cursor-pointer">Cookie Notice</span>
-                </div>
-                <div className="flex items-center gap-1.5 font-bold text-[#1a1a1a]">
-                    <ShieldCheck size={16} /> Every order is 100% guaranteed
-                </div>
-            </footer>
         </div>
     );
 }
