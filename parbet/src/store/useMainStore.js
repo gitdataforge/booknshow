@@ -50,21 +50,28 @@ export const useMainStore = create((set, get) => ({
     /**
      * FEATURE 1: Secure Authentication Initialization (Gatekeeper)
      * This is the master lock. It prevents any data sync until a valid UID is granted.
-     * CRITICAL BUGFIX: Now synchronizes the verified Firebase auth state directly into the UI store (useAppStore).
+     * CRITICAL BUGFIX: Evaluates user.isAnonymous. Ghost users get a UID but NOT isAuthenticated.
      */
     initAuth: async () => {
         set({ authLoading: true });
         
         onAuthStateChanged(auth, async (user) => {
             if (user) {
-                // LOCK RELEASED: Valid identity confirmed
-                set({ user, isAuthenticated: true, authLoading: false });
+                // SECURITY PATCH: Detect if this is a ghost/anonymous user
+                const isFullyAuthenticated = !user.isAnonymous;
                 
-                // CRITICAL FIX: Explicitly hydrate the UI store to prevent infinite login loops during checkout
+                // LOCK RELEASED: Valid identity confirmed, but restrict auth flags for anonymous
+                set({ 
+                    user, 
+                    isAuthenticated: isFullyAuthenticated, 
+                    authLoading: false 
+                });
+                
+                // CRITICAL FIX: Synchronize the strict auth flag into the UI store
                 useAppStore.getState().setUser(user);
-                useAppStore.getState().setAuth(true);
+                useAppStore.getState().setAuth(isFullyAuthenticated);
                 
-                // TRIGGER: Start data pipeline now that permissions are granted
+                // TRIGGER: Start data pipeline (Anonymous users still get a pipeline for public features, but personal queries will safely return empty)
                 get().startDataListeners(user.uid);
             } else {
                 // If no user, clear both stores completely
@@ -78,7 +85,7 @@ export const useMainStore = create((set, get) => ({
                     } else {
                         await signInAnonymously(auth);
                     }
-                    // onAuthStateChanged will fire again with the new user
+                    // onAuthStateChanged will fire again with the new anonymous user
                 } catch (error) {
                     console.error("Critical Auth Handshake Error:", error);
                     set({ authLoading: false });
@@ -131,12 +138,14 @@ export const useMainStore = create((set, get) => ({
             if (snap.exists()) {
                 set({ wallet: snap.data(), isLoadingWallet: false });
             } else {
-                // Feature: Auto-provision wallet for new users securely
-                setDoc(walletDocRef, { 
-                    balance: 0, 
-                    currency: 'INR', 
-                    lastUpdated: serverTimestamp() 
-                });
+                // Feature: Auto-provision wallet for fully registered users only (saves database writes on ghost users)
+                if (!get().user?.isAnonymous) {
+                    setDoc(walletDocRef, { 
+                        balance: 0, 
+                        currency: 'INR', 
+                        lastUpdated: serverTimestamp() 
+                    }).catch(e => console.warn('Silent wallet provision fail', e));
+                }
                 set({ isLoadingWallet: false });
             }
         }, (error) => {
