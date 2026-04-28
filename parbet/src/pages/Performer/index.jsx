@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Heart, MapPin, Calendar, ChevronDown, 
     Download, QrCode, ShieldCheck, Flame, Users,
     Clock, ChevronLeft, ChevronRight, Navigation, Loader2,
-    Pencil, ShieldAlert
+    Pencil, ShieldAlert, PlusCircle, Info
 } from 'lucide-react';
 import { onAuthStateChanged } from 'firebase/auth';
 
@@ -19,10 +19,10 @@ import LocationDropdown from '../../components/LocationDropdown';
 import AdminEditEventModal from '../../components/AdminEditEventModal';
 
 /**
- * FEATURE 1: Real-Time Shared Database Integration (No Mock Data)
+ * FEATURE 1: Real-Time Shared Database Integration (Linked to useMarketStore)
  * FEATURE 2: Strict IPL/Category Aggregation Engine
  * FEATURE 3: PocketBase Image Failsafe Scrubber (Fixes Cloudinary 404s)
- * FEATURE 4: Admin God-Mode Injector (Direct feed mutation)
+ * FEATURE 4: Admin God-Mode Injector (Direct feed mutation & creation)
  * FEATURE 5: Dynamic Performer/Team Filtering Engine
  * FEATURE 6: Strict ISO Timestamp Parsing
  * FEATURE 7: Algorithmic "Trending" & "Fans Also Love" Derivation
@@ -80,7 +80,7 @@ export default function Performer() {
 
     const { userCity, isLocationDropdownOpen, setLocationDropdownOpen } = useAppStore();
     
-    // Shared Market State
+    // Shared Market State (RESTORED Singleton Listener)
     const { activeListings, isLoading, initMarketListener } = useMarketStore();
 
     // Local UI States
@@ -107,12 +107,12 @@ export default function Performer() {
         return () => unsubscribeAuth();
     }, []);
 
-    // Initialize Real-Time Listener
+    // Initialize Real-Time Singleton Listener
     useEffect(() => {
         const unsubscribe = initMarketListener();
         window.scrollTo(0, 0);
         return () => {
-            if (unsubscribe) unsubscribe();
+            if (unsubscribe && typeof unsubscribe === 'function') unsubscribe();
         };
     }, [initMarketListener]);
 
@@ -125,7 +125,7 @@ export default function Performer() {
         return () => clearTimeout(failsafe);
     }, [activeListings]);
 
-    // FEATURE 2: Strict Real-Time API Filtering & IPL Aggregation
+    // FEATURE 2 & 5: Strict Real-Time API Filtering & Context Aggregation
     const { filteredEvents, fansAlsoLove } = useMemo(() => {
         
         // 1. Filter globally by performer/category strict overrides
@@ -144,8 +144,9 @@ export default function Performer() {
 
         // 2. Filter locally by user's city drop-down
         const filtered = base.filter(m => {
-            if (userCity && userCity !== 'All Cities' && userCity !== 'Global' && userCity !== 'Current Location') {
-                if (m.location && !m.location.toLowerCase().includes(userCity.toLowerCase())) return false;
+            if (userCity && userCity !== 'All Cities' && userCity !== 'Global' && userCity !== 'Current Location' && userCity !== 'Detecting...') {
+                const locStr = `${m.loc} ${m.city} ${m.location} ${m.stadium}`.toLowerCase();
+                if (!locStr.includes(userCity.toLowerCase())) return false;
             }
             return true;
         });
@@ -154,7 +155,8 @@ export default function Performer() {
         const tGroups = {};
         activeListings.forEach(e => {
             const key = e.sportCategory || e.team1 || e.title;
-            if (!tGroups[key]) tGroups[key] = { id: e.id, name: key, imageId: e.imageUrl, events: [] };
+            if (!key) return;
+            if (!tGroups[key]) tGroups[key] = { id: e.id, name: key, imageId: e.imageUrl || e.image || e.thumb, events: [] };
             tGroups[key].events.push(e);
         });
 
@@ -177,6 +179,17 @@ export default function Performer() {
         if (performerName.toUpperCase() === 'IPL') return 'Indian Premier League';
         if (performerName.toUpperCase() === 'ICC') return 'ICC World Cup';
         return performerName;
+    };
+
+    // FEATURE 4: Admin God-Mode Data Pre-fill
+    const handleCreateNew = () => {
+        setSelectedAdminEvent({
+            t1: performerName,
+            t2: 'Opponent Team',
+            league: performerName.toLowerCase().includes('ipl') ? 'Indian Premier League' : 'Tournament',
+            sportCategory: performerName.toLowerCase().includes('ipl') || performerName.toLowerCase().includes('cricket') ? 'Cricket' : 'Sports'
+        });
+        setAdminModalOpen(true);
     };
 
     return (
@@ -202,13 +215,21 @@ export default function Performer() {
                     </div>
                 </div>
                 
-                <div className="relative z-20 max-w-[1200px] mx-auto px-4 md:px-8 w-full flex justify-between items-center">
+                <div className="relative z-20 max-w-[1200px] mx-auto px-4 md:px-8 w-full flex justify-between items-end md:items-center">
                     <h1 className="text-[36px] md:text-[56px] font-black text-white leading-[1.05] tracking-tight max-w-[600px] capitalize">
-                        {getDisplayName()} <br /> Tickets
+                        {getDisplayName()} <br className="hidden md:block" /> Tickets
                     </h1>
-                    <div className="hidden md:flex items-center gap-2 border border-white/40 rounded-full px-4 py-2 text-white bg-black/20 backdrop-blur-sm cursor-pointer hover:bg-black/40 transition-colors">
-                        <span className="text-[14px] font-bold">10.8K</span>
-                        <Heart size={16} />
+                    <div className="flex flex-col items-end gap-3">
+                        <div className="hidden md:flex items-center gap-2 border border-white/40 rounded-full px-4 py-2 text-white bg-black/20 backdrop-blur-sm cursor-pointer hover:bg-black/40 transition-colors">
+                            <span className="text-[14px] font-bold">10.8K</span>
+                            <Heart size={16} />
+                        </div>
+                        {/* FEATURE 4: Admin Create Listing Trigger */}
+                        {isAdmin && (
+                            <button onClick={handleCreateNew} className="bg-[#8cc63f] text-[#1a1a1a] px-5 py-2.5 rounded-full font-black flex items-center gap-2 hover:bg-white transition-colors shadow-lg shadow-[#8cc63f]/20 shrink-0 text-[14px]">
+                                <PlusCircle size={18} /> Add Listing
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
@@ -231,7 +252,7 @@ export default function Performer() {
                             className="bg-[#1a1a1a] text-white px-5 py-2.5 rounded-full text-[14px] font-bold flex items-center whitespace-nowrap shadow-sm hover:bg-black transition-colors"
                         >
                             <Navigation size={14} className="mr-2 fill-white -rotate-45"/> 
-                            {userCity === 'Loading...' ? 'Detecting...' : (userCity === 'All Cities' ? 'Global' : userCity)} 
+                            {userCity === 'Loading...' || userCity === 'Detecting...' ? 'Detecting...' : (userCity === 'All Cities' ? 'Global' : userCity)} 
                             <ChevronDown size={16} className={`ml-2 transition-transform ${isLocationDropdownOpen ? 'rotate-180' : ''}`}/>
                         </button>
                         {isLocationDropdownOpen && <div className="absolute left-0 mt-2 z-50"><LocationDropdown /></div>}
@@ -249,7 +270,7 @@ export default function Performer() {
                 {/* EVENT LIST HEADER */}
                 <div className="flex items-center justify-between mb-5">
                     <h2 className="text-[18px] md:text-[20px] font-black text-[#1a1a1a] tracking-tight flex items-center gap-3">
-                        {filteredEvents.length} events in {userCity !== 'All Cities' ? userCity : 'all locations'}
+                        {filteredEvents.length} events in {userCity && !['Loading...', 'Detecting...', 'All Cities', 'Global'].includes(userCity) ? userCity : 'all locations'}
                         {isAdmin && (
                             <span className="hidden md:inline-flex items-center gap-1 bg-red-50 text-red-600 border border-red-200 px-2 py-0.5 rounded-[4px] text-[10px] font-black uppercase tracking-widest">
                                 <ShieldAlert size={12} /> Admin
@@ -269,17 +290,19 @@ export default function Performer() {
                         <div className="w-full py-16 flex flex-col items-center justify-center bg-white border border-[#e2e2e2] rounded-[12px] shadow-sm">
                             <ShieldCheck size={48} className="text-[#9ca3af] mb-4" />
                             <h3 className="text-[18px] font-black text-[#1a1a1a]">No Active Events Found</h3>
-                            <p className="text-[14px] text-[#54626c] mt-2">Sellers are currently updating inventory for this category.</p>
+                            <p className="text-[14px] text-[#54626c] mt-2">Sellers are currently updating inventory for {getDisplayName()}.</p>
                         </div>
                     ) : (
                         paginatedEvents.map((m, index) => {
-                            const hasTickets = m.startingPrice !== null;
-                            const relativeLabel = getRelativeDateLabel(m.eventTimestamp);
+                            const displayPrice = m.startingPrice !== null && m.startingPrice !== undefined ? m.startingPrice : m.price || m.minPrice;
+                            const hasTickets = displayPrice !== null && displayPrice !== undefined;
+                            const formattedPrice = hasTickets ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(displayPrice) : null;
+                            const relativeLabel = getRelativeDateLabel(m.commence_time || m.eventTimestamp);
                             
                             const isHottest = index === 0;
                             const isSellingOut = index === 1 || index === 2;
                             
-                            const dObj = new Date(m.eventTimestamp);
+                            const dObj = new Date(m.commence_time || m.eventTimestamp);
                             const isWeekend = !isNaN(dObj) && (dObj.getDay() === 0 || dObj.getDay() === 6);
 
                             return (
@@ -306,18 +329,18 @@ export default function Performer() {
                                     {/* Exact Viagogo Date Tear-off */}
                                     <div className="flex items-center flex-1">
                                         <div className="flex flex-col items-center justify-center pr-5 md:pr-6 border-r border-[#e2e2e2] min-w-[70px]">
-                                            <span className="text-[13px] font-bold text-[#1a1a1a] uppercase">{getMonthStr(m.eventTimestamp)}</span>
-                                            <span className="text-[28px] font-black text-[#1a1a1a] leading-none my-0.5">{getDayNum(m.eventTimestamp)}</span>
-                                            <span className="text-[12px] text-[#54626c] font-medium uppercase">{getDowStr(m.eventTimestamp)}</span>
+                                            <span className="text-[13px] font-bold text-[#1a1a1a] uppercase">{getMonthStr(m.commence_time || m.eventTimestamp)}</span>
+                                            <span className="text-[28px] font-black text-[#1a1a1a] leading-none my-0.5">{getDayNum(m.commence_time || m.eventTimestamp)}</span>
+                                            <span className="text-[12px] text-[#54626c] font-medium uppercase">{getDowStr(m.commence_time || m.eventTimestamp)}</span>
                                         </div>
                                         
                                         {/* Event Details */}
                                         <div className="pl-5 md:pl-6 flex-1 min-w-0">
                                             <h3 className="text-[16px] md:text-[18px] font-bold text-[#1a1a1a] leading-tight mb-1 truncate group-hover/item:text-[#458731] transition-colors pr-8">
-                                                {m.title || m.eventName}
+                                                {m.title || m.eventName || `${m.t1} vs ${m.t2}`}
                                             </h3>
-                                            <p className="text-[13px] text-[#54626c] flex items-center mb-2 truncate">
-                                                {getTimeStr(m.eventTimestamp)} • <MapPin size={12} className="mx-1 shrink-0" /> <span className="truncate">{m.stadium}, {m.location?.split(',')[0]}</span>
+                                            <p className="text-[13px] text-[#54626c] flex items-center mb-2 truncate font-bold">
+                                                {getTimeStr(m.commence_time || m.eventTimestamp)} • <MapPin size={12} className="mx-1.5 shrink-0 text-[#9ca3af]" /> <span className="truncate">{m.stadium || m.loc}, {m.location?.split(',')[0] || m.city}</span>
                                             </p>
                                             
                                             {/* Dynamic Tags */}
@@ -349,9 +372,15 @@ export default function Performer() {
                                     {/* See Tickets Button mapped to Live Inventory */}
                                     <div className="mt-4 md:mt-0 pt-4 md:pt-0 border-t border-[#e2e2e2] md:border-t-0 flex justify-end shrink-0 md:pl-4 md:pr-12">
                                         {hasTickets ? (
-                                            <button className="w-full md:w-auto px-6 py-2.5 rounded-[8px] font-bold text-[14px] bg-[#8cc63f] text-[#1a1a1a] hover:bg-[#7ab332] transition-colors shadow-sm">
-                                                See tickets
-                                            </button>
+                                            <div className="flex items-center md:flex-col gap-4 md:gap-0 w-full md:w-auto">
+                                                <div className="flex flex-col items-start md:items-end flex-1 md:flex-none md:mb-1">
+                                                    <span className="text-[10px] font-black text-[#9ca3af] uppercase tracking-widest">Starting from</span>
+                                                    <span className="text-[20px] font-black text-[#1a1a1a]">{formattedPrice}</span>
+                                                </div>
+                                                <button className="w-auto px-6 py-2.5 rounded-[8px] font-bold text-[14px] bg-[#8cc63f] text-[#1a1a1a] hover:bg-[#7ab332] transition-colors shadow-sm shrink-0 whitespace-nowrap">
+                                                    See tickets
+                                                </button>
+                                            </div>
                                         ) : (
                                             <button disabled className="w-full md:w-auto px-6 py-2.5 rounded-[8px] font-bold text-[14px] border border-[#e2e2e2] text-[#c21c3a] bg-[#fdf2f2] cursor-not-allowed">
                                                 Sold out
@@ -388,19 +417,19 @@ export default function Performer() {
                 {fansAlsoLove.length > 0 && (
                     <div className="mb-12">
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-[20px] md:text-[24px] font-bold text-[#1a1a1a] tracking-tight">
+                            <h2 className="text-[20px] md:text-[24px] font-black text-[#1a1a1a] tracking-tight">
                                 {getDisplayName()} fans also love
                             </h2>
                         </div>
                         
-                        <div className="flex overflow-x-auto custom-scrollbar space-x-4 pb-4">
+                        <div className="flex overflow-x-auto custom-scrollbar space-x-4 pb-4 snap-x">
                             {fansAlsoLove.map((item, idx) => (
-                                <div key={idx} className="min-w-[240px] max-w-[240px] cursor-pointer group" onClick={() => navigate(`/performer/${encodeURIComponent(item.name)}`)}>
-                                    <div className="w-full h-[150px] relative rounded-[12px] overflow-hidden mb-3 border border-[#e2e2e2]">
-                                        {/* FEATURE 3: Safe Image Rendering */}
-                                        <img src={getSafeImage(item.imageId)} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                <div key={idx} className="min-w-[240px] max-w-[240px] cursor-pointer group snap-start" onClick={() => navigate(`/performer/${encodeURIComponent(item.name)}`)}>
+                                    <div className="w-full h-[150px] relative rounded-[16px] overflow-hidden mb-3 border border-[#e2e2e2] shadow-sm group-hover:shadow-md transition-shadow bg-[#1a1a1a]">
+                                        <img src={getSafeImage(item.imageId)} alt={item.name} className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-500" />
                                     </div>
-                                    <h3 className="font-bold text-[#1a1a1a] text-[15px] leading-tight truncate group-hover:text-[#458731] transition-colors">{item.name}</h3>
+                                    <h3 className="font-black text-[#1a1a1a] text-[16px] leading-tight truncate group-hover:text-[#458731] transition-colors">{item.name}</h3>
+                                    <p className="text-[13px] text-[#54626c] font-medium mt-1">{item.events.length} upcoming events</p>
                                 </div>
                             ))}
                         </div>
@@ -408,30 +437,30 @@ export default function Performer() {
                 )}
 
                 {/* APP DOWNLOAD BANNER */}
-                <div className="w-full bg-[#f8f9fa] rounded-[16px] p-6 md:p-10 flex flex-col md:flex-row justify-between items-center relative overflow-hidden mb-12 shadow-sm border border-[#e2e2e2]">
+                <div className="w-full bg-[#f8f9fa] rounded-[24px] p-6 md:p-10 flex flex-col md:flex-row justify-between items-center relative overflow-hidden mb-12 shadow-sm border border-[#e2e2e2]">
                     <div className="md:w-1/2 z-10 text-center md:text-left mb-6 md:mb-0">
                         <h2 className="text-[26px] md:text-[32px] font-black text-[#1a1a1a] mb-1 leading-tight tracking-tight">Download the parbet app</h2>
-                        <p className="text-[15px] text-[#54626c] font-medium mb-6">Discover your favourite events with ease</p>
-                        <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-3">
-                            <button className="bg-[#1a1a1a] text-white px-5 py-2.5 rounded-[8px] flex items-center hover:bg-black transition-colors w-full sm:w-auto justify-center shadow-md">
+                        <p className="text-[15px] text-[#54626c] font-medium mb-6 max-w-sm mx-auto md:mx-0">Discover your favourite events with ease and secure tickets instantly.</p>
+                        <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-3 justify-center md:justify-start">
+                            <button className="bg-[#1a1a1a] text-white px-5 py-2.5 rounded-[12px] flex items-center hover:bg-black transition-colors w-full sm:w-auto justify-center shadow-md">
                                 <Download size={20} className="mr-3" />
                                 <div className="text-left leading-none">
-                                    <span className="text-[10px] block opacity-80">Download on the</span>
-                                    <span className="text-[14px] font-bold">App Store</span>
+                                    <span className="text-[10px] block opacity-80 uppercase tracking-widest font-bold mb-0.5">Download on the</span>
+                                    <span className="text-[14px] font-black tracking-tight">App Store</span>
                                 </div>
                             </button>
-                            <button className="bg-[#1a1a1a] text-white px-5 py-2.5 rounded-[8px] flex items-center hover:bg-black transition-colors w-full sm:w-auto justify-center shadow-md">
+                            <button className="bg-[#1a1a1a] text-white px-5 py-2.5 rounded-[12px] flex items-center hover:bg-black transition-colors w-full sm:w-auto justify-center shadow-md">
                                 <Download size={20} className="mr-3" />
                                 <div className="text-left leading-none">
-                                    <span className="text-[10px] block opacity-80">GET IT ON</span>
-                                    <span className="text-[14px] font-bold">Google Play</span>
+                                    <span className="text-[10px] block opacity-80 uppercase tracking-widest font-bold mb-0.5">GET IT ON</span>
+                                    <span className="text-[14px] font-black tracking-tight">Google Play</span>
                                 </div>
                             </button>
                         </div>
                     </div>
                     <div className="md:w-1/2 flex justify-center md:justify-end z-10 pr-4">
-                        <div className="bg-white p-3 rounded-[12px] shadow-lg border border-[#e2e2e2] flex flex-col items-center">
-                            <QrCode size={80} className="text-[#1a1a1a] mb-1"/>
+                        <div className="bg-white p-4 rounded-[16px] shadow-xl border border-[#e2e2e2] flex flex-col items-center">
+                            <QrCode size={100} className="text-[#1a1a1a]"/>
                         </div>
                     </div>
                 </div>
