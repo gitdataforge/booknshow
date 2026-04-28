@@ -7,6 +7,7 @@ import { db } from '../lib/firebase';
  * Actively synchronizes the Buyer's frontend with the Seller's Firestore payloads.
  * Re-engineered to process complex sorting, filtering, and schema mapping securely in memory.
  * FEATURE 13: Strict Singleton Network Lock (Kills ERR_QUIC_PROTOCOL_ERROR infinite loops)
+ * FEATURE 14: Midnight Expiration Algorithm (Keeps today's events visible until midnight)
  */
 export const useMarketStore = create((set, get) => ({
     activeListings: [],
@@ -41,7 +42,11 @@ export const useMarketStore = create((set, get) => ({
             // Establish the real-time WebSocket connection
             const unsubscribe = onSnapshot(marketQuery, 
                 (snapshot) => {
-                    const now = new Date().getTime();
+                    // FEATURE 14: Midnight Expiration Threshold
+                    // Establish cutoff at 00:00:00 of today to keep today's past events visible
+                    const todayStart = new Date();
+                    todayStart.setHours(0, 0, 0, 0);
+                    const cutoffTime = todayStart.getTime();
 
                     // Process, normalize, filter, and sort data in memory
                     const listings = snapshot.docs.map(doc => {
@@ -50,7 +55,10 @@ export const useMarketStore = create((set, get) => ({
                         // FEATURE 3: Universal Timestamp Normalization
                         // Maps either the old schema (eventTimestamp) or the seeded schema (commence_time)
                         const rawDate = data.commence_time || data.eventTimestamp || data.date || data.createdAt?.seconds * 1000 || new Date().toISOString();
-                        const eventDateObj = new Date(rawDate);
+                        
+                        // Safely parse the date to prevent NaN crashes
+                        const parsedDate = new Date(rawDate);
+                        const eventDateObj = isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
                         const displayDateString = eventDateObj.toISOString();
 
                         // FEATURE 4: Title & Venue Normalization
@@ -101,8 +109,8 @@ export const useMarketStore = create((set, get) => ({
                             startingPrice: minPrice === Infinity ? null : minPrice 
                         };
                     })
-                    // FEATURE 7: In-Memory Expiration Filter (Strips past events)
-                    .filter(listing => listing.normalizedDate >= now)
+                    // FEATURE 7: In-Memory Expiration Filter (Strips past days, keeps today and future)
+                    .filter(listing => listing.normalizedDate >= cutoffTime)
                     // FEATURE 8: In-Memory Chronological Sorter (Nearest upcoming events first)
                     .sort((a, b) => a.normalizedDate - b.normalizedDate);
 

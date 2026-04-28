@@ -3,17 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { Search, User, Menu, Bell, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAppStore } from '../store/useStore';
 import SearchDropdown from './SearchDropdown';
-import ViagogoFilterBar from './ViagogoFilterBar';
 
 /**
- * FEATURE 1: Unified "Mega-Header" Architecture (Merges Top Nav with Filters)
- * FEATURE 2: 1:1 Viagogo Enterprise Desktop Layout (image_3f8e19)
- * FEATURE 3: 1:1 Viagogo Enterprise Mobile Layout (image_3f8a9c)
- * FEATURE 4: Sticky Context Retention (Filters stick to ceiling with navigation)
- * FEATURE 5: Isolated Search Expansion State
- * FEATURE 6: Hardware-Accelerated Mobile Drawer (Smooth off-canvas translation)
- * FEATURE 7: Background Scroll-Lock (Prevents body scroll when drawer is active)
- * FEATURE 8: Native Auth Redirection & Seller Bridge
+ * FEATURE 1: Unified Clean Header Architecture
+ * FEATURE 2: Isolated Search Expansion State
+ * FEATURE 3: Hardware-Accelerated Mobile Drawer (Smooth off-canvas translation)
+ * FEATURE 4: Background Scroll-Lock (Prevents body scroll when drawer is active)
+ * FEATURE 5: Native Auth Redirection & Seller Bridge
+ * FEATURE 6: Removed complex ViagogoFilterBar for streamlined layout
  */
 
 const UserProfileIcon = ({ onClick, isAuthenticated }) => (
@@ -38,7 +35,7 @@ export default function ExploreHeader() {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [menuView, setMenuView] = useState('main'); 
 
-    // FEATURE 7: Scroll Lock logic for mobile drawer
+    // FEATURE 4: Scroll Lock logic for mobile drawer
     useEffect(() => {
         if (mobileMenuOpen) document.body.style.overflow = 'hidden';
         else document.body.style.overflow = 'auto';
@@ -83,7 +80,7 @@ export default function ExploreHeader() {
                     </h1>
                 </div>
 
-                {/* DESKTOP SEARCH BAR (Exact Viagogo Styling) */}
+                {/* DESKTOP SEARCH BAR */}
                 <div className="hidden lg:flex flex-1 max-w-[480px] ml-6 relative">
                     <div className={`relative flex items-center w-full border rounded-full px-4 py-2.5 bg-white transition-all duration-300 ${isSearchExpanded ? 'shadow-[0_4px_20px_rgba(0,0,0,0.08)] border-gray-300' : 'border-gray-300 hover:border-gray-400 focus-within:border-[#1a1a1a] focus-within:shadow-[0_0_0_1px_#1a1a1a]'}`}>
                         <Search size={18} className="text-[#1a1a1a] mr-3" strokeWidth={2.5} />
@@ -128,7 +125,7 @@ export default function ExploreHeader() {
                 </div>
             </div>
 
-            {/* ROW 2: MOBILE SEARCH BAR (Exact Mobile View) */}
+            {/* ROW 2: MOBILE SEARCH BAR */}
             <div className="lg:hidden w-full px-4 pb-3 bg-white relative z-40">
                 <div className="relative flex items-center bg-white border border-gray-300 rounded-full px-4 py-2 w-full transition-all focus-within:border-[#1a1a1a] focus-within:shadow-[0_0_0_1px_#1a1a1a]">
                     <Search size={18} className="text-[#1a1a1a] mr-2" strokeWidth={2.5}/>
@@ -144,12 +141,6 @@ export default function ExploreHeader() {
                     />
                     {isSearchExpanded && <SearchDropdown />}
                 </div>
-            </div>
-
-            {/* ROW 3 & 4: VIAGOGO CATEGORIES & FILTER PILLS */}
-            {/* Embedded seamlessly inside the sticky wrapper */}
-            <div className="w-full relative z-30">
-                <ViagogoFilterBar />
             </div>
 
             {/* MOBILE DRAWER OVERLAY */}
