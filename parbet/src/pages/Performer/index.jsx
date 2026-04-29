@@ -20,7 +20,7 @@ import AdminEditEventModal from '../../components/AdminEditEventModal';
 
 /**
  * FEATURE 1: Real-Time Shared Database Integration (Linked to useMarketStore)
- * FEATURE 2: Strict IPL/Category Aggregation Engine
+ * FEATURE 2: Strict IPL/Category Aggregation Engine (Catches Admin & Seller inventory)
  * FEATURE 3: PocketBase Image Failsafe Scrubber (Fixes Cloudinary 404s)
  * FEATURE 4: Admin God-Mode Injector (Direct feed mutation & creation)
  * FEATURE 5: Dynamic Performer/Team Filtering Engine
@@ -125,16 +125,32 @@ export default function Performer() {
         return () => clearTimeout(failsafe);
     }, [activeListings]);
 
-    // FEATURE 2 & 5: Strict Real-Time API Filtering & Context Aggregation
+    // FEATURE 2 & 5: Strict Real-Time API Filtering & Context Aggregation (Admin + Seller Sync)
     const { filteredEvents, fansAlsoLove } = useMemo(() => {
         
         // 1. Filter globally by performer/category strict overrides
         const base = activeListings.filter(m => {
-            const searchString = `${m.title} ${m.eventName} ${m.team1} ${m.team2} ${m.league} ${m.sportCategory}`.toLowerCase();
+            const title = m.title || m.eventName || '';
+            const t1 = m.t1 || m.team1 || '';
+            const t2 = m.t2 || m.team2 || '';
+            const league = m.league || '';
+            const cat = m.sportCategory || m.category || '';
+            
+            // Build a massive concatenation string of all possible identifiers
+            const searchString = `${title} ${t1} ${t2} ${league} ${cat}`.toLowerCase();
             const query = performerName.toLowerCase();
             
-            // Strict Aggregation Hooks
-            if (query === 'ipl') return searchString.includes('ipl') || searchString.includes('premier league') || searchString.includes('cricket');
+            // Strict Aggregation Hooks - if it's IPL, catch EVERYTHING remotely related
+            if (query === 'ipl' || query === 'indian premier league') {
+                return searchString.includes('ipl') || 
+                       searchString.includes('premier league') || 
+                       searchString.includes('cricket') ||
+                       searchString.includes('chennai super kings') ||
+                       searchString.includes('mumbai indians') ||
+                       searchString.includes('royal challengers') ||
+                       searchString.includes('sunrisers') ||
+                       searchString.includes('gujarat titans');
+            }
             if (query === 'cricket') return searchString.includes('cricket') || searchString.includes('t20') || searchString.includes('test');
             if (query === 'kabaddi') return searchString.includes('kabaddi') || searchString.includes('pkl');
             if (query === 'world cup') return searchString.includes('world cup') || searchString.includes('icc');
@@ -149,6 +165,13 @@ export default function Performer() {
                 if (!locStr.includes(userCity.toLowerCase())) return false;
             }
             return true;
+        });
+
+        // Sort by date chronologically
+        filtered.sort((a, b) => {
+            const dateA = new Date(a.commence_time || a.eventTimestamp).getTime();
+            const dateB = new Date(b.commence_time || b.eventTimestamp).getTime();
+            return dateA - dateB;
         });
 
         // 3. Derive "Fans Also Love" dynamically
@@ -190,11 +213,8 @@ export default function Performer() {
         setAdminModalOpen(true);
     };
 
-    // CRITICAL BUGFIX: The button click was not utilizing the routing fixes established in Event/index.jsx
     const handleEventClick = (e, mId) => {
         e.stopPropagation();
-        // Since Performer is an aggregate page, we send them to the specific Event Page
-        // We do not need to verify auth here, as they are not booking yet. They just want to see the stadium map.
         navigate(`/event?id=${mId}`);
     };
 

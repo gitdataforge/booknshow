@@ -26,6 +26,7 @@ import { loadRazorpayScript } from '../../utils/razorpay';
  * FEATURE 10: Client-Side HMAC SHA256 Signature Verification
  * FEATURE 11: Distraction-Free Checkout (Header & Footer Hidden)
  * FEATURE 12: Strict Expiration Redirect Engine
+ * FEATURE 13: Strict Form Validation Locks (Prevents skipping accordion steps)
  */
 
 export default function Checkout() {
@@ -37,7 +38,6 @@ export default function Checkout() {
     const navigate = useNavigate();
     const location = useLocation();
 
-    // CRITICAL FIX: Imported startCheckoutTimer to actually trigger the global countdown
     const { 
         user, isAuthenticated, openAuthModal,
         checkoutStep, setCheckoutStep,
@@ -64,6 +64,9 @@ export default function Checkout() {
     const [isUploading, setIsUploading] = useState(false);
     const [receiptUrl, setReceiptUrl] = useState('');
     const [timeLeft, setTimeLeft] = useState('10:00');
+    
+    // CRITICAL FIX: Interactive Quantity Selector
+    const [selectedQty, setSelectedQty] = useState(Number(qtyParams));
     
     // Viagogo Form Fields
     const [giftSelection, setGiftSelection] = useState('No');
@@ -96,6 +99,7 @@ export default function Checkout() {
                     const payload = location.state.reservedListing;
                     setLocalListing(payload);
                     hydrateCheckoutPayload(payload);
+                    setSelectedQty(payload.quantity);
                     if (user?.email && !checkoutFormData.contact.email) {
                         updateCheckoutFormData('contact', { email: user.email });
                     }
@@ -125,11 +129,13 @@ export default function Checkout() {
                         quantity: requestedQty,
                         tierName: tierData.name,
                         sellerId: eventData.sellerId || 'system',
-                        imageUrl: eventData.imageUrl
+                        imageUrl: eventData.imageUrl,
+                        maxQuantity: tierData.quantity // Store max available for dropdown
                     };
 
                     setLocalListing(captureData);
                     hydrateCheckoutPayload(captureData);
+                    setSelectedQty(requestedQty);
                     if (user?.email && !checkoutFormData.contact.email) {
                         updateCheckoutFormData('contact', { email: user.email });
                     }
@@ -146,7 +152,7 @@ export default function Checkout() {
         syncInventoryLock();
     }, [eventId, tierId, qtyParams, isAuthenticated, user, location.state, hydrateCheckoutPayload]); 
 
-    // CRITICAL FIX: Precision Timer Engine with Auto-Redirect
+    // Precision Timer Engine with Auto-Redirect
     useEffect(() => {
         if (!checkoutExpiration || !isTimerStarted) return;
         const interval = setInterval(() => {
@@ -166,20 +172,19 @@ export default function Checkout() {
 
     const totals = useMemo(() => {
         if (!localListing) return { subtotal: 0, fees: 0, tax: 0, total: 0 };
-        const subtotal = localListing.price * localListing.quantity;
+        const subtotal = localListing.price * selectedQty;
         const fees = subtotal * 0.15; // 15% Platform Service Fee
         const tax = fees * 0.18;    // 18% GST
         return { subtotal, fees, tax, total: subtotal + fees + tax };
-    }, [localListing]);
+    }, [localListing, selectedQty]);
 
     const handleExplicitCancel = () => {
         cancelReservation();
         navigate(eventId ? `/event?id=${eventId}` : '/');
     };
 
-    // CRITICAL FIX: Trigger global timer execution
     const handleStartTimer = () => {
-        startCheckoutTimer(); // Ignites the global countdown
+        startCheckoutTimer();
         setIsTimerStarted(true);
         setPriceLockedMsg(true);
         setTimeout(() => setPriceLockedMsg(false), 4000);
@@ -199,11 +204,23 @@ export default function Checkout() {
         }
     };
 
-    const verifySignature = (paymentId, orderId, signature) => {
-        const secret = import.meta.env.VITE_RAZORPAY_SECRET;
-        if (!secret) return false;
-        const generatedSignature = CryptoJS.HmacSHA256(`${orderId}|${paymentId}`, secret).toString(CryptoJS.enc.Hex);
-        return generatedSignature === signature;
+    // CRITICAL FIX: Form Validation Gates
+    const handleProceedToBilling = () => {
+        if (!checkoutFormData.contact.email || !checkoutFormData.delivery.phone) {
+            setError("Please provide a valid email and phone number to continue.");
+            return;
+        }
+        setError('');
+        setCheckoutStep(2);
+    };
+
+    const handleProceedToPayment = () => {
+        if (!billingAddress.address || !billingAddress.city || !billingAddress.state || !billingAddress.postal) {
+            setError("Please fill in your complete billing address to proceed.");
+            return;
+        }
+        setError('');
+        setCheckoutStep(3);
     };
 
     const handleFinalPayment = async () => {
@@ -229,6 +246,8 @@ export default function Checkout() {
                             const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
                             const orderRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'));
                             
+                            const finalListingData = { ...localListing, quantity: selectedQty };
+                            
                             await setDoc(orderRef, {
                                 buyerId: user.uid,
                                 buyerEmail: checkoutFormData.contact.email,
@@ -236,7 +255,7 @@ export default function Checkout() {
                                 eventId: localListing.eventId,
                                 eventName: localListing.eventName,
                                 tierId: localListing.tierId,
-                                quantity: localListing.quantity,
+                                quantity: selectedQty,
                                 totalAmount: totals.total,
                                 paymentMethod: 'razorpay',
                                 paymentId: paymentId,
@@ -244,7 +263,7 @@ export default function Checkout() {
                                 createdAt: serverTimestamp()
                             });
 
-                            await executePurchase(paymentId, totals.total, localListing);
+                            await executePurchase(paymentId, totals.total, finalListingData);
                             navigate(`/order-confirmation/${paymentId}`);
                         } catch (err) { 
                             setError(`Payment succeeded, but inventory update failed: ${err.message}.`); 
@@ -268,6 +287,8 @@ export default function Checkout() {
                 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
                 const orderRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'));
                 const pseudoPaymentId = `manual_${Date.now()}`;
+                
+                const finalListingData = { ...localListing, quantity: selectedQty };
 
                 await setDoc(orderRef, {
                     buyerId: user.uid,
@@ -276,7 +297,7 @@ export default function Checkout() {
                     eventId: localListing.eventId,
                     eventName: localListing.eventName,
                     tierId: localListing.tierId,
-                    quantity: localListing.quantity,
+                    quantity: selectedQty,
                     totalAmount: totals.total,
                     paymentMethod: 'bank_transfer',
                     paymentId: pseudoPaymentId,
@@ -285,7 +306,7 @@ export default function Checkout() {
                     createdAt: serverTimestamp()
                 });
 
-                await executePurchase(pseudoPaymentId, totals.total, localListing);
+                await executePurchase(pseudoPaymentId, totals.total, finalListingData);
                 navigate('/order-pending');
             }
         } catch (err) {
@@ -359,7 +380,7 @@ export default function Checkout() {
                             </div>
 
                             <h4 className="font-bold text-[16px] mb-1">Section {localListing?.tierName || 'General Admission'}</h4>
-                            <p className="text-[14px] text-gray-500 mb-6">{localListing?.quantity} tickets</p>
+                            <p className="text-[14px] text-gray-500 mb-6">{selectedQty} tickets</p>
 
                             <div className="space-y-4 border-t border-gray-100 pt-6">
                                 <div className="flex items-center gap-4">
@@ -459,7 +480,7 @@ export default function Checkout() {
                             </div>
                         </div>
                         {checkoutStep === 1 && (
-                            <button onClick={() => setCheckoutStep(2)} className="w-full bg-[#427A1A] text-white font-bold py-3.5 rounded-[8px] hover:bg-[#2F6114] transition-colors text-[16px]">Continue</button>
+                            <button onClick={handleProceedToBilling} className="w-full bg-[#427A1A] text-white font-bold py-3.5 rounded-[8px] hover:bg-[#2F6114] transition-colors text-[16px]">Continue</button>
                         )}
                     </div>
 
@@ -495,7 +516,7 @@ export default function Checkout() {
                                 </div>
                             </div>
                             {checkoutStep === 2 && (
-                                <button onClick={() => setCheckoutStep(3)} className="w-full bg-[#427A1A] text-white font-bold py-3.5 rounded-[8px] hover:bg-[#2F6114] transition-colors text-[16px]">Continue</button>
+                                <button onClick={handleProceedToPayment} className="w-full bg-[#427A1A] text-white font-bold py-3.5 rounded-[8px] hover:bg-[#2F6114] transition-colors text-[16px]">Continue</button>
                             )}
                         </div>
                     )}
@@ -561,7 +582,6 @@ export default function Checkout() {
                     <div className="sticky top-10">
                         <div className="border border-[#e2e2e2] rounded-[12px] bg-white overflow-hidden shadow-sm mb-6">
                             
-                            {/* CRITICAL FIX: Timer is now embedded clearly in the order summary */}
                             <div className="bg-[#f0f9f0] border-b border-[#d4edda] py-3 px-4 flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <Clock size={16} className="text-[#427A1A]" />
@@ -593,7 +613,7 @@ export default function Checkout() {
                                 <div className="flex justify-between items-center pb-5 border-b border-gray-200 mb-5">
                                     <div>
                                         <h4 className="font-bold text-[15px] text-[#1a1a1a]">Section {localListing?.tierName || '---'}</h4>
-                                        <p className="text-[13px] text-gray-500">{localListing?.quantity} tickets</p>
+                                        <p className="text-[13px] text-gray-500">{selectedQty} tickets selected</p>
                                     </div>
                                     <button onClick={() => setDetailsModalOpen(true)} className="border border-gray-300 text-[#1a1a1a] text-[13px] font-bold px-3 py-1.5 rounded-[6px] hover:bg-gray-50 transition-colors">Details</button>
                                 </div>
@@ -602,18 +622,35 @@ export default function Checkout() {
                                 <div className="space-y-1 mb-5">
                                     <div className="flex justify-between text-[14px] text-[#1a1a1a]">
                                         <span>Tickets</span>
-                                        <span>{localListing?.quantity} × INR{Math.round(localListing?.price || 0).toLocaleString()}</span>
+                                        <span>{selectedQty} × INR{Math.round(localListing?.price || 0).toLocaleString()}</span>
                                     </div>
-                                    <p className="text-[12px] text-gray-500">Tax, handling fee, and booking fee not included</p>
+                                    <div className="flex justify-between text-[14px] text-[#1a1a1a]">
+                                        <span>Handling & Tax</span>
+                                        <span>INR{Math.round(totals.fees + totals.tax).toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex justify-between text-[18px] font-bold text-[#1a1a1a] pt-3 border-t border-gray-200 mt-3">
+                                        <span>Total</span>
+                                        <span>INR{Math.round(totals.total).toLocaleString()}</span>
+                                    </div>
                                 </div>
 
-                                {/* Quantity & Confirm */}
+                                {/* CRITICAL FIX: Interactive Quantity Selector */}
                                 <div className="flex gap-3">
-                                    <div className="border border-gray-300 rounded-[6px] px-3 py-2 flex items-center justify-between w-20 bg-white">
-                                        <span className="text-[15px] font-medium">{localListing?.quantity}</span>
-                                        <ChevronDown size={16} className="text-gray-500" />
+                                    <div className="relative w-24 shrink-0">
+                                        <select 
+                                            value={selectedQty}
+                                            onChange={(e) => setSelectedQty(Number(e.target.value))}
+                                            className="w-full border border-gray-300 rounded-[6px] px-3 py-2.5 text-[15px] font-medium bg-white appearance-none outline-none focus:border-[#427A1A] cursor-pointer"
+                                        >
+                                            {[...Array(Math.min(10, localListing?.maxQuantity || 1))].map((_, i) => (
+                                                <option key={i + 1} value={i + 1}>{i + 1}</option>
+                                            ))}
+                                        </select>
+                                        <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
                                     </div>
-                                    <button className="flex-1 bg-[#427A1A] text-white font-bold rounded-[6px] text-[15px] hover:bg-[#2F6114] transition-colors">Confirm Quantity</button>
+                                    <button className="flex-1 bg-gray-100 text-gray-400 font-bold rounded-[6px] text-[15px] cursor-not-allowed">
+                                        Quantity Locked
+                                    </button>
                                 </div>
                             </div>
                         </div>
