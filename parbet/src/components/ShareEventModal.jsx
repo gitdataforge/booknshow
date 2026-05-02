@@ -1,6 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Copy, Check, Mail } from 'lucide-react';
+import { X, Copy, Check, Mail, Share2 } from 'lucide-react';
+
+/**
+ * GLOBAL REBRAND: Booknshow Identity Application (Phase 6 Share Modal)
+ * Enforced Colors: #FFFFFF, #E7364D, #333333, #EB5B6E, #FAD8DC, #A3A3A3, #626262
+ * FEATURE 1: Framer Motion Hardware-Accelerated Overlay
+ * FEATURE 2: Native Clipboard API integration with fallback wrapper
+ * FEATURE 3: Expanding 9-Section Layout
+ * FEATURE 4: Strict Event Title Resolution
+ */
 
 export default function ShareEventModal({ isOpen, onClose, eventData }) {
     const [isCopied, setIsCopied] = useState(false);
@@ -11,6 +20,15 @@ export default function ShareEventModal({ isOpen, onClose, eventData }) {
             setShareUrl(`${window.location.origin}/event?id=${eventData.id}`);
         }
     }, [eventData, isOpen]);
+
+    // Strict dynamic title resolver to ensure we always have a real event name
+    const getStrictEventName = () => {
+        if (!eventData) return 'this upcoming event';
+        if (eventData.title) return eventData.title;
+        if (eventData.eventName) return eventData.eventName;
+        if (eventData.t1 && eventData.t2) return `${eventData.t1} vs ${eventData.t2}`;
+        return 'this upcoming event';
+    };
 
     const handleCopy = async () => {
         try {
@@ -34,7 +52,8 @@ export default function ShareEventModal({ isOpen, onClose, eventData }) {
     };
 
     const handleSocialShare = (platform) => {
-        const text = encodeURIComponent(`Get tickets for ${eventData?.t1} vs ${eventData?.t2} on parbet!`);
+        const strictTitle = getStrictEventName();
+        const text = encodeURIComponent(`Get tickets for ${strictTitle} on Booknshow!`);
         const url = encodeURIComponent(shareUrl);
         
         let shareEndpoint = '';
@@ -49,7 +68,7 @@ export default function ShareEventModal({ isOpen, onClose, eventData }) {
                 shareEndpoint = `https://www.facebook.com/sharer/sharer.php?u=${url}`;
                 break;
             case 'email':
-                shareEndpoint = `mailto:?subject=${encodeURIComponent(`Tickets: ${eventData?.t1} vs ${eventData?.t2}`)}&body=${text} ${url}`;
+                shareEndpoint = `mailto:?subject=${encodeURIComponent(`Tickets: ${strictTitle}`)}&body=${text} ${url}`;
                 break;
             default:
                 return;
@@ -75,70 +94,81 @@ export default function ShareEventModal({ isOpen, onClose, eventData }) {
     return (
         <AnimatePresence>
             {isOpen && (
-                <div className="fixed inset-0 bg-black/60 z-[300] flex items-center justify-center backdrop-blur-sm p-4">
+                // SECTION 1: Fixed Backdrop
+                <div className="fixed inset-0 bg-[#333333]/80 z-[300] flex items-center justify-center backdrop-blur-sm p-4 font-sans">
+                    
+                    {/* SECTION 2: Modal Container */}
                     <motion.div 
                         initial={{ opacity: 0, scale: 0.95, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                        className="bg-white rounded-[20px] p-6 w-full max-w-[400px] shadow-2xl relative"
+                        className="bg-[#FFFFFF] rounded-[24px] p-6 md:p-8 w-full max-w-[420px] shadow-[0_20px_60px_rgba(51,51,51,0.2)] relative overflow-hidden border border-[#A3A3A3]/20"
                     >
+                        {/* SECTION 3: Ambient Illustration */}
+                        <div className="absolute top-0 right-0 w-[200px] h-[200px] bg-[#FAD8DC]/30 rounded-full blur-[60px] pointer-events-none -translate-y-1/2 translate-x-1/2"></div>
+
                         <button 
                             onClick={onClose} 
-                            className="absolute top-5 right-5 text-gray-400 hover:text-gray-600 transition-colors"
+                            className="absolute top-6 right-6 text-[#A3A3A3] hover:text-[#E7364D] transition-colors z-10 bg-[#F5F5F5] rounded-full p-1 border border-[#A3A3A3]/20"
                         >
                             <X size={20} />
                         </button>
                         
-                        <h2 className="text-[22px] font-black text-brand-text mb-2 pr-8 leading-tight">
-                            Share this event
+                        {/* SECTION 4: Header */}
+                        <h2 className="text-[24px] font-black text-[#333333] mb-2 pr-8 leading-tight relative z-10 flex items-center gap-2">
+                            <Share2 size={24} className="text-[#E7364D]" /> Share Event
                         </h2>
-                        <p className="text-[14px] text-brand-muted font-medium mb-6">
-                            {eventData.t1} vs {eventData.t2}
+                        
+                        {/* SECTION 5: Sub-header (STRICTLY CATCHES REAL EVENT TITLE) */}
+                        <p className="text-[14px] text-[#626262] font-medium mb-8 relative z-10">
+                            {getStrictEventName()}
                         </p>
                         
-                        <div className="grid grid-cols-4 gap-4 mb-6">
+                        {/* SECTION 6: Social Grid Array */}
+                        <div className="grid grid-cols-4 gap-4 mb-8 relative z-10">
                             <button onClick={() => handleSocialShare('whatsapp')} className="flex flex-col items-center justify-center group">
-                                <div className="w-12 h-12 rounded-full bg-[#EAF4D9] text-[#114C2A] flex items-center justify-center group-hover:scale-110 transition-transform mb-2">
+                                <div className="w-14 h-14 rounded-full bg-[#F5F5F5] border border-[#A3A3A3]/30 text-[#1DB954] flex items-center justify-center group-hover:scale-110 group-hover:bg-[#1DB954]/10 transition-all mb-2 shadow-sm">
                                     <WhatsAppIcon />
                                 </div>
-                                <span className="text-[11px] font-bold text-gray-600">WhatsApp</span>
+                                <span className="text-[11px] font-bold text-[#626262] group-hover:text-[#333333]">WhatsApp</span>
                             </button>
                             <button onClick={() => handleSocialShare('twitter')} className="flex flex-col items-center justify-center group">
-                                <div className="w-12 h-12 rounded-full bg-gray-100 text-gray-800 flex items-center justify-center group-hover:scale-110 transition-transform mb-2">
+                                <div className="w-14 h-14 rounded-full bg-[#F5F5F5] border border-[#A3A3A3]/30 text-[#333333] flex items-center justify-center group-hover:scale-110 group-hover:bg-[#333333]/10 transition-all mb-2 shadow-sm">
                                     <XIcon />
                                 </div>
-                                <span className="text-[11px] font-bold text-gray-600">X / Twitter</span>
+                                <span className="text-[11px] font-bold text-[#626262] group-hover:text-[#333333]">X / Twitter</span>
                             </button>
                             <button onClick={() => handleSocialShare('facebook')} className="flex flex-col items-center justify-center group">
-                                <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform mb-2">
+                                <div className="w-14 h-14 rounded-full bg-[#F5F5F5] border border-[#A3A3A3]/30 text-[#1877F2] flex items-center justify-center group-hover:scale-110 group-hover:bg-[#1877F2]/10 transition-all mb-2 shadow-sm">
                                     <FacebookIcon />
                                 </div>
-                                <span className="text-[11px] font-bold text-gray-600">Facebook</span>
+                                <span className="text-[11px] font-bold text-[#626262] group-hover:text-[#333333]">Facebook</span>
                             </button>
                             <button onClick={() => handleSocialShare('email')} className="flex flex-col items-center justify-center group">
-                                <div className="w-12 h-12 rounded-full bg-gray-100 text-gray-800 flex items-center justify-center group-hover:scale-110 transition-transform mb-2">
-                                    <Mail size={20} />
+                                <div className="w-14 h-14 rounded-full bg-[#F5F5F5] border border-[#A3A3A3]/30 text-[#E7364D] flex items-center justify-center group-hover:scale-110 group-hover:bg-[#FAD8DC]/40 transition-all mb-2 shadow-sm">
+                                    <Mail size={22} />
                                 </div>
-                                <span className="text-[11px] font-bold text-gray-600">Email</span>
+                                <span className="text-[11px] font-bold text-[#626262] group-hover:text-[#333333]">Email</span>
                             </button>
                         </div>
 
-                        <div className="flex items-center bg-gray-50 border border-gray-200 rounded-[12px] p-1.5 shadow-inner">
-                            <div className="flex-1 px-3 truncate text-[14px] text-gray-500 font-medium select-all">
+                        {/* SECTION 7, 8, 9: Clipboard Input, Trigger, Wrapper */}
+                        <div className="flex items-center bg-[#F5F5F5] border border-[#A3A3A3]/30 rounded-[12px] p-1.5 shadow-inner relative z-10">
+                            <div className="flex-1 px-3 truncate text-[14px] text-[#A3A3A3] font-medium select-all">
                                 {shareUrl}
                             </div>
                             <button 
                                 onClick={handleCopy}
-                                className={`flex items-center justify-center px-4 py-2.5 rounded-[8px] font-bold text-[13px] transition-all min-w-[90px] ${
+                                className={`flex items-center justify-center px-5 py-3 rounded-[8px] font-bold text-[13px] transition-all min-w-[100px] ${
                                     isCopied 
-                                        ? 'bg-[#114C2A] text-white shadow-sm' 
-                                        : 'bg-white text-brand-text border border-gray-200 hover:bg-gray-100'
+                                        ? 'bg-[#333333] text-[#FFFFFF] shadow-sm' 
+                                        : 'bg-[#FFFFFF] text-[#333333] border border-[#A3A3A3]/30 hover:border-[#E7364D] hover:text-[#E7364D]'
                                 }`}
                             >
                                 {isCopied ? (
-                                    <><Check size={14} className="mr-1.5"/> Copied</>
+                                    <><Check size={14} className="mr-1.5 text-[#E7364D]"/> Copied</>
                                 ) : (
-                                    <><Copy size={14} className="mr-1.5"/> Copy</>
+                                    <><Copy size={14} className="mr-1.5"/> Copy Link</>
                                 )}
                             </button>
                         </div>
