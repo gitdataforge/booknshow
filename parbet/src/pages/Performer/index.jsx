@@ -5,7 +5,7 @@ import {
     Heart, MapPin, Calendar, ChevronDown, 
     Download, QrCode, ShieldCheck, Flame, Users,
     Clock, ChevronLeft, ChevronRight, Navigation, Loader2,
-    Pencil, ShieldAlert, PlusCircle, Info
+    Pencil, ShieldAlert, PlusCircle, Info, Sparkles
 } from 'lucide-react';
 import { onAuthStateChanged } from 'firebase/auth';
 
@@ -19,6 +19,8 @@ import LocationDropdown from '../../components/LocationDropdown';
 import AdminEditEventModal from '../../components/AdminEditEventModal';
 
 /**
+ * GLOBAL REBRAND: Booknshow Identity Application (Phase 5 Performer Routing)
+ * Enforced Colors: #FFFFFF, #E7364D, #333333, #EB5B6E, #FAD8DC, #A3A3A3, #626262
  * FEATURE 1: Real-Time Shared Database Integration (Linked to useMarketStore)
  * FEATURE 2: Strict IPL/Category Aggregation Engine (Catches Admin & Seller inventory)
  * FEATURE 3: PocketBase Image Failsafe Scrubber (Fixes Cloudinary 404s)
@@ -26,9 +28,9 @@ import AdminEditEventModal from '../../components/AdminEditEventModal';
  * FEATURE 5: Dynamic Performer/Team Filtering Engine
  * FEATURE 6: Strict ISO Timestamp Parsing
  * FEATURE 7: Algorithmic "Trending" & "Fans Also Love" Derivation
- * FEATURE 8: Hardware-Accelerated Viagogo-Style Layout
+ * FEATURE 8: Hardware-Accelerated Layout & Ambience
  * FEATURE 9: Live Inventory Validation (See Tickets vs Sold Out)
- * FEATURE 10: Automatic State Hydration Failsafes
+ * FEATURE 10: Absolute Global IPL Override
  */
 
 // Strict Date Formatters mimicking the enterprise UI
@@ -72,6 +74,22 @@ const getSafeImage = (url) => {
     if (url.includes('res.cloudinary.com/dtz0urit6')) return 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=400';
     return url;
 };
+
+// Illustrative ambient background for performer page
+const PerformerAmbientBackground = () => (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none z-0 bg-[#FFFFFF]">
+        <motion.div
+            className="absolute top-[10%] -left-[10%] w-[40vw] h-[40vw] max-w-[500px] max-h-[500px] rounded-full bg-[#FAD8DC] opacity-30 blur-[100px]"
+            animate={{ x: [0, 40, 0], y: [0, 20, 0], scale: [1, 1.05, 1] }}
+            transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div
+            className="absolute top-[40%] -right-[10%] w-[50vw] h-[50vw] max-w-[600px] max-h-[600px] rounded-full bg-[#FAD8DC] opacity-20 blur-[120px]"
+            animate={{ x: [0, -30, 0], y: [0, 30, 0], scale: [1, 1.1, 1] }}
+            transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
+        />
+    </div>
+);
 
 export default function Performer() {
     const { id } = useParams();
@@ -125,9 +143,12 @@ export default function Performer() {
         return () => clearTimeout(failsafe);
     }, [activeListings]);
 
-    // FEATURE 2 & 5: Strict Real-Time API Filtering & Context Aggregation (Admin + Seller Sync)
+    // FEATURE 2, 5 & 10: Strict Real-Time API Filtering & Context Aggregation (Admin + Seller Sync)
     const { filteredEvents, fansAlsoLove } = useMemo(() => {
         
+        // Check if current performer is IPL to trigger global override
+        const isIPLContext = performerName.toLowerCase() === 'ipl' || performerName.toLowerCase() === 'indian premier league';
+
         // 1. Filter globally by performer/category strict overrides
         const base = activeListings.filter(m => {
             const title = m.title || m.eventName || '';
@@ -141,7 +162,7 @@ export default function Performer() {
             const query = performerName.toLowerCase();
             
             // Strict Aggregation Hooks - if it's IPL, catch EVERYTHING remotely related
-            if (query === 'ipl' || query === 'indian premier league') {
+            if (isIPLContext) {
                 return searchString.includes('ipl') || 
                        searchString.includes('premier league') || 
                        searchString.includes('cricket') ||
@@ -158,8 +179,11 @@ export default function Performer() {
             return searchString.includes(query);
         });
 
-        // 2. Filter locally by user's city drop-down
+        // 2. Filter locally by user's city drop-down (UNLESS it's an IPL context)
         const filtered = base.filter(m => {
+            // FEATURE 10: If IPL context, ignore city filters entirely to show global inventory
+            if (isIPLContext) return true;
+
             if (userCity && userCity !== 'All Cities' && userCity !== 'Global' && userCity !== 'Current Location' && userCity !== 'Detecting...') {
                 const locStr = `${m.loc} ${m.city} ${m.location} ${m.stadium}`.toLowerCase();
                 if (!locStr.includes(userCity.toLowerCase())) return false;
@@ -219,7 +243,9 @@ export default function Performer() {
     };
 
     return (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }} className="w-full pb-20 bg-white font-sans text-[#1a1a1a]">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }} className="w-full pb-20 bg-[#FFFFFF] font-sans text-[#333333] relative overflow-hidden">
+            
+            <PerformerAmbientBackground />
             
             <AdminEditEventModal 
                 isOpen={adminModalOpen} 
@@ -227,30 +253,30 @@ export default function Performer() {
                 eventData={selectedAdminEvent} 
             />
             
-            {/* EXACT VIAGOGO DARK GREEN HERO BANNER */}
-            <div className="w-full bg-[#112d1e] h-[240px] md:h-[280px] relative overflow-hidden flex items-center">
+            {/* SECTION 1: EXACT BOOKNSHOW HERO BANNER */}
+            <div className="w-full bg-[#333333] h-[240px] md:h-[280px] relative overflow-hidden flex items-center z-10">
                 <div className="absolute inset-0 z-0 flex justify-end">
                     <div className="w-full md:w-[60%] h-full relative">
-                        <div className="absolute inset-0 bg-gradient-to-r from-[#112d1e] via-[#112d1e]/80 to-transparent z-10"></div>
+                        <div className="absolute inset-0 bg-gradient-to-r from-[#333333] via-[#333333]/80 to-transparent z-10"></div>
                         <img 
                             src="https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=1500&auto=format&fit=crop" 
                             alt="Stadium Cover" 
-                            className="w-full h-full object-cover object-right"
+                            className="w-full h-full object-cover object-right opacity-60 mix-blend-overlay"
                         />
                     </div>
                 </div>
                 
                 <div className="relative z-20 max-w-[1200px] mx-auto px-4 md:px-8 w-full flex justify-between items-end md:items-center">
-                    <h1 className="text-[36px] md:text-[56px] font-black text-white leading-[1.05] tracking-tight max-w-[600px] capitalize">
+                    <h1 className="text-[36px] md:text-[56px] font-black text-[#FFFFFF] leading-[1.05] tracking-tight max-w-[600px] capitalize drop-shadow-md">
                         {getDisplayName()} <br className="hidden md:block" /> Tickets
                     </h1>
                     <div className="flex flex-col items-end gap-3">
-                        <div className="hidden md:flex items-center gap-2 border border-white/40 rounded-full px-4 py-2 text-white bg-black/20 backdrop-blur-sm cursor-pointer hover:bg-black/40 transition-colors">
+                        <div className="hidden md:flex items-center gap-2 border border-[#FFFFFF]/30 rounded-full px-4 py-2 text-[#FFFFFF] bg-[#333333]/50 backdrop-blur-sm cursor-pointer hover:bg-[#E7364D]/80 hover:border-[#E7364D] transition-colors shadow-sm">
                             <span className="text-[14px] font-bold">10.8K</span>
                             <Heart size={16} />
                         </div>
                         {isAdmin && (
-                            <button onClick={handleCreateNew} className="bg-[#8cc63f] text-[#1a1a1a] px-5 py-2.5 rounded-full font-black flex items-center gap-2 hover:bg-white transition-colors shadow-lg shadow-[#8cc63f]/20 shrink-0 text-[14px]">
+                            <button onClick={handleCreateNew} className="bg-[#E7364D] text-[#FFFFFF] px-5 py-2.5 rounded-full font-black flex items-center gap-2 hover:bg-[#EB5B6E] transition-colors shadow-[0_8px_20px_rgba(231,54,77,0.3)] shrink-0 text-[14px]">
                                 <PlusCircle size={18} /> Add Listing
                             </button>
                         )}
@@ -258,63 +284,63 @@ export default function Performer() {
                 </div>
             </div>
 
-            <div className="max-w-[1200px] mx-auto px-4 md:px-8 mt-6">
+            <div className="max-w-[1200px] mx-auto px-4 md:px-8 mt-6 relative z-10">
                 
-                {/* VIEWER BANNER */}
-                <div className="w-full bg-[#eaf4fd] text-[#0064d2] rounded-[8px] p-4 flex items-center mb-6 shadow-sm border border-[#d2e8fa]">
+                {/* SECTION 2: VIEWER BANNER */}
+                <div className="w-full bg-[#FAD8DC]/30 text-[#E7364D] rounded-[12px] p-4 flex items-center mb-6 shadow-sm border border-[#E7364D]/20">
                     <Users size={20} className="mr-3 shrink-0" strokeWidth={2.5}/>
                     <span className="text-[14px] md:text-[15px] font-medium tracking-tight">
-                        {viewerCount.toLocaleString()} people viewed {getDisplayName()} events in the past hour
+                        {viewerCount.toLocaleString()} people viewed <strong className="font-black">{getDisplayName()}</strong> events in the past hour
                     </span>
                 </div>
 
-                {/* FILTER ROW */}
-                <div className="flex flex-wrap items-center gap-3 overflow-visible pb-6 border-b border-[#e2e2e2] mb-6">
+                {/* SECTION 3: FILTER ROW */}
+                <div className="flex flex-wrap items-center gap-3 overflow-visible pb-6 border-b border-[#A3A3A3]/20 mb-6">
                     <div className="relative">
                         <button 
                             onClick={() => { setLocationDropdownOpen(!isLocationDropdownOpen); setActiveDropdown(null); }}
-                            className="bg-[#1a1a1a] text-white px-5 py-2.5 rounded-full text-[14px] font-bold flex items-center whitespace-nowrap shadow-sm hover:bg-black transition-colors"
+                            className={`px-5 py-2.5 rounded-full text-[14px] font-bold flex items-center whitespace-nowrap shadow-sm transition-all border ${userCity && userCity !== 'All Cities' && userCity !== 'Global' ? 'bg-[#FAD8DC]/30 border-[#E7364D] text-[#E7364D]' : 'bg-[#333333] border-[#333333] text-[#FFFFFF] hover:bg-[#E7364D] hover:border-[#E7364D]'}`}
                         >
-                            <Navigation size={14} className="mr-2 fill-white -rotate-45"/> 
+                            <Navigation size={14} className="mr-2 -rotate-45 shrink-0"/> 
                             {userCity === 'Loading...' || userCity === 'Detecting...' ? 'Detecting...' : (userCity === 'All Cities' ? 'Global' : userCity)} 
                             <ChevronDown size={16} className={`ml-2 transition-transform ${isLocationDropdownOpen ? 'rotate-180' : ''}`}/>
                         </button>
                         {isLocationDropdownOpen && <div className="absolute left-0 mt-2 z-50"><LocationDropdown /></div>}
                     </div>
 
-                    <button className="bg-white border border-[#e2e2e2] text-[#1a1a1a] px-5 py-2.5 rounded-full text-[14px] font-bold flex items-center whitespace-nowrap shadow-sm hover:bg-[#f8f9fa] transition-colors">
-                        All dates <ChevronDown size={16} className="ml-2 text-[#9ca3af]"/>
+                    <button className="bg-[#FFFFFF] border border-[#A3A3A3]/50 text-[#333333] px-5 py-2.5 rounded-full text-[14px] font-bold flex items-center whitespace-nowrap shadow-sm hover:border-[#E7364D] hover:text-[#E7364D] hover:bg-[#FAD8DC]/20 transition-colors">
+                        All dates <ChevronDown size={16} className="ml-2 text-[#A3A3A3]"/>
                     </button>
 
-                    <button className="bg-white border border-[#e2e2e2] text-[#1a1a1a] px-5 py-2.5 rounded-full text-[14px] font-bold flex items-center whitespace-nowrap shadow-sm hover:bg-[#f8f9fa] transition-colors">
+                    <button className="bg-[#FFFFFF] border border-[#A3A3A3]/50 text-[#333333] px-5 py-2.5 rounded-full text-[14px] font-bold flex items-center whitespace-nowrap shadow-sm hover:border-[#E7364D] hover:text-[#E7364D] hover:bg-[#FAD8DC]/20 transition-colors">
                         Hide sold out
                     </button>
                 </div>
 
-                {/* EVENT LIST HEADER */}
+                {/* SECTION 4: EVENT LIST HEADER */}
                 <div className="flex items-center justify-between mb-5">
-                    <h2 className="text-[18px] md:text-[20px] font-black text-[#1a1a1a] tracking-tight flex items-center gap-3">
-                        {filteredEvents.length} events in {userCity && !['Loading...', 'Detecting...', 'All Cities', 'Global'].includes(userCity) ? userCity : 'all locations'}
+                    <h2 className="text-[18px] md:text-[20px] font-black text-[#333333] tracking-tight flex items-center gap-3">
+                        {filteredEvents.length} events in {userCity && !['Loading...', 'Detecting...', 'All Cities', 'Global'].includes(userCity) ? <span className="text-[#E7364D]">{userCity}</span> : 'all locations'}
                         {isAdmin && (
-                            <span className="hidden md:inline-flex items-center gap-1 bg-red-50 text-red-600 border border-red-200 px-2 py-0.5 rounded-[4px] text-[10px] font-black uppercase tracking-widest">
+                            <span className="hidden md:inline-flex items-center gap-1 bg-[#FAD8DC]/30 text-[#E7364D] border border-[#E7364D]/50 px-2 py-0.5 rounded-[4px] text-[10px] font-black uppercase tracking-widest">
                                 <ShieldAlert size={12} /> Admin
                             </span>
                         )}
                     </h2>
                 </div>
 
-                {/* MAIN EVENT LEDGER */}
+                {/* SECTION 5: MAIN EVENT LEDGER */}
                 <div className="flex flex-col gap-3 mb-12">
                     {showLoader ? (
-                        <div className="w-full py-20 flex flex-col items-center justify-center border border-[#e2e2e2] rounded-[12px] bg-[#f8f9fa]">
-                            <Loader2 size={32} className="text-[#8cc63f] animate-spin mb-4" />
-                            <p className="text-[14px] font-bold text-[#1a1a1a]">Syncing live secure inventory...</p>
+                        <div className="w-full py-20 flex flex-col items-center justify-center border border-[#A3A3A3]/20 rounded-[16px] bg-[#FFFFFF]/80 backdrop-blur-sm shadow-sm">
+                            <Loader2 size={32} className="text-[#E7364D] animate-spin mb-4" />
+                            <p className="text-[14px] font-bold text-[#333333]">Syncing live secure inventory...</p>
                         </div>
                     ) : filteredEvents.length === 0 ? (
-                        <div className="w-full py-16 flex flex-col items-center justify-center bg-white border border-[#e2e2e2] rounded-[12px] shadow-sm">
-                            <ShieldCheck size={48} className="text-[#9ca3af] mb-4" />
-                            <h3 className="text-[18px] font-black text-[#1a1a1a]">No Active Events Found</h3>
-                            <p className="text-[14px] text-[#54626c] mt-2">Sellers are currently updating inventory for {getDisplayName()}.</p>
+                        <div className="w-full py-16 flex flex-col items-center justify-center bg-[#FFFFFF]/80 backdrop-blur-sm border border-[#A3A3A3]/20 rounded-[16px] shadow-sm">
+                            <ShieldCheck size={48} className="text-[#A3A3A3] mb-4" />
+                            <h3 className="text-[18px] font-black text-[#333333]">No Active Events Found</h3>
+                            <p className="text-[14px] text-[#626262] mt-2 text-center max-w-sm">Sellers are currently updating inventory for {getDisplayName()}.</p>
                         </div>
                     ) : (
                         paginatedEvents.map((m, index) => {
@@ -333,7 +359,7 @@ export default function Performer() {
                                 <div 
                                     key={m.id} 
                                     onClick={(e) => handleEventClick(e, m.id)}
-                                    className="relative bg-white border border-[#e2e2e2] rounded-[12px] p-4 flex flex-col md:flex-row md:items-center hover:shadow-md hover:border-[#8cc63f] transition-all cursor-pointer group/item"
+                                    className="relative bg-[#FFFFFF] border border-[#A3A3A3]/30 rounded-[16px] p-4 flex flex-col md:flex-row md:items-center hover:shadow-[0_8px_30px_rgba(51,51,51,0.08)] hover:border-[#E7364D] transition-all cursor-pointer group/item z-10"
                                 >
                                     {isAdmin && (
                                         <button
@@ -342,50 +368,50 @@ export default function Performer() {
                                                 setSelectedAdminEvent(m);
                                                 setAdminModalOpen(true);
                                             }}
-                                            className="absolute -top-3 -right-3 md:top-1/2 md:-translate-y-1/2 md:right-4 z-[60] bg-red-600 text-white p-2.5 rounded-full shadow-[0_4px_15px_rgba(220,38,38,0.4)] opacity-100 md:opacity-0 group-hover/item:opacity-100 transition-all hover:scale-110 hover:bg-red-700"
+                                            className="absolute -top-3 -right-3 md:top-1/2 md:-translate-y-1/2 md:right-4 z-[60] bg-[#333333] text-[#FFFFFF] p-2.5 rounded-full shadow-[0_4px_15px_rgba(51,51,51,0.2)] opacity-100 md:opacity-0 group-hover/item:opacity-100 transition-all hover:scale-110 hover:bg-[#E7364D]"
                                             title="God Mode: Edit Event"
                                         >
                                             <Pencil size={16} />
                                         </button>
                                     )}
 
-                                    {/* Exact Viagogo Date Tear-off */}
+                                    {/* Exact Booknshow Date Tear-off */}
                                     <div className="flex items-center flex-1">
-                                        <div className="flex flex-col items-center justify-center pr-5 md:pr-6 border-r border-[#e2e2e2] min-w-[70px]">
-                                            <span className="text-[13px] font-bold text-[#1a1a1a] uppercase">{getMonthStr(m.commence_time || m.eventTimestamp)}</span>
-                                            <span className="text-[28px] font-black text-[#1a1a1a] leading-none my-0.5">{getDayNum(m.commence_time || m.eventTimestamp)}</span>
-                                            <span className="text-[12px] text-[#54626c] font-medium uppercase">{getDowStr(m.commence_time || m.eventTimestamp)}</span>
+                                        <div className="flex flex-col items-center justify-center pr-5 md:pr-6 border-r border-[#A3A3A3]/20 min-w-[75px]">
+                                            <span className="text-[13px] font-bold text-[#E7364D] uppercase">{getMonthStr(m.commence_time || m.eventTimestamp)}</span>
+                                            <span className="text-[28px] font-black text-[#333333] leading-none my-0.5">{getDayNum(m.commence_time || m.eventTimestamp)}</span>
+                                            <span className="text-[12px] text-[#A3A3A3] font-bold uppercase">{getDowStr(m.commence_time || m.eventTimestamp)}</span>
                                         </div>
                                         
                                         {/* Event Details */}
                                         <div className="pl-5 md:pl-6 flex-1 min-w-0">
-                                            <h3 className="text-[16px] md:text-[18px] font-bold text-[#1a1a1a] leading-tight mb-1 truncate group-hover/item:text-[#458731] transition-colors pr-8">
+                                            <h3 className="text-[16px] md:text-[18px] font-black text-[#333333] leading-tight mb-1 truncate group-hover/item:text-[#E7364D] transition-colors pr-8">
                                                 {m.title || m.eventName || `${m.t1} vs ${m.t2}`}
                                             </h3>
-                                            <p className="text-[13px] text-[#54626c] flex items-center mb-2 truncate font-bold">
-                                                {getTimeStr(m.commence_time || m.eventTimestamp)} • <MapPin size={12} className="mx-1.5 shrink-0 text-[#9ca3af]" /> <span className="truncate">{m.stadium || m.loc}, {m.location?.split(',')[0] || m.city}</span>
+                                            <p className="text-[13px] text-[#626262] flex items-center mb-2.5 truncate font-medium">
+                                                {getTimeStr(m.commence_time || m.eventTimestamp)} <span className="mx-1.5 text-[#A3A3A3]">•</span> <MapPin size={12} className="mr-1 shrink-0 text-[#A3A3A3]" /> <span className="truncate">{m.stadium || m.loc}, {m.location?.split(',')[0] || m.city}</span>
                                             </p>
                                             
                                             {/* Dynamic Tags */}
                                             <div className="flex flex-wrap gap-2 items-center">
                                                 {relativeLabel && (
-                                                    <div className="flex items-center bg-[#f8f9fa] border border-[#e2e2e2] text-[#1a1a1a] px-2 py-0.5 rounded-[4px] text-[11px] font-bold">
-                                                        <Calendar size={12} className="mr-1.5 text-[#9ca3af]"/> {relativeLabel}
+                                                    <div className="flex items-center bg-[#F5F5F5] border border-[#A3A3A3]/20 text-[#333333] px-2 py-0.5 rounded-[6px] text-[11px] font-bold">
+                                                        <Calendar size={12} className="mr-1.5 text-[#A3A3A3]"/> {relativeLabel}
                                                     </div>
                                                 )}
                                                 {isHottest && (
-                                                    <div className="flex items-center bg-[#eaf4d9] text-[#458731] px-2 py-0.5 rounded-[4px] text-[11px] font-bold border border-[#d2e8b0]">
+                                                    <div className="flex items-center bg-[#FAD8DC]/30 text-[#E7364D] px-2 py-0.5 rounded-[6px] text-[11px] font-bold border border-[#E7364D]/20 shadow-sm">
                                                         <Flame size={12} className="mr-1.5"/> Hottest event
                                                     </div>
                                                 )}
                                                 {isSellingOut && hasTickets && (
-                                                    <div className="flex items-center bg-[#fdf2f2] text-[#c21c3a] px-2 py-0.5 rounded-[4px] text-[11px] font-bold border border-[#fecaca]">
+                                                    <div className="flex items-center bg-[#333333] text-[#FFFFFF] px-2 py-0.5 rounded-[6px] text-[11px] font-bold shadow-sm">
                                                         <Clock size={12} className="mr-1.5"/> Few tickets left
                                                     </div>
                                                 )}
                                                 {isWeekend && !isSellingOut && !isHottest && (
-                                                    <div className="flex items-center bg-[#f8f9fa] border border-[#e2e2e2] text-[#1a1a1a] px-2 py-0.5 rounded-[4px] text-[11px] font-bold">
-                                                        <Calendar size={12} className="mr-1.5 text-[#9ca3af]"/> This weekend
+                                                    <div className="flex items-center bg-[#F5F5F5] border border-[#A3A3A3]/20 text-[#333333] px-2 py-0.5 rounded-[6px] text-[11px] font-bold">
+                                                        <Calendar size={12} className="mr-1.5 text-[#A3A3A3]"/> This weekend
                                                     </div>
                                                 )}
                                             </div>
@@ -393,19 +419,19 @@ export default function Performer() {
                                     </div>
 
                                     {/* See Tickets Button mapped to Live Inventory */}
-                                    <div className="mt-4 md:mt-0 pt-4 md:pt-0 border-t border-[#e2e2e2] md:border-t-0 flex justify-end shrink-0 md:pl-4 md:pr-12">
+                                    <div className="mt-4 md:mt-0 pt-4 md:pt-0 border-t border-[#A3A3A3]/20 md:border-t-0 flex justify-end shrink-0 md:pl-4 md:pr-12">
                                         {hasTickets ? (
                                             <div className="flex items-center md:flex-col gap-4 md:gap-0 w-full md:w-auto">
-                                                <div className="flex flex-col items-start md:items-end flex-1 md:flex-none md:mb-1">
-                                                    <span className="text-[10px] font-black text-[#9ca3af] uppercase tracking-widest">Starting from</span>
-                                                    <span className="text-[20px] font-black text-[#1a1a1a]">{formattedPrice}</span>
+                                                <div className="flex flex-col items-start md:items-end flex-1 md:flex-none md:mb-1.5">
+                                                    <span className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest">Starting from</span>
+                                                    <span className="text-[20px] font-black text-[#333333] group-hover/item:text-[#E7364D] transition-colors">{formattedPrice}</span>
                                                 </div>
-                                                <button className="w-auto px-6 py-2.5 rounded-[8px] font-bold text-[14px] bg-[#8cc63f] text-[#1a1a1a] hover:bg-[#7ab332] transition-colors shadow-sm shrink-0 whitespace-nowrap">
+                                                <button className="w-auto px-6 py-2.5 rounded-[8px] font-black text-[14px] bg-[#E7364D] text-[#FFFFFF] group-hover/item:bg-[#EB5B6E] transition-all shadow-[0_4px_10px_rgba(231,54,77,0.2)] shrink-0 whitespace-nowrap">
                                                     See tickets
                                                 </button>
                                             </div>
                                         ) : (
-                                            <button disabled className="w-full md:w-auto px-6 py-2.5 rounded-[8px] font-bold text-[14px] border border-[#e2e2e2] text-[#c21c3a] bg-[#fdf2f2] cursor-not-allowed">
+                                            <button disabled className="w-full md:w-auto px-6 py-2.5 rounded-[8px] font-bold text-[14px] border border-[#E7364D]/50 text-[#E7364D] bg-[#FAD8DC]/30 cursor-not-allowed">
                                                 Sold out
                                             </button>
                                         )}
@@ -416,77 +442,48 @@ export default function Performer() {
                     )}
                 </div>
 
-                {/* PAGINATION CONTROLS */}
+                {/* SECTION 6: PAGINATION CONTROLS */}
                 {totalPages > 1 && (
-                    <div className="flex justify-center items-center space-x-2 mb-16">
-                        <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="w-10 h-10 flex items-center justify-center text-[#9ca3af] hover:text-[#1a1a1a] disabled:opacity-30">
+                    <div className="flex justify-center items-center space-x-2 mb-16 relative z-10">
+                        <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="w-10 h-10 flex items-center justify-center text-[#A3A3A3] hover:text-[#333333] disabled:opacity-30">
                             <ChevronLeft size={20} />
                         </button>
                         {[...Array(Math.min(5, totalPages))].map((_, i) => {
                             const page = i + 1;
                             return (
-                                <button key={page} onClick={() => setCurrentPage(page)} className={`w-10 h-10 flex items-center justify-center rounded-full text-[14px] font-bold transition-colors ${page === currentPage ? 'bg-[#1a1a1a] text-white' : 'bg-transparent text-[#1a1a1a] hover:bg-[#f8f9fa]'}`}>
+                                <button key={page} onClick={() => setCurrentPage(page)} className={`w-10 h-10 flex items-center justify-center rounded-full text-[14px] font-bold transition-colors shadow-sm border ${page === currentPage ? 'bg-[#E7364D] text-[#FFFFFF] border-[#E7364D]' : 'bg-[#FFFFFF] text-[#333333] border-[#A3A3A3]/30 hover:border-[#E7364D] hover:text-[#E7364D]'}`}>
                                     {page}
                                 </button>
                             );
                         })}
-                        <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="w-10 h-10 flex items-center justify-center text-[#9ca3af] hover:text-[#1a1a1a] disabled:opacity-30">
+                        <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="w-10 h-10 flex items-center justify-center text-[#A3A3A3] hover:text-[#333333] disabled:opacity-30">
                             <ChevronRight size={20} />
                         </button>
                     </div>
                 )}
 
-                {/* DYNAMIC FANS ALSO LOVE CAROUSEL */}
+                {/* SECTION 7: DYNAMIC FANS ALSO LOVE CAROUSEL */}
                 {fansAlsoLove.length > 0 && (
-                    <div className="mb-12">
+                    <div className="mb-16 relative z-10">
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-[20px] md:text-[24px] font-black text-[#1a1a1a] tracking-tight">
-                                {getDisplayName()} fans also love
+                            <h2 className="text-[20px] md:text-[24px] font-black text-[#333333] tracking-tight">
+                                <strong className="text-[#E7364D]">{getDisplayName()}</strong> fans also love
                             </h2>
                         </div>
                         
                         <div className="flex overflow-x-auto custom-scrollbar space-x-4 pb-4 snap-x">
                             {fansAlsoLove.map((item, idx) => (
                                 <div key={idx} className="min-w-[240px] max-w-[240px] cursor-pointer group snap-start" onClick={() => navigate(`/performer/${encodeURIComponent(item.name)}`)}>
-                                    <div className="w-full h-[150px] relative rounded-[16px] overflow-hidden mb-3 border border-[#e2e2e2] shadow-sm group-hover:shadow-md transition-shadow bg-[#1a1a1a]">
-                                        <img src={getSafeImage(item.imageId)} alt={item.name} className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-500" />
+                                    <div className="w-full h-[150px] relative rounded-[16px] overflow-hidden mb-3 border border-[#A3A3A3]/20 shadow-sm group-hover:shadow-[0_10px_30px_rgba(51,51,51,0.1)] transition-all bg-[#333333]">
+                                        <img src={getSafeImage(item.imageId)} alt={item.name} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500" />
                                     </div>
-                                    <h3 className="font-black text-[#1a1a1a] text-[16px] leading-tight truncate group-hover:text-[#458731] transition-colors">{item.name}</h3>
-                                    <p className="text-[13px] text-[#54626c] font-medium mt-1">{item.events.length} upcoming events</p>
+                                    <h3 className="font-black text-[#333333] text-[16px] leading-tight truncate group-hover:text-[#E7364D] transition-colors">{item.name}</h3>
+                                    <p className="text-[13px] text-[#626262] font-medium mt-1">{item.events.length} upcoming events</p>
                                 </div>
                             ))}
                         </div>
                     </div>
                 )}
-
-                {/* APP DOWNLOAD BANNER */}
-                <div className="w-full bg-[#f8f9fa] rounded-[24px] p-6 md:p-10 flex flex-col md:flex-row justify-between items-center relative overflow-hidden mb-12 shadow-sm border border-[#e2e2e2]">
-                    <div className="md:w-1/2 z-10 text-center md:text-left mb-6 md:mb-0">
-                        <h2 className="text-[26px] md:text-[32px] font-black text-[#1a1a1a] mb-1 leading-tight tracking-tight">Download the parbet app</h2>
-                        <p className="text-[15px] text-[#54626c] font-medium mb-6 max-w-sm mx-auto md:mx-0">Discover your favourite events with ease and secure tickets instantly.</p>
-                        <div className="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-3 justify-center md:justify-start">
-                            <button className="bg-[#1a1a1a] text-white px-5 py-2.5 rounded-[12px] flex items-center hover:bg-black transition-colors w-full sm:w-auto justify-center shadow-md">
-                                <Download size={20} className="mr-3" />
-                                <div className="text-left leading-none">
-                                    <span className="text-[10px] block opacity-80 uppercase tracking-widest font-bold mb-0.5">Download on the</span>
-                                    <span className="text-[14px] font-black tracking-tight">App Store</span>
-                                </div>
-                            </button>
-                            <button className="bg-[#1a1a1a] text-white px-5 py-2.5 rounded-[12px] flex items-center hover:bg-black transition-colors w-full sm:w-auto justify-center shadow-md">
-                                <Download size={20} className="mr-3" />
-                                <div className="text-left leading-none">
-                                    <span className="text-[10px] block opacity-80 uppercase tracking-widest font-bold mb-0.5">GET IT ON</span>
-                                    <span className="text-[14px] font-black tracking-tight">Google Play</span>
-                                </div>
-                            </button>
-                        </div>
-                    </div>
-                    <div className="md:w-1/2 flex justify-center md:justify-end z-10 pr-4">
-                        <div className="bg-white p-4 rounded-[16px] shadow-xl border border-[#e2e2e2] flex flex-col items-center">
-                            <QrCode size={100} className="text-[#1a1a1a]"/>
-                        </div>
-                    </div>
-                </div>
 
             </div>
         </motion.div>
