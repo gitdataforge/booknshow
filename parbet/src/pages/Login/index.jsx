@@ -7,17 +7,20 @@ import { auth, db } from '../../lib/firebase';
 import { signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, getDoc, updateDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { sendCustomPasswordResetEmail } from '../../utils/resendEmailHelper';
+import { BooknshowLogo } from '../../components/Header'; // Reusing global vector logo
 
 /**
+ * GLOBAL REBRAND: Booknshow Identity Application (Phase 2 Login)
+ * Enforced Colors: #FFFFFF, #E7364D, #333333, #EB5B6E, #FAD8DC, #A3A3A3, #626262
  * FEATURE 1: Custom Resend Password Reset Interceptor
- * FEATURE 2: Fully Functional Animated Feedback Engine
+ * FEATURE 2: Fully Functional Animated Feedback Engine (Rebranded)
  * FEATURE 3: Intelligent Error Boundaries & Fallbacks
  * FEATURE 4: Email Sanitization Pipeline
  * FEATURE 5: Firestore Identity Sync
- * FEATURE 6: Seamless Pre-Auth Intent Routing (Return-To Payload Interception)
+ * FEATURE 6: Seamless Pre-Auth Intent Routing
  */
 
-// Helper Component for exact input styling
+// Helper Component for exact input styling (Rebranded)
 const CustomInput = ({ label, required, type = "text", value, onChange, disabled, ...props }) => (
     <div className="relative w-full mb-4">
         <input 
@@ -26,7 +29,7 @@ const CustomInput = ({ label, required, type = "text", value, onChange, disabled
             onChange={onChange} 
             disabled={disabled}
             placeholder={label}
-            className="w-full border border-[#cccccc] rounded-[6px] px-3 py-3.5 text-[15px] text-[#333] outline-none focus:border-[#114C2A] focus:ring-1 focus:ring-[#114C2A] transition-all bg-white disabled:bg-gray-50 disabled:text-gray-500 placeholder-gray-500"
+            className="w-full border border-[#A3A3A3] rounded-[6px] px-3 py-3.5 text-[15px] text-[#333333] outline-none focus:border-[#E7364D] focus:ring-1 focus:ring-[#E7364D] transition-all bg-[#FFFFFF] disabled:bg-[#F5F5F5] disabled:text-[#A3A3A3] placeholder-[#A3A3A3]"
             {...props}
         />
     </div>
@@ -34,7 +37,7 @@ const CustomInput = ({ label, required, type = "text", value, onChange, disabled
 
 export default function Login() {
     const navigate = useNavigate();
-    const location = useLocation(); // FEATURE 6: Router memory extraction
+    const location = useLocation(); 
     const { isAuthenticated, setUser, setOnboarded } = useAppStore();
     
     // Exact View States: 'email' -> 'password' -> 'forgot' -> 'forgot-success'
@@ -106,7 +109,6 @@ export default function Login() {
             });
             setOnboarded();
             
-            // FEATURE 6: Direct user back to their intended checkout session if payload exists
             const returnTo = location.state?.returnTo || '/profile';
             const reservedListing = location.state?.reservedListing;
             navigate(returnTo, { state: { reservedListing } });
@@ -150,7 +152,6 @@ export default function Login() {
             });
             setOnboarded();
             
-            // FEATURE 6: Direct user back to their intended checkout session if payload exists
             const returnTo = location.state?.returnTo || '/profile';
             const reservedListing = location.state?.reservedListing;
             navigate(returnTo, { state: { reservedListing } });
@@ -184,10 +185,7 @@ export default function Login() {
         setError(null);
 
         try {
-            // Generating secure front-end reset routing link
             const resetLink = `${window.location.origin}/update-password?email=${encodeURIComponent(sanitizedEmail)}&ref=resend_auth`;
-            
-            // Dispatching via Resend Helper instead of Firebase Auth
             await sendCustomPasswordResetEmail(sanitizedEmail, resetLink);
             setStep('forgot-success');
         } catch (err) {
@@ -198,7 +196,7 @@ export default function Login() {
         }
     };
 
-    // FEATURE 2: Unauthenticated Feedback Submission Engine
+    // FEATURE 2: Unauthenticated Feedback Submission Engine (Rebranded)
     const submitFeedback = async () => {
         if (!feedbackText.trim()) return;
         setFeedbackLoading(true);
@@ -220,9 +218,6 @@ export default function Login() {
             }, 3000);
         } catch (err) {
             console.error("Feedback dispatch failed:", err);
-            // Fallback for strict rules: If firestore rules block anonymous writes, 
-            // we simulate success visually so the user experience isn't interrupted, 
-            // but log the explicit failure for developers.
             setFeedbackSuccess(true);
             setTimeout(() => {
                 setIsFeedbackOpen(false);
@@ -235,12 +230,12 @@ export default function Login() {
     };
 
     return (
-        <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center py-12 px-4 relative font-sans overflow-hidden">
+        <div className="min-h-screen bg-[#F5F5F5] flex items-center justify-center py-12 px-4 relative font-sans overflow-hidden">
             
             {/* FEATURE 2: Fully Functional Animated Feedback Engine */}
             <div 
                 onClick={() => setIsFeedbackOpen(true)}
-                className="fixed right-0 top-[30%] bg-[#458731] text-white text-[13px] font-bold py-3 px-1.5 rounded-l-[4px] cursor-pointer shadow-md hover:bg-[#366a26] transition-colors z-40 flex items-center justify-center"
+                className="fixed right-0 top-[30%] bg-[#333333] text-[#FFFFFF] text-[13px] font-bold py-3 px-1.5 rounded-l-[4px] cursor-pointer shadow-md hover:bg-[#E7364D] transition-colors z-40 flex items-center justify-center"
                 style={{ writingMode: 'vertical-rl', textOrientation: 'mixed', transform: 'rotate(180deg)' }}
             >
                 Feedback
@@ -253,14 +248,14 @@ export default function Login() {
                         animate={{ x: 0, opacity: 1 }}
                         exit={{ x: '100%', opacity: 0 }}
                         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                        className="fixed right-0 top-0 bottom-0 w-full max-w-[360px] bg-white shadow-2xl z-50 flex flex-col border-l border-[#e2e2e2]"
+                        className="fixed right-0 top-0 bottom-0 w-full max-w-[360px] bg-[#FFFFFF] shadow-[0_0_40px_rgba(51,51,51,0.2)] z-50 flex flex-col border-l border-[#A3A3A3]/20"
                     >
-                        <div className="p-5 border-b border-[#e2e2e2] bg-[#f8f9fa] flex items-center justify-between">
-                            <h3 className="text-[16px] font-black text-[#1a1a1a] flex items-center gap-2">
-                                <MessageSquare size={18} className="text-[#458731]" />
+                        <div className="p-5 border-b border-[#A3A3A3]/20 bg-[#F5F5F5] flex items-center justify-between">
+                            <h3 className="text-[16px] font-black text-[#333333] flex items-center gap-2">
+                                <MessageSquare size={18} className="text-[#E7364D]" />
                                 Platform Feedback
                             </h3>
-                            <button onClick={() => setIsFeedbackOpen(false)} className="text-[#54626c] hover:text-[#1a1a1a] transition-colors p-1">
+                            <button onClick={() => setIsFeedbackOpen(false)} className="text-[#626262] hover:text-[#E7364D] transition-colors p-1">
                                 <X size={20} />
                             </button>
                         </div>
@@ -268,27 +263,27 @@ export default function Login() {
                         <div className="p-6 flex-1 flex flex-col">
                             {feedbackSuccess ? (
                                 <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex flex-col items-center justify-center h-full text-center">
-                                    <div className="w-16 h-16 bg-[#eaf4d9] rounded-full flex items-center justify-center mb-4">
-                                        <Check size={32} className="text-[#458731]" strokeWidth={3} />
+                                    <div className="w-16 h-16 bg-[#FAD8DC] rounded-full flex items-center justify-center mb-4 border border-[#E7364D]/30">
+                                        <Check size={32} className="text-[#E7364D]" strokeWidth={3} />
                                     </div>
-                                    <h4 className="text-[18px] font-black text-[#1a1a1a] mb-2">Thank You!</h4>
-                                    <p className="text-[14px] text-[#54626c]">Your feedback has been securely transmitted to our engineering team.</p>
+                                    <h4 className="text-[18px] font-black text-[#333333] mb-2">Thank You!</h4>
+                                    <p className="text-[14px] text-[#626262]">Your feedback has been securely transmitted to our engineering team.</p>
                                 </motion.div>
                             ) : (
                                 <>
-                                    <p className="text-[14px] text-[#54626c] mb-6 leading-relaxed">
-                                        Experiencing an issue or have a suggestion to improve Parbet? Let us know below.
+                                    <p className="text-[14px] text-[#626262] mb-6 leading-relaxed">
+                                        Experiencing an issue or have a suggestion to improve Booknshow? Let us know below.
                                     </p>
                                     <textarea 
                                         value={feedbackText}
                                         onChange={(e) => setFeedbackText(e.target.value)}
                                         placeholder="Describe your experience..."
-                                        className="w-full flex-1 border border-[#cccccc] rounded-[8px] p-4 text-[14px] outline-none focus:border-[#458731] resize-none mb-4"
+                                        className="w-full flex-1 border border-[#A3A3A3]/50 rounded-[8px] p-4 text-[14px] text-[#333333] outline-none focus:border-[#E7364D] resize-none mb-4"
                                     ></textarea>
                                     <button 
                                         onClick={submitFeedback}
                                         disabled={!feedbackText.trim() || feedbackLoading}
-                                        className="w-full bg-[#1a1a1a] text-white font-bold py-3.5 rounded-[8px] flex items-center justify-center gap-2 disabled:opacity-50 transition-opacity"
+                                        className="w-full bg-[#333333] text-[#FFFFFF] font-bold py-3.5 rounded-[8px] flex items-center justify-center gap-2 hover:bg-[#E7364D] disabled:opacity-50 transition-all"
                                     >
                                         {feedbackLoading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
                                         {feedbackLoading ? 'Dispatching...' : 'Submit Feedback'}
@@ -304,23 +299,21 @@ export default function Login() {
             <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white w-full max-w-[440px] rounded-[12px] shadow-[0_2px_15px_rgba(0,0,0,0.05)] overflow-hidden flex flex-col border border-gray-100"
+                className="bg-[#FFFFFF] w-full max-w-[440px] rounded-[12px] shadow-[0_10px_40px_rgba(51,51,51,0.08)] overflow-hidden flex flex-col border border-[#A3A3A3]/20 relative z-10"
             >
                 <div className="px-10 pt-10 pb-6 flex flex-col items-center">
                     
-                    <div className="cursor-pointer mb-2" onClick={() => navigate('/')}>
-                        <h1 className="text-[42px] font-black tracking-tighter leading-none">
-                            <span className="text-[#1a1a1a]">par</span><span className="text-[#8bc53f]">bet</span>
-                        </h1>
+                    <div className="cursor-pointer mb-6" onClick={() => navigate('/')}>
+                        <BooknshowLogo className="h-[40px]" />
                     </div>
                     
-                    <h2 className="text-[24px] font-bold text-[#333] mb-8">
-                        {step === 'forgot' ? 'Reset Password' : 'Sign in to parbet'}
+                    <h2 className="text-[22px] font-bold text-[#333333] mb-8 text-center">
+                        {step === 'forgot' ? 'Reset Password' : 'Sign in to Booknshow'}
                     </h2>
 
                     {/* Intelligent Error Render Box */}
                     {error && (
-                        <div className="mb-6 w-full p-3 bg-red-50 text-[#d32f2f] text-[13px] border border-red-200 rounded-[6px] font-bold text-center leading-relaxed flex items-start justify-center gap-2">
+                        <div className="mb-6 w-full p-3 bg-[#FAD8DC]/30 text-[#E7364D] text-[13px] border border-[#E7364D]/50 rounded-[6px] font-bold text-center leading-relaxed flex items-start justify-center gap-2">
                             <AlertCircle size={16} className="shrink-0 mt-0.5" />
                             <span>{error}</span>
                         </div>
@@ -329,16 +322,16 @@ export default function Login() {
                     {/* DYNAMIC FORM ROUTING */}
                     {step === 'forgot-success' ? (
                         <div className="w-full flex flex-col items-center text-center pb-4">
-                            <div className="w-14 h-14 bg-[#eaf4d9] rounded-full flex items-center justify-center mb-4">
-                                <Check size={28} className="text-[#458731]" strokeWidth={3} />
+                            <div className="w-14 h-14 bg-[#FAD8DC] rounded-full flex items-center justify-center mb-4 border border-[#E7364D]/30">
+                                <Check size={28} className="text-[#E7364D]" strokeWidth={3} />
                             </div>
-                            <h3 className="text-[18px] font-black text-[#1a1a1a] mb-2">Check your inbox</h3>
-                            <p className="text-[14px] text-[#54626c] mb-8">
-                                A highly secure password reset link has been dispatched to <strong className="text-[#1a1a1a]">{email}</strong> via the Resend API.
+                            <h3 className="text-[18px] font-black text-[#333333] mb-2">Check your inbox</h3>
+                            <p className="text-[14px] text-[#626262] mb-8">
+                                A highly secure password reset link has been dispatched to <strong className="text-[#333333]">{email}</strong> via the Resend API.
                             </p>
                             <button 
                                 onClick={() => setStep('password')}
-                                className="w-full border border-[#cccccc] text-[#1a1a1a] font-bold py-3 rounded-[6px] hover:bg-gray-50 transition-colors"
+                                className="w-full border border-[#A3A3A3]/50 text-[#333333] font-bold py-3 rounded-[6px] hover:bg-[#FAD8DC]/20 hover:border-[#E7364D] hover:text-[#E7364D] transition-colors"
                             >
                                 Return to Login
                             </button>
@@ -374,16 +367,16 @@ export default function Login() {
                             </AnimatePresence>
 
                             {step !== 'forgot' && (
-                                <div className="flex items-center justify-between mb-6">
-                                    <div className="flex items-center space-x-2.5 cursor-pointer" onClick={() => setStayLoggedIn(!stayLoggedIn)}>
-                                        <div className={`w-[20px] h-[20px] rounded-[4px] flex items-center justify-center transition-colors ${stayLoggedIn ? 'bg-[#8bc53f] border-[#8bc53f]' : 'border-2 border-gray-300'}`}>
-                                            {stayLoggedIn && <Check size={14} className="text-white" strokeWidth={3}/>}
+                                <div className="flex items-center justify-between mb-6 mt-2">
+                                    <div className="flex items-center space-x-2.5 cursor-pointer group" onClick={() => setStayLoggedIn(!stayLoggedIn)}>
+                                        <div className={`w-[20px] h-[20px] rounded-[4px] flex items-center justify-center transition-colors ${stayLoggedIn ? 'bg-[#E7364D] border-[#E7364D]' : 'border-2 border-[#A3A3A3] group-hover:border-[#E7364D]'}`}>
+                                            {stayLoggedIn && <Check size={14} className="text-[#FFFFFF]" strokeWidth={3}/>}
                                         </div>
-                                        <span className="text-[14px] text-[#333] font-medium">Stay logged in</span>
+                                        <span className="text-[14px] text-[#333333] font-medium group-hover:text-[#E7364D] transition-colors">Stay logged in</span>
                                     </div>
 
                                     {step === 'password' && (
-                                        <button type="button" onClick={() => { setStep('forgot'); setError(null); }} className="text-[13px] text-[#0066c0] font-medium hover:underline">
+                                        <button type="button" onClick={() => { setStep('forgot'); setError(null); }} className="text-[13px] text-[#EB5B6E] font-bold hover:underline">
                                             Forgot password?
                                         </button>
                                     )}
@@ -392,7 +385,7 @@ export default function Login() {
 
                             {step === 'forgot' && (
                                 <div className="flex justify-end mb-6">
-                                    <button type="button" onClick={() => { setStep('password'); setError(null); }} className="text-[13px] text-[#54626c] font-medium hover:underline">
+                                    <button type="button" onClick={() => { setStep('password'); setError(null); }} className="text-[13px] text-[#626262] font-bold hover:text-[#E7364D] hover:underline transition-colors">
                                         Back to password entry
                                     </button>
                                 </div>
@@ -401,10 +394,10 @@ export default function Login() {
                             <button 
                                 type="submit" 
                                 disabled={loading || (step === 'email' && !email) || (step === 'password' && !password) || (step === 'forgot' && !email)}
-                                className={`w-full py-3 rounded-[6px] font-bold text-[15px] transition-colors mb-6 flex justify-center items-center ${((step === 'email' && email) || (step === 'password' && password) || (step === 'forgot' && email)) ? 'bg-[#8bc53f] text-white hover:bg-[#7cbd34] shadow-sm' : 'bg-[#e0e0e0] text-[#a6a6a6]'}`}
+                                className={`w-full py-3.5 rounded-[6px] font-bold text-[15px] transition-all mb-6 flex justify-center items-center ${((step === 'email' && email) || (step === 'password' && password) || (step === 'forgot' && email)) ? 'bg-[#E7364D] text-[#FFFFFF] hover:bg-[#EB5B6E] shadow-sm' : 'bg-[#F5F5F5] text-[#A3A3A3] border border-[#A3A3A3]/20'}`}
                             >
                                 {loading ? (
-                                    <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                                    <div className="w-5 h-5 border-2 border-[#FFFFFF]/30 border-t-[#FFFFFF] rounded-full animate-spin"></div>
                                 ) : (
                                     step === 'forgot' ? 'Send Secure Reset Link' : 'Continue'
                                 )}
@@ -414,11 +407,11 @@ export default function Login() {
 
                     {step !== 'forgot' && step !== 'forgot-success' && (
                         <>
-                            <p className="text-[12px] text-[#666] text-center leading-relaxed mb-6">
-                                By signing in or creating an account, you agree to our <button className="text-[#0066c0] hover:underline">user agreement</button> and acknowledge our <button className="text-[#0066c0] hover:underline">privacy policy</button>.
+                            <p className="text-[12px] text-[#626262] text-center leading-relaxed mb-6">
+                                By signing in or creating an account, you agree to our <button className="text-[#EB5B6E] font-medium hover:underline">user agreement</button> and acknowledge our <button className="text-[#EB5B6E] font-medium hover:underline">privacy policy</button>.
                             </p>
 
-                            <button className="w-full py-3 rounded-[6px] border border-[#cccccc] text-[#333] font-bold text-[15px] hover:bg-gray-50 transition-colors mb-4 shadow-sm">
+                            <button className="w-full py-3 rounded-[6px] border border-[#A3A3A3] text-[#333333] font-bold text-[14px] hover:bg-[#FAD8DC]/20 hover:text-[#E7364D] hover:border-[#E7364D] transition-colors mb-4 shadow-sm">
                                 Guest purchase? Find your order
                             </button>
 
@@ -426,7 +419,7 @@ export default function Login() {
                             <button 
                                 onClick={handleGoogleAuth} 
                                 disabled={loading}
-                                className="w-full py-3 rounded-[6px] bg-white border border-[#cccccc] hover:bg-gray-50 text-[#333] font-bold text-[15px] transition-colors flex items-center justify-center mb-8 shadow-sm disabled:opacity-50"
+                                className="w-full py-3 rounded-[6px] bg-[#FFFFFF] border border-[#A3A3A3] hover:bg-[#F5F5F5] text-[#333333] font-bold text-[14px] transition-colors flex items-center justify-center mb-6 shadow-sm disabled:opacity-50"
                             >
                                 <svg className="w-5 h-5 mr-2.5" viewBox="0 0 24 24">
                                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -437,20 +430,20 @@ export default function Login() {
                                 Log In with Google
                             </button>
 
-                            <div className="text-[14px] text-[#333]">
-                                New to Parbet? <Link to="/signup" className="text-[#0066c0] hover:underline font-medium">Create an account</Link>
+                            <div className="text-[14px] text-[#333333]">
+                                New to Booknshow? <Link to="/signup" className="text-[#EB5B6E] font-bold hover:underline">Create an account</Link>
                             </div>
                         </>
                     )}
                 </div>
 
                 {/* Bottom Localization Selectors */}
-                <div className="border-t border-gray-200 bg-white px-10 py-5 space-y-3 mt-auto">
-                    <div className="flex items-center text-[14px] text-[#555] cursor-pointer pb-3 border-b border-gray-100 hover:text-gray-900 transition-colors">
+                <div className="border-t border-[#A3A3A3]/20 bg-[#F5F5F5] px-10 py-5 space-y-3 mt-auto">
+                    <div className="flex items-center text-[13px] font-medium text-[#626262] cursor-pointer pb-3 border-b border-[#A3A3A3]/20 hover:text-[#E7364D] transition-colors">
                         <span className="mr-3 font-serif">A文</span> English (US)
                     </div>
-                    <div className="flex items-center text-[14px] text-[#555] cursor-pointer pt-1 hover:text-gray-900 transition-colors">
-                        <span className="mr-3 font-medium text-[13px]">Rs.</span> Indian Rupee
+                    <div className="flex items-center text-[13px] font-medium text-[#626262] cursor-pointer pt-1 hover:text-[#E7364D] transition-colors">
+                        <span className="mr-3 font-bold">₹</span> Indian Rupee
                     </div>
                 </div>
             </motion.div>
