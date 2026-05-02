@@ -3,9 +3,13 @@ import { Outlet, Link, useLocation } from 'react-router-dom';
 import { auth } from '../lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, ShieldCheck } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
+
+// INJECTIONS
 import FeedbackTab from '../components/FeedbackTab';
 import ProfileHeader from '../components/ProfileHeader'; 
+// CRITICAL FIX: Removed the redundant local <Footer /> import to prevent double stacking. 
+// The global App.jsx footer will handle the absolute bottom placement automatically.
 
 /**
  * GLOBAL REBRAND: Booknshow Identity Application (Phase 7 Profile Layout)
@@ -14,6 +18,7 @@ import ProfileHeader from '../components/ProfileHeader';
  * FEATURE 2: Real-time Firebase Identity Extraction & Parsing
  * FEATURE 3: Strict Active State Sidebar Highlighting
  * FEATURE 4: 9-Section Layout Modularity
+ * FEATURE 5: Double-Footer Bug Resolution (Relies strictly on Global App Footer)
  */
 
 // Ambient illustrative background specifically for the desktop sidebar
@@ -137,8 +142,9 @@ export default function ProfileLayout() {
                 </aside>
 
                 {/* SECTION 5: RESPONSIVE MAIN CONTENT AREA */}
-                <main className="flex-1 w-full bg-[#FFFFFF] relative flex flex-col min-h-full overflow-x-hidden">
-                    <div className="w-full max-w-[1200px] p-5 md:p-10 mx-auto">
+                {/* Note: min-h-[calc(100vh-72px)] ensures this wrapper pushes the global footer down naturally */}
+                <main className="flex-1 w-full bg-[#FFFFFF] relative flex flex-col min-h-[calc(100vh-72px)] overflow-x-hidden">
+                    <div className="flex-1 w-full max-w-[1200px] p-5 md:p-10 mx-auto">
                         
                         {/* FEATURE 4: Framer Motion AnimatePresence for Child Routes */}
                         <AnimatePresence mode="wait">
