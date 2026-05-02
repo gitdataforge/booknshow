@@ -9,7 +9,7 @@ import { BooknshowLogo } from './Header'; // Re-using the master SVG logo
 
 /**
  * GLOBAL REBRAND: Booknshow Identity Application
- * Enforced Colors: Carnation (#F84464), Wild Sand (#F5F5F5), Ebony Clay (#1F2533)
+ * Enforced Colors: #FFFFFF, #E7364D, #333333, #EB5B6E, #FAD8DC, #A3A3A3, #626262
  * * FEATURE 1: 1:1 Booknshow Enterprise Mega-Header Replication
  * FEATURE 2: Scroll-Responsive Physics (Shrinks and shadows on scroll)
  * FEATURE 3: Hardware-Accelerated Mobile Drawer (Framer Motion)
@@ -82,13 +82,13 @@ export default function ExploreHeader() {
     const categories = ['Sports', 'Concerts', 'Theatre', 'Comedy', 'Festivals'];
 
     return (
-        <header className={`w-full font-sans sticky top-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-[#F5F5F5] shadow-md border-b border-[#1F2533]/10' : 'bg-[#F5F5F5] border-b border-[#1F2533]/10'}`}>
+        <header className={`w-full font-sans sticky top-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-[#FFFFFF] shadow-md border-b border-[#A3A3A3]/20' : 'bg-[#FFFFFF] border-b border-[#A3A3A3]/20'}`}>
             {/* Main Header Row */}
             <div className="max-w-[1400px] mx-auto px-4 md:px-6 py-3 md:py-4 flex items-center justify-between">
                 
                 {/* Mobile Menu & Logo */}
                 <div className="flex items-center gap-4">
-                    <button onClick={() => setMobileMenuOpen(true)} className="lg:hidden text-[#1F2533] p-1 -ml-1">
+                    <button onClick={() => setMobileMenuOpen(true)} className="lg:hidden text-[#333333] p-1 -ml-1">
                         <Menu size={26} strokeWidth={2} />
                     </button>
                     <div onClick={() => navigate('/')} className="cursor-pointer hover:opacity-80 transition-opacity">
@@ -98,12 +98,12 @@ export default function ExploreHeader() {
 
                 {/* FEATURE 10: Central Search Bar (Responsive) */}
                 <div className="hidden md:block flex-1 max-w-[700px] mx-8 relative">
-                    <div className={`flex items-center w-full rounded-[8px] px-5 py-2.5 transition-all ${isScrolled ? 'bg-white border border-[#1F2533]/20 focus-within:border-[#F84464] focus-within:shadow-[0_0_0_1px_#F84464]' : 'bg-white border border-[#1F2533]/20 focus-within:border-[#F84464] focus-within:shadow-[0_0_0_1px_#F84464]'}`}>
-                        <Search size={20} className="text-[#1F2533] mr-3 font-bold" strokeWidth={2.5} />
+                    <div className={`flex items-center w-full rounded-[8px] px-5 py-2.5 transition-all ${isScrolled ? 'bg-[#FFFFFF] border border-[#A3A3A3]/50 focus-within:border-[#E7364D] focus-within:shadow-[0_0_0_2px_#FAD8DC]' : 'bg-[#FFFFFF] border border-[#A3A3A3]/50 focus-within:border-[#E7364D] focus-within:shadow-[0_0_0_2px_#FAD8DC]'}`}>
+                        <Search size={20} className="text-[#333333] mr-3 font-bold" strokeWidth={2.5} />
                         <input 
                             type="text" 
                             placeholder="Search by event, artist, or team..." 
-                            className="w-full bg-transparent outline-none text-[15px] font-medium text-[#1F2533] placeholder-[#1F2533]/50"
+                            className="w-full bg-transparent outline-none text-[15px] font-medium text-[#333333] placeholder-[#A3A3A3]"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             onKeyDown={handleStrictSearchSubmit}
@@ -122,15 +122,15 @@ export default function ExploreHeader() {
 
                 {/* Right Actions */}
                 <div className="flex items-center gap-6">
-                    <div className="hidden lg:flex items-center gap-2 text-[#1F2533] font-bold cursor-pointer hover:text-[#F84464] transition-colors text-[14px]">
+                    <div className="hidden lg:flex items-center gap-2 text-[#333333] font-bold cursor-pointer hover:text-[#E7364D] transition-colors text-[14px]">
                         <MapPin size={18} /> Pune
                     </div>
                     {/* FEATURE 6: Seller Bridge */}
-                    <button onClick={() => window.location.href = 'https://parbet-seller-44902.web.app'} className="hidden md:block text-[#1F2533] font-bold hover:text-[#F84464] transition-colors text-[15px]">
+                    <button onClick={() => window.location.href = 'https://parbet-seller-44902.web.app'} className="hidden md:block text-[#333333] font-bold hover:text-[#E7364D] transition-colors text-[15px]">
                         Sell
                     </button>
                     {/* FEATURE 7: Auth Hydration */}
-                    <div onClick={() => isAuthenticated ? navigate('/profile') : navigate('/login')} className={`w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-colors bg-white border border-[#1F2533]/20 text-[#1F2533] hover:border-[#F84464] hover:text-[#F84464]`}>
+                    <div onClick={() => isAuthenticated ? navigate('/profile') : navigate('/login')} className={`w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-colors border ${isScrolled ? 'bg-[#FFFFFF] border-[#A3A3A3]/50 hover:border-[#E7364D] hover:text-[#E7364D]' : 'bg-[#FFFFFF] border-[#A3A3A3]/50 hover:border-[#E7364D] hover:text-[#E7364D]'} text-[#333333]`}>
                         <User size={18} className="fill-current" />
                     </div>
                 </div>
@@ -140,8 +140,8 @@ export default function ExploreHeader() {
             <AnimatePresence>
                 {!isScrolled && (
                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="md:hidden w-full px-4 pb-4 overflow-hidden">
-                        <div className="relative flex items-center bg-white border border-[#1F2533]/20 rounded-[8px] px-4 py-2.5 w-full focus-within:border-[#F84464] focus-within:shadow-[0_0_0_1px_#F84464]">
-                            <Search size={18} className="text-[#1F2533] mr-2 font-bold" strokeWidth={2.5} />
+                        <div className="relative flex items-center bg-[#FFFFFF] border border-[#A3A3A3]/50 rounded-[8px] px-4 py-2.5 w-full focus-within:border-[#E7364D] focus-within:shadow-[0_0_0_2px_#FAD8DC]">
+                            <Search size={18} className="text-[#333333] mr-2 font-bold" strokeWidth={2.5} />
                             <input 
                                 type="text" 
                                 value={searchQuery}
@@ -150,7 +150,7 @@ export default function ExploreHeader() {
                                 onFocus={() => setSearchExpanded(true)}
                                 onBlur={() => setTimeout(() => setSearchExpanded(false), 200)}
                                 placeholder="Search events..." 
-                                className="bg-transparent outline-none flex-1 text-[15px] font-medium text-[#1F2533] placeholder-[#1F2533]/50"
+                                className="bg-transparent outline-none flex-1 text-[15px] font-medium text-[#333333] placeholder-[#A3A3A3]"
                             />
                             {isSearchExpanded && <SearchDropdown />}
                         </div>
@@ -159,7 +159,7 @@ export default function ExploreHeader() {
             </AnimatePresence>
 
             {/* FEATURE 4: Category Navigation Bar */}
-            <div className={`w-full overflow-x-auto no-scrollbar border-t transition-colors duration-300 ${isScrolled ? 'border-[#1F2533]/10 bg-white' : 'border-[#1F2533]/10 bg-[#F5F5F5]'}`}>
+            <div className={`w-full overflow-x-auto no-scrollbar border-t transition-colors duration-300 ${isScrolled ? 'border-[#A3A3A3]/20 bg-[#FFFFFF]' : 'border-[#A3A3A3]/20 bg-[#FFFFFF]'}`}>
                 <div className="max-w-[1400px] mx-auto px-4 md:px-6 flex items-center gap-8 py-3">
                     {categories.map((cat) => (
                         <button 
@@ -167,13 +167,13 @@ export default function ExploreHeader() {
                             onClick={() => { setExploreCategory(cat); if(location.pathname !== '/explore') navigate('/explore'); }}
                             className={`whitespace-nowrap text-[14px] font-bold transition-all relative ${
                                 exploreCategory === cat 
-                                ? 'text-[#F84464]' 
-                                : 'text-[#1F2533] hover:text-[#F84464]'
+                                ? 'text-[#E7364D]' 
+                                : 'text-[#333333] hover:text-[#E7364D]'
                             }`}
                         >
                             {cat}
                             {exploreCategory === cat && (
-                                <motion.div layoutId="activeCategory" className="absolute -bottom-[13px] left-0 w-full h-[3px] bg-[#F84464]"></motion.div>
+                                <motion.div layoutId="activeCategory" className="absolute -bottom-[13px] left-0 w-full h-[3px] bg-[#E7364D]"></motion.div>
                             )}
                         </button>
                     ))}
@@ -182,26 +182,26 @@ export default function ExploreHeader() {
 
             {/* FEATURE 3: Hardware-Accelerated Mobile Drawer */}
             <div className={`lg:hidden fixed inset-0 z-[999] ${mobileMenuOpen ? 'visible' : 'invisible pointer-events-none'}`}>
-                <div onClick={() => setMobileMenuOpen(false)} className={`absolute inset-0 bg-[#1F2533]/80 backdrop-blur-sm transition-opacity duration-300 ${mobileMenuOpen ? 'opacity-100' : 'opacity-0'}`} />
-                <div className={`absolute top-0 left-0 bottom-0 w-[85%] max-w-[340px] bg-[#F5F5F5] flex flex-col shadow-[20px_0_60px_rgba(31,37,51,0.3)] transition-transform duration-300 ease-in-out ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-                    <div className="flex items-center justify-between px-6 py-5 border-b border-[#1F2533]/10 bg-white shrink-0 min-h-[70px]">
+                <div onClick={() => setMobileMenuOpen(false)} className={`absolute inset-0 bg-[#333333]/80 backdrop-blur-sm transition-opacity duration-300 ${mobileMenuOpen ? 'opacity-100' : 'opacity-0'}`} />
+                <div className={`absolute top-0 left-0 bottom-0 w-[85%] max-w-[340px] bg-[#FFFFFF] flex flex-col shadow-[20px_0_60px_rgba(51,51,51,0.3)] transition-transform duration-300 ease-in-out ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                    <div className="flex items-center justify-between px-6 py-5 border-b border-[#A3A3A3]/30 bg-[#FFFFFF] shrink-0 min-h-[70px]">
                         <BooknshowLogo className="h-[24px]" />
-                        <button onClick={() => setMobileMenuOpen(false)} className="p-2 -mr-2 text-[#1F2533] hover:bg-[#1F2533]/5 rounded-full transition-colors"><X size={24} strokeWidth={2} /></button>
+                        <button onClick={() => setMobileMenuOpen(false)} className="p-2 -mr-2 text-[#333333] hover:bg-[#FAD8DC]/50 rounded-full transition-colors"><X size={24} strokeWidth={2} /></button>
                     </div>
-                    <div className="flex-1 overflow-y-auto w-full custom-scrollbar bg-[#F5F5F5]">
+                    <div className="flex-1 overflow-y-auto w-full custom-scrollbar bg-[#FFFFFF]">
                         <ul className="flex flex-col w-full py-2">
                             {!isAuthenticated && (
-                                <li onClick={() => handleNavigation('/login')} className="px-6 py-[16px] text-[16px] text-[#1F2533] font-bold cursor-pointer hover:bg-white hover:text-[#F84464] transition-colors">
+                                <li onClick={() => handleNavigation('/login')} className="px-6 py-[16px] text-[16px] text-[#333333] font-bold cursor-pointer hover:bg-[#FAD8DC]/20 hover:text-[#E7364D] transition-colors">
                                     Sign In
                                 </li>
                             )}
-                            <li onClick={() => { setMobileMenuOpen(false); navigate('/profile'); }} className="px-6 py-[16px] text-[16px] text-[#1F2533] font-bold flex justify-between items-center cursor-pointer hover:bg-white hover:text-[#F84464] transition-colors">
-                                My Profile <ChevronRight size={20} className="text-[#1F2533]/30" />
+                            <li onClick={() => { setMobileMenuOpen(false); navigate('/profile'); }} className="px-6 py-[16px] text-[16px] text-[#333333] font-bold flex justify-between items-center cursor-pointer hover:bg-[#FAD8DC]/20 hover:text-[#E7364D] transition-colors">
+                                My Profile <ChevronRight size={20} className="text-[#A3A3A3]" />
                             </li>
-                            <li onClick={() => { setMobileMenuOpen(false); window.location.href = 'https://parbet-seller-44902.web.app'; }} className="px-6 py-[16px] text-[16px] text-[#1F2533] font-bold flex justify-between items-center cursor-pointer hover:bg-white hover:text-[#F84464] transition-colors">
-                                Sell Tickets <ChevronRight size={20} className="text-[#1F2533]/30" />
+                            <li onClick={() => { setMobileMenuOpen(false); window.location.href = 'https://parbet-seller-44902.web.app'; }} className="px-6 py-[16px] text-[16px] text-[#333333] font-bold flex justify-between items-center cursor-pointer hover:bg-[#FAD8DC]/20 hover:text-[#E7364D] transition-colors">
+                                Sell Tickets <ChevronRight size={20} className="text-[#A3A3A3]" />
                             </li>
-                            <li onClick={() => handleNavigation('/profile/orders')} className="px-6 py-[16px] text-[16px] text-[#1F2533] font-bold cursor-pointer hover:bg-white hover:text-[#F84464] transition-colors">
+                            <li onClick={() => handleNavigation('/profile/orders')} className="px-6 py-[16px] text-[16px] text-[#333333] font-bold cursor-pointer hover:bg-[#FAD8DC]/20 hover:text-[#E7364D] transition-colors">
                                 My Tickets
                             </li>
                         </ul>
