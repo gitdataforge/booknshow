@@ -17,8 +17,11 @@ import ViagogoEventCard from '../../components/ViagogoEventCard';
 import ViagogoCategoryCard from '../../components/ViagogoCategoryCard';
 import AdminEditEventModal from '../../components/AdminEditEventModal';
 import AppPromo from '../../components/AppPromo';
+import { BooknshowLogo } from '../../components/Header'; // Reusing global vector logo
 
 /**
+ * GLOBAL REBRAND: Booknshow Identity Application (Phase 4 Home)
+ * Enforced Colors: #FFFFFF, #E7364D, #333333, #EB5B6E, #FAD8DC, #A3A3A3, #626262
  * FEATURE 1: 100% Real-Time Shared Database Integration
  * FEATURE 2: State Hydration Failsafe (Eliminates infinite loading loops)
  * FEATURE 3: Admin God-Mode Injection
@@ -28,7 +31,7 @@ import AppPromo from '../../components/AppPromo';
  * FEATURE 7: Fallback Empty State Engine
  * FEATURE 8: Hardware-Accelerated Rail Navigation (Framer Motion)
  * FEATURE 9: Spotify Cross-Promotion Banner
- * FEATURE 10: 1:1 Viagogo App Promo & Subscription Engine
+ * FEATURE 10: 1:1 App Promo & Subscription Engine
  * FEATURE 11: Touch/Swipe Optimized Snap-to-Grid
  * FEATURE 12: Image 404 Cascade Prevention
  * FEATURE 13: Dynamic Home Sections (Admins can build custom rails on the fly)
@@ -36,11 +39,12 @@ import AppPromo from '../../components/AppPromo';
  * FEATURE 15: Dynamic Popular Categories (Admin Editable)
  */
 
-// Default Fallback Data if Firestore is empty
+// Default Fallback Data if Firestore is empty (Rebranded)
 const DEFAULT_HEROES = [
     { id: '1', title: 'TATA IPL 2026', query: 'IPL', imageUrl: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?auto=format&fit=crop&w=1200&q=80' },
     { id: '2', title: 'ICC T20 World Cup', query: 'ICC', imageUrl: 'https://images.unsplash.com/photo-1531415074968-036ba1b575da?auto=format&fit=crop&w=1200&q=80' },
-    { id: '3', title: 'Pro Kabaddi League', query: 'Kabaddi', imageUrl: 'https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=1200&q=80' }
+    { id: '3', title: 'Pro Kabaddi League', query: 'Kabaddi', imageUrl: 'https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=1200&q=80' },
+    { id: '4', title: 'Booknshow Exclusive', query: 'Exclusive', imageUrl: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&w=1200&q=80' } // Added extra banner
 ];
 
 const DEFAULT_CATEGORIES = [
@@ -49,6 +53,22 @@ const DEFAULT_CATEGORIES = [
     { id: '3', name: 'Kabaddi', query: 'Kabaddi', imageUrl: 'https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=600&q=80' },
     { id: '4', name: 'Football', query: 'Football', imageUrl: 'https://images.unsplash.com/photo-1587280501635-68a0e82cd5ff?auto=format&fit=crop&w=600&q=80' }
 ];
+
+// Illustrative Ambient Background Animation for Home Hero
+const HomeAmbientBackground = () => (
+    <div className="absolute top-0 left-0 w-full h-[600px] overflow-hidden pointer-events-none z-0">
+        <motion.div
+            className="absolute top-[-20%] left-[-10%] w-[50vw] h-[50vw] max-w-[600px] max-h-[600px] rounded-full bg-[#FAD8DC] opacity-30 blur-[100px]"
+            animate={{ x: [0, 40, 0], y: [0, 20, 0], scale: [1, 1.05, 1] }}
+            transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div
+            className="absolute top-[10%] right-[-10%] w-[40vw] h-[40vw] max-w-[500px] max-h-[500px] rounded-full bg-[#FAD8DC] opacity-20 blur-[120px]"
+            animate={{ x: [0, -30, 0], y: [0, 30, 0], scale: [1, 1.1, 1] }}
+            transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }}
+        />
+    </div>
+);
 
 export default function Home() {
     const navigate = useNavigate();
@@ -102,7 +122,7 @@ export default function Home() {
 
     // Master Config Fetcher (Fetches Sections, Heroes, and Categories)
     useEffect(() => {
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'parbet-44902';
         const configRef = collection(db, 'artifacts', appId, 'public', 'data', 'platform_config');
         
         const unsub = onSnapshot(configRef, (snap) => {
@@ -139,7 +159,7 @@ export default function Home() {
 
     // --- Admin Save Handlers ---
     const handleSaveSection = async () => {
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'parbet-44902';
         try {
             await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'platform_config'), { ...sectionData, type: 'home_section' });
             setIsAddingSection(false);
@@ -149,12 +169,12 @@ export default function Home() {
 
     const handleDeleteSection = async (id) => {
         if(!window.confirm("Delete this section permanently?")) return;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'parbet-44902';
         await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'platform_config', id));
     };
 
     const handleSaveHeroes = async () => {
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'parbet-44902';
         try {
             if (heroDocId) {
                 await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'platform_config', heroDocId), { slides: heroConfig });
@@ -166,7 +186,7 @@ export default function Home() {
     };
 
     const handleSaveCategories = async () => {
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'parbet-44902';
         try {
             if (categoryDocId) {
                 await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'platform_config', categoryDocId), { categories: categoryConfig });
@@ -218,14 +238,14 @@ export default function Home() {
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-10 md:mb-14 relative group">
                 <div className="flex items-center justify-between mb-4 md:mb-5">
                     <div className="flex items-center gap-3">
-                        <h2 className="text-[20px] md:text-[24px] font-black text-[#1a1a1a] tracking-tight">{title}</h2>
+                        <h2 className="text-[20px] md:text-[24px] font-black text-[#333333] tracking-tight">{title}</h2>
                         {isAdmin && (
                             <div className="flex items-center gap-2 ml-2">
-                                <span className="hidden md:inline-flex items-center gap-1 bg-red-50 text-red-600 border border-red-200 px-2 py-0.5 rounded-[4px] text-[10px] font-black uppercase tracking-widest">
+                                <span className="hidden md:inline-flex items-center gap-1 bg-[#FAD8DC]/30 text-[#E7364D] border border-[#E7364D]/50 px-2 py-0.5 rounded-[4px] text-[10px] font-black uppercase tracking-widest">
                                     <ShieldAlert size={12} /> Admin
                                 </span>
                                 {sectionId && (
-                                    <button onClick={() => handleDeleteSection(sectionId)} className="text-red-500 hover:bg-red-100 p-1.5 rounded-md transition-colors" title="Delete Dynamic Section">
+                                    <button onClick={() => handleDeleteSection(sectionId)} className="text-[#E7364D] hover:bg-[#FAD8DC]/50 p-1.5 rounded-md transition-colors" title="Delete Dynamic Section">
                                         <Trash2 size={14} />
                                     </button>
                                 )}
@@ -239,14 +259,14 @@ export default function Home() {
                                 setSearchQuery(categoryQuery === 'Trending' ? '' : categoryQuery);
                                 navigate('/explore');
                             }}
-                            className="text-[14px] font-bold text-[#0064d2] hover:underline hidden md:block"
+                            className="text-[14px] font-bold text-[#E7364D] hover:text-[#EB5B6E] hover:underline hidden md:block transition-colors"
                         >
                             See all
                         </button>
                     )}
                 </div>
                 
-                <div className="relative">
+                <div className="relative z-10">
                     <div ref={scrollRef} className="flex overflow-x-auto custom-scrollbar space-x-4 md:space-x-5 pb-6 snap-x">
                         {events.map((event, index) => (
                             <div key={event?.id || `event-fallback-${index}`} className="relative group/admin snap-start">
@@ -254,7 +274,7 @@ export default function Home() {
                                 {isAdmin && (
                                     <button
                                         onClick={(e) => { e.stopPropagation(); setSelectedAdminEvent(event); setAdminModalOpen(true); }}
-                                        className="absolute top-3 left-3 z-[60] bg-red-600 text-white p-2 rounded-full shadow-[0_4px_15px_rgba(220,38,38,0.4)] opacity-0 group-hover/admin:opacity-100 transition-all hover:scale-110 hover:bg-red-700"
+                                        className="absolute top-3 left-3 z-[60] bg-[#E7364D] text-[#FFFFFF] p-2 rounded-full shadow-[0_4px_15px_rgba(231,54,77,0.4)] opacity-0 group-hover/admin:opacity-100 transition-all hover:scale-110 hover:bg-[#333333]"
                                         title="God Mode: Edit Event"
                                     >
                                         <Pencil size={14} />
@@ -265,7 +285,7 @@ export default function Home() {
                     </div>
                     
                     {events.length > 4 && (
-                        <button onClick={() => scroll('right')} className="absolute -right-5 top-[40%] -translate-y-1/2 w-12 h-12 bg-white border border-[#e2e2e2] rounded-full shadow-[0_8px_30px_rgba(0,0,0,0.12)] flex items-center justify-center text-[#1a1a1a] hover:scale-105 transition-transform z-10 hidden lg:flex opacity-0 group-hover:opacity-100">
+                        <button onClick={() => scroll('right')} className="absolute -right-5 top-[40%] -translate-y-1/2 w-12 h-12 bg-[#FFFFFF] border border-[#A3A3A3]/30 rounded-full shadow-[0_8px_30px_rgba(51,51,51,0.12)] flex items-center justify-center text-[#333333] hover:scale-105 hover:text-[#E7364D] hover:border-[#E7364D] transition-all z-20 hidden lg:flex opacity-0 group-hover:opacity-100">
                             <ChevronDown size={24} className="-rotate-90" />
                         </button>
                     )}
@@ -275,29 +295,31 @@ export default function Home() {
     };
 
     return (
-        <div className="w-full bg-white font-sans text-[#1a1a1a]">
+        <div className="w-full bg-[#FFFFFF] font-sans text-[#333333] relative overflow-hidden">
+            
+            <HomeAmbientBackground />
             
             <AdminEditEventModal isOpen={adminModalOpen} onClose={() => { setAdminModalOpen(false); setSelectedAdminEvent(null); }} eventData={selectedAdminEvent} />
 
             {/* MODAL: Add Dynamic Section */}
             <AnimatePresence>
                 {isAddingSection && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-                        <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white rounded-[24px] p-6 md:p-8 max-w-lg w-full shadow-2xl relative">
-                            <button onClick={() => setIsAddingSection(false)} className="absolute top-4 right-4 text-gray-500 hover:text-black"><X size={20}/></button>
-                            <h2 className="text-2xl font-black mb-6 flex items-center gap-2"><LayoutTemplate size={20}/> Add Dynamic Section</h2>
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[1000] flex items-center justify-center bg-[#333333]/80 backdrop-blur-sm p-4">
+                        <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-[#FFFFFF] rounded-[24px] p-6 md:p-8 max-w-lg w-full shadow-2xl relative">
+                            <button onClick={() => setIsAddingSection(false)} className="absolute top-4 right-4 text-[#A3A3A3] hover:text-[#E7364D] transition-colors"><X size={20}/></button>
+                            <h2 className="text-2xl font-black mb-6 flex items-center gap-2 text-[#333333]"><LayoutTemplate size={20} className="text-[#E7364D]"/> Add Dynamic Section</h2>
                             <div className="space-y-4">
                                 <div>
-                                    <label className="text-[12px] font-black uppercase text-gray-500 mb-1 block">Section Title</label>
-                                    <input type="text" value={sectionData.title} onChange={e => setSectionData({...sectionData, title: e.target.value})} className="w-full border border-gray-300 rounded-[8px] p-3 outline-none focus:border-[#458731]" />
+                                    <label className="text-[12px] font-black uppercase text-[#A3A3A3] mb-1 block">Section Title</label>
+                                    <input type="text" value={sectionData.title} onChange={e => setSectionData({...sectionData, title: e.target.value})} className="w-full border border-[#A3A3A3]/50 rounded-[8px] p-3 outline-none focus:border-[#E7364D] text-[#333333]" />
                                 </div>
                                 <div>
-                                    <label className="text-[12px] font-black uppercase text-gray-500 mb-1 block">Search Query / Category Match</label>
-                                    <input type="text" value={sectionData.categoryQuery} onChange={e => setSectionData({...sectionData, categoryQuery: e.target.value})} className="w-full border border-gray-300 rounded-[8px] p-3 outline-none focus:border-[#458731]" />
+                                    <label className="text-[12px] font-black uppercase text-[#A3A3A3] mb-1 block">Search Query / Category Match</label>
+                                    <input type="text" value={sectionData.categoryQuery} onChange={e => setSectionData({...sectionData, categoryQuery: e.target.value})} className="w-full border border-[#A3A3A3]/50 rounded-[8px] p-3 outline-none focus:border-[#E7364D] text-[#333333]" />
                                 </div>
                             </div>
                             <div className="mt-8">
-                                <button onClick={handleSaveSection} disabled={!sectionData.title || !sectionData.categoryQuery} className="w-full py-3 bg-[#1a1a1a] text-white rounded-[12px] font-bold shadow-lg hover:bg-black transition-colors disabled:opacity-50">Publish Section</button>
+                                <button onClick={handleSaveSection} disabled={!sectionData.title || !sectionData.categoryQuery} className="w-full py-3 bg-[#333333] text-[#FFFFFF] rounded-[12px] font-bold shadow-lg hover:bg-[#E7364D] transition-colors disabled:opacity-50">Publish Section</button>
                             </div>
                         </motion.div>
                     </motion.div>
@@ -307,33 +329,33 @@ export default function Home() {
             {/* MODAL: Edit Hero Banners */}
             <AnimatePresence>
                 {isEditingHeroes && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
-                        <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white rounded-[24px] p-6 md:p-8 max-w-2xl w-full shadow-2xl relative my-8">
-                            <button onClick={() => setIsEditingHeroes(false)} className="absolute top-4 right-4 text-gray-500 hover:text-black"><X size={20}/></button>
-                            <h2 className="text-2xl font-black mb-6 flex items-center gap-2"><ImageIcon size={20}/> Edit Hero Banners</h2>
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[1000] flex items-center justify-center bg-[#333333]/80 backdrop-blur-sm p-4 overflow-y-auto">
+                        <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-[#FFFFFF] rounded-[24px] p-6 md:p-8 max-w-2xl w-full shadow-2xl relative my-8">
+                            <button onClick={() => setIsEditingHeroes(false)} className="absolute top-4 right-4 text-[#A3A3A3] hover:text-[#E7364D] transition-colors"><X size={20}/></button>
+                            <h2 className="text-2xl font-black mb-6 flex items-center gap-2 text-[#333333]"><ImageIcon size={20} className="text-[#E7364D]"/> Edit Hero Banners</h2>
                             
                             <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
                                 {heroConfig.map((slide, idx) => (
-                                    <div key={idx} className="border border-gray-200 rounded-[12px] p-4 bg-gray-50">
+                                    <div key={idx} className="border border-[#A3A3A3]/30 rounded-[12px] p-4 bg-[#F5F5F5]">
                                         <div className="flex justify-between items-center mb-3">
-                                            <span className="font-bold text-[14px]">Banner {idx + 1}</span>
-                                            <button onClick={() => setHeroConfig(heroConfig.filter((_, i) => i !== idx))} className="text-red-500 hover:underline text-[12px] font-bold">Remove</button>
+                                            <span className="font-bold text-[14px] text-[#333333]">Banner {idx + 1}</span>
+                                            <button onClick={() => setHeroConfig(heroConfig.filter((_, i) => i !== idx))} className="text-[#E7364D] hover:underline text-[12px] font-bold">Remove</button>
                                         </div>
                                         <div className="space-y-3">
-                                            <input type="text" placeholder="Title (e.g. TATA IPL 2026)" value={slide.title} onChange={e => { const nc = [...heroConfig]; nc[idx].title = e.target.value; setHeroConfig(nc); }} className="w-full border border-gray-300 rounded-[6px] p-2 outline-none text-[14px]" />
-                                            <input type="text" placeholder="Search Query (e.g. IPL)" value={slide.query} onChange={e => { const nc = [...heroConfig]; nc[idx].query = e.target.value; setHeroConfig(nc); }} className="w-full border border-gray-300 rounded-[6px] p-2 outline-none text-[14px]" />
-                                            <input type="text" placeholder="Image URL (Unsplash/Pocketbase)" value={slide.imageUrl} onChange={e => { const nc = [...heroConfig]; nc[idx].imageUrl = e.target.value; setHeroConfig(nc); }} className="w-full border border-gray-300 rounded-[6px] p-2 outline-none text-[14px]" />
+                                            <input type="text" placeholder="Title (e.g. TATA IPL 2026)" value={slide.title} onChange={e => { const nc = [...heroConfig]; nc[idx].title = e.target.value; setHeroConfig(nc); }} className="w-full border border-[#A3A3A3]/50 rounded-[6px] p-2 outline-none text-[14px] focus:border-[#E7364D]" />
+                                            <input type="text" placeholder="Search Query (e.g. IPL)" value={slide.query} onChange={e => { const nc = [...heroConfig]; nc[idx].query = e.target.value; setHeroConfig(nc); }} className="w-full border border-[#A3A3A3]/50 rounded-[6px] p-2 outline-none text-[14px] focus:border-[#E7364D]" />
+                                            <input type="text" placeholder="Image URL (Unsplash/Pocketbase)" value={slide.imageUrl} onChange={e => { const nc = [...heroConfig]; nc[idx].imageUrl = e.target.value; setHeroConfig(nc); }} className="w-full border border-[#A3A3A3]/50 rounded-[6px] p-2 outline-none text-[14px] focus:border-[#E7364D]" />
                                         </div>
                                     </div>
                                 ))}
                             </div>
 
-                            <button onClick={() => setHeroConfig([...heroConfig, { title: '', query: '', imageUrl: '' }])} className="w-full mt-4 py-2 border-2 border-dashed border-gray-300 text-gray-500 rounded-[12px] font-bold hover:bg-gray-50 hover:border-gray-400 transition-all flex items-center justify-center gap-2">
+                            <button onClick={() => setHeroConfig([...heroConfig, { title: '', query: '', imageUrl: '' }])} className="w-full mt-4 py-2 border-2 border-dashed border-[#A3A3A3] text-[#626262] rounded-[12px] font-bold hover:bg-[#FAD8DC]/30 hover:border-[#E7364D] hover:text-[#E7364D] transition-all flex items-center justify-center gap-2">
                                 <PlusCircle size={16} /> Add New Banner
                             </button>
 
                             <div className="mt-8">
-                                <button onClick={handleSaveHeroes} className="w-full py-3 bg-[#458731] text-white rounded-[12px] font-bold shadow-lg shadow-[#458731]/30 hover:bg-[#366a26] transition-colors">Save Carousel Config</button>
+                                <button onClick={handleSaveHeroes} className="w-full py-3 bg-[#E7364D] text-[#FFFFFF] rounded-[12px] font-bold shadow-[0_8px_20px_rgba(231,54,77,0.3)] hover:bg-[#EB5B6E] transition-colors">Save Carousel Config</button>
                             </div>
                         </motion.div>
                     </motion.div>
@@ -343,33 +365,33 @@ export default function Home() {
             {/* MODAL: Edit Popular Categories */}
             <AnimatePresence>
                 {isEditingCategories && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
-                        <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white rounded-[24px] p-6 md:p-8 max-w-2xl w-full shadow-2xl relative my-8">
-                            <button onClick={() => setIsEditingCategories(false)} className="absolute top-4 right-4 text-gray-500 hover:text-black"><X size={20}/></button>
-                            <h2 className="text-2xl font-black mb-6 flex items-center gap-2"><Grid size={20}/> Edit Popular Categories</h2>
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[1000] flex items-center justify-center bg-[#333333]/80 backdrop-blur-sm p-4 overflow-y-auto">
+                        <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-[#FFFFFF] rounded-[24px] p-6 md:p-8 max-w-2xl w-full shadow-2xl relative my-8">
+                            <button onClick={() => setIsEditingCategories(false)} className="absolute top-4 right-4 text-[#A3A3A3] hover:text-[#E7364D] transition-colors"><X size={20}/></button>
+                            <h2 className="text-2xl font-black mb-6 flex items-center gap-2 text-[#333333]"><Grid size={20} className="text-[#E7364D]"/> Edit Popular Categories</h2>
                             
                             <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
                                 {categoryConfig.map((cat, idx) => (
-                                    <div key={idx} className="border border-gray-200 rounded-[12px] p-4 bg-gray-50">
+                                    <div key={idx} className="border border-[#A3A3A3]/30 rounded-[12px] p-4 bg-[#F5F5F5]">
                                         <div className="flex justify-between items-center mb-3">
-                                            <span className="font-bold text-[14px]">Grid Item {idx + 1}</span>
-                                            <button onClick={() => setCategoryConfig(categoryConfig.filter((_, i) => i !== idx))} className="text-red-500 hover:underline text-[12px] font-bold">Remove</button>
+                                            <span className="font-bold text-[14px] text-[#333333]">Grid Item {idx + 1}</span>
+                                            <button onClick={() => setCategoryConfig(categoryConfig.filter((_, i) => i !== idx))} className="text-[#E7364D] hover:underline text-[12px] font-bold">Remove</button>
                                         </div>
                                         <div className="space-y-3">
-                                            <input type="text" placeholder="Display Name (e.g. IPL Cricket)" value={cat.name} onChange={e => { const nc = [...categoryConfig]; nc[idx].name = e.target.value; setCategoryConfig(nc); }} className="w-full border border-gray-300 rounded-[6px] p-2 outline-none text-[14px]" />
-                                            <input type="text" placeholder="Search Query (e.g. IPL)" value={cat.query} onChange={e => { const nc = [...categoryConfig]; nc[idx].query = e.target.value; setCategoryConfig(nc); }} className="w-full border border-gray-300 rounded-[6px] p-2 outline-none text-[14px]" />
-                                            <input type="text" placeholder="Image URL (Square format recommended)" value={cat.imageUrl} onChange={e => { const nc = [...categoryConfig]; nc[idx].imageUrl = e.target.value; setCategoryConfig(nc); }} className="w-full border border-gray-300 rounded-[6px] p-2 outline-none text-[14px]" />
+                                            <input type="text" placeholder="Display Name (e.g. IPL Cricket)" value={cat.name} onChange={e => { const nc = [...categoryConfig]; nc[idx].name = e.target.value; setCategoryConfig(nc); }} className="w-full border border-[#A3A3A3]/50 rounded-[6px] p-2 outline-none text-[14px] focus:border-[#E7364D]" />
+                                            <input type="text" placeholder="Search Query (e.g. IPL)" value={cat.query} onChange={e => { const nc = [...categoryConfig]; nc[idx].query = e.target.value; setCategoryConfig(nc); }} className="w-full border border-[#A3A3A3]/50 rounded-[6px] p-2 outline-none text-[14px] focus:border-[#E7364D]" />
+                                            <input type="text" placeholder="Image URL (Square format recommended)" value={cat.imageUrl} onChange={e => { const nc = [...categoryConfig]; nc[idx].imageUrl = e.target.value; setCategoryConfig(nc); }} className="w-full border border-[#A3A3A3]/50 rounded-[6px] p-2 outline-none text-[14px] focus:border-[#E7364D]" />
                                         </div>
                                     </div>
                                 ))}
                             </div>
 
-                            <button onClick={() => setCategoryConfig([...categoryConfig, { name: '', query: '', imageUrl: '' }])} className="w-full mt-4 py-2 border-2 border-dashed border-gray-300 text-gray-500 rounded-[12px] font-bold hover:bg-gray-50 hover:border-gray-400 transition-all flex items-center justify-center gap-2">
+                            <button onClick={() => setCategoryConfig([...categoryConfig, { name: '', query: '', imageUrl: '' }])} className="w-full mt-4 py-2 border-2 border-dashed border-[#A3A3A3] text-[#626262] rounded-[12px] font-bold hover:bg-[#FAD8DC]/30 hover:border-[#E7364D] hover:text-[#E7364D] transition-all flex items-center justify-center gap-2">
                                 <PlusCircle size={16} /> Add Category Item
                             </button>
 
                             <div className="mt-8">
-                                <button onClick={handleSaveCategories} className="w-full py-3 bg-[#458731] text-white rounded-[12px] font-bold shadow-lg shadow-[#458731]/30 hover:bg-[#366a26] transition-colors">Save Grid Config</button>
+                                <button onClick={handleSaveCategories} className="w-full py-3 bg-[#E7364D] text-[#FFFFFF] rounded-[12px] font-bold shadow-[0_8px_20px_rgba(231,54,77,0.3)] hover:bg-[#EB5B6E] transition-colors">Save Grid Config</button>
                             </div>
                         </motion.div>
                     </motion.div>
@@ -378,27 +400,27 @@ export default function Home() {
 
             {/* ADMIN GOD-MODE BAR */}
             {isAdmin && (
-                <div className="w-full bg-[#1a1a1a] text-white p-3 flex flex-wrap items-center justify-center gap-3 md:gap-6 z-50 relative shadow-md">
+                <div className="w-full bg-[#333333] text-[#FFFFFF] p-3 flex flex-wrap items-center justify-center gap-3 md:gap-6 z-50 relative shadow-md border-b border-[#E7364D]">
                     <div className="flex items-center gap-2">
-                        <ShieldAlert size={16} className="text-[#8cc63f]" />
+                        <ShieldAlert size={16} className="text-[#E7364D]" />
                         <span className="font-black tracking-widest text-[11px] md:text-[12px] uppercase">Admin Mode</span>
                     </div>
-                    <button onClick={() => { setSelectedAdminEvent({}); setAdminModalOpen(true); }} className="bg-[#8cc63f] text-black px-4 py-1.5 rounded-full text-[12px] font-bold hover:bg-white transition-colors flex items-center gap-1.5">
+                    <button onClick={() => { setSelectedAdminEvent({}); setAdminModalOpen(true); }} className="bg-[#E7364D] text-[#FFFFFF] px-4 py-1.5 rounded-full text-[12px] font-bold hover:bg-[#EB5B6E] transition-colors flex items-center gap-1.5">
                         <PlusCircle size={14} /> Add Event
                     </button>
-                    <button onClick={() => setIsAddingSection(true)} className="bg-white/20 text-white px-4 py-1.5 rounded-full text-[12px] font-bold hover:bg-white/30 transition-colors flex items-center gap-1.5">
+                    <button onClick={() => setIsAddingSection(true)} className="bg-[#FFFFFF]/10 text-[#FFFFFF] border border-[#FFFFFF]/20 px-4 py-1.5 rounded-full text-[12px] font-bold hover:bg-[#FFFFFF]/20 transition-colors flex items-center gap-1.5">
                         <LayoutTemplate size={14} /> Add Rail
                     </button>
-                    <button onClick={() => setIsEditingHeroes(true)} className="bg-white/20 text-white px-4 py-1.5 rounded-full text-[12px] font-bold hover:bg-white/30 transition-colors flex items-center gap-1.5">
+                    <button onClick={() => setIsEditingHeroes(true)} className="bg-[#FFFFFF]/10 text-[#FFFFFF] border border-[#FFFFFF]/20 px-4 py-1.5 rounded-full text-[12px] font-bold hover:bg-[#FFFFFF]/20 transition-colors flex items-center gap-1.5">
                         <ImageIcon size={14} /> Edit Banners
                     </button>
-                    <button onClick={() => setIsEditingCategories(true)} className="bg-white/20 text-white px-4 py-1.5 rounded-full text-[12px] font-bold hover:bg-white/30 transition-colors flex items-center gap-1.5">
+                    <button onClick={() => setIsEditingCategories(true)} className="bg-[#FFFFFF]/10 text-[#FFFFFF] border border-[#FFFFFF]/20 px-4 py-1.5 rounded-full text-[12px] font-bold hover:bg-[#FFFFFF]/20 transition-colors flex items-center gap-1.5">
                         <Grid size={14} /> Edit Grid
                     </button>
                 </div>
             )}
 
-            <div className="max-w-[1400px] mx-auto px-4 md:px-8">
+            <div className="max-w-[1400px] mx-auto px-4 md:px-8 relative z-10">
                 
                 {/* 1. DYNAMIC HERO CAROUSEL */}
                 <div className="pt-2 md:pt-4">
@@ -410,23 +432,23 @@ export default function Home() {
                 </div>
 
                 {showLoader ? (
-                    <div className="w-full py-24 flex flex-col items-center justify-center bg-[#f8f9fa] rounded-[16px] mb-12">
-                        <Loader2 className="animate-spin text-[#8cc63f] mb-4" size={40} />
-                        <h3 className="text-[18px] font-black text-[#1a1a1a]">Syncing Global Markets</h3>
-                        <p className="text-[14px] text-[#54626c] mt-2">Connecting to live seller inventories...</p>
+                    <div className="w-full py-24 flex flex-col items-center justify-center bg-[#FFFFFF]/80 backdrop-blur-sm border border-[#A3A3A3]/20 rounded-[16px] mb-12 shadow-sm">
+                        <Loader2 className="animate-spin text-[#E7364D] mb-4" size={40} />
+                        <h3 className="text-[18px] font-black text-[#333333]">Syncing Global Markets</h3>
+                        <p className="text-[14px] text-[#626262] mt-2">Connecting to live seller inventories...</p>
                     </div>
                 ) : (
                     <>
                         {filteredMatches.length === 0 ? (
-                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full py-20 flex flex-col items-center justify-center bg-[#fcfcfc] border border-[#e2e2e2] rounded-[16px] mb-12 text-center px-6">
-                                <div className="w-16 h-16 bg-[#fdf2f2] rounded-full flex items-center justify-center mb-4">
-                                    <AlertCircle size={32} className="text-[#c21c3a]" />
+                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full py-20 flex flex-col items-center justify-center bg-[#FFFFFF]/80 backdrop-blur-sm border border-[#A3A3A3]/30 rounded-[16px] mb-12 text-center px-6 shadow-sm">
+                                <div className="w-16 h-16 bg-[#FAD8DC]/50 rounded-full flex items-center justify-center mb-4 border border-[#E7364D]/20">
+                                    <AlertCircle size={32} className="text-[#E7364D]" />
                                 </div>
-                                <h3 className="text-[20px] font-black text-[#1a1a1a] mb-2">No Active Matches Found</h3>
-                                <p className="text-[15px] text-[#54626c] max-w-md mx-auto mb-6">
+                                <h3 className="text-[20px] font-black text-[#333333] mb-2">No Active Matches Found</h3>
+                                <p className="text-[15px] text-[#626262] max-w-md mx-auto mb-6">
                                     There are currently no live tickets matching your criteria. Sellers are adding new inventory every minute.
                                 </p>
-                                <button onClick={() => setSearchQuery('')} className="bg-[#1a1a1a] text-white px-6 py-3 rounded-[8px] font-bold text-[14px] hover:bg-black transition-colors">
+                                <button onClick={() => setSearchQuery('')} className="bg-[#333333] text-[#FFFFFF] px-6 py-3 rounded-[8px] font-bold text-[14px] hover:bg-[#E7364D] transition-colors shadow-md">
                                     Clear Filters
                                 </button>
                             </motion.div>
@@ -434,18 +456,19 @@ export default function Home() {
                             <AnimatePresence>
                                 <EventRail key="trending-rail" title="Trending Now" events={trendingMatches} categoryQuery="Trending" />
                                 
-                                <motion.div key="spotify-promo" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full bg-black rounded-[12px] p-5 md:p-6 mb-10 md:mb-14 flex flex-col md:flex-row justify-between items-center cursor-pointer hover:shadow-xl transition-all">
+                                {/* FEATURE 9: Spotify Cross-Promotion Banner (Rebranded) */}
+                                <motion.div key="spotify-promo" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full bg-[#1DB954]/10 border border-[#1DB954]/30 rounded-[12px] p-5 md:p-6 mb-10 md:mb-14 flex flex-col md:flex-row justify-between items-center cursor-pointer hover:bg-[#1DB954]/20 transition-all shadow-sm">
                                     <div className="flex flex-col md:flex-row items-center w-full md:w-auto justify-center md:justify-start mb-5 md:mb-0 space-y-4 md:space-y-0 md:space-x-5">
                                         <div className="flex items-center space-x-3">
                                             <svg viewBox="0 0 24 24" width="32" height="32" fill="#1DB954"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.24 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.36.18.54.84.24 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.6.18-1.2.72-1.38 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.239.54-.959.72-1.56.3z"/></svg>
-                                            <span className="font-bold text-[20px] md:text-[24px] text-white tracking-tight">Spotify</span>
+                                            <span className="font-bold text-[20px] md:text-[24px] text-[#333333] tracking-tight">Spotify</span>
                                         </div>
-                                        <div className="text-center md:text-left border-t md:border-t-0 md:border-l border-gray-800 pt-4 md:pt-0 md:pl-5">
-                                            <h3 className="font-bold text-[14px] md:text-[16px] text-white leading-tight">Connect your Spotify account</h3>
-                                            <p className="text-[12px] md:text-[14px] text-gray-400 mt-1">Discover matches from teams you follow</p>
+                                        <div className="text-center md:text-left border-t md:border-t-0 md:border-l border-[#A3A3A3]/30 pt-4 md:pt-0 md:pl-5">
+                                            <h3 className="font-bold text-[14px] md:text-[16px] text-[#333333] leading-tight">Connect your Spotify account</h3>
+                                            <p className="text-[12px] md:text-[14px] text-[#626262] mt-1">Discover matches from teams you follow</p>
                                         </div>
                                     </div>
-                                    <button className="bg-[#1ed760] text-black font-bold px-8 py-3 rounded-full text-[14px] hover:bg-[#1cdf5f] transition-colors w-full md:w-auto">
+                                    <button className="bg-[#1DB954] text-[#FFFFFF] font-bold px-8 py-3 rounded-full text-[14px] hover:bg-[#1ed760] hover:shadow-md transition-all w-full md:w-auto">
                                         Connect Spotify
                                     </button>
                                 </motion.div>
@@ -466,8 +489,8 @@ export default function Home() {
                 )}
 
                 {/* 2. DYNAMIC POPULAR CATEGORIES */}
-                <div className="mb-10 md:mb-14">
-                    <h2 className="text-[20px] md:text-[24px] font-black text-[#1a1a1a] mb-4 md:mb-5 tracking-tight">Popular categories</h2>
+                <div className="mb-10 md:mb-14 relative z-10">
+                    <h2 className="text-[20px] md:text-[24px] font-black text-[#333333] mb-4 md:mb-5 tracking-tight">Popular categories</h2>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
                         {categoryConfig.map((cat, idx) => (
                             <ViagogoCategoryCard 
