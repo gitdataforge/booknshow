@@ -34,6 +34,12 @@ import Wallet from './pages/Profile/Wallet';
 import Support from './pages/Profile/Support'; 
 import Faqs from './pages/Profile/Faqs';       
 
+// PHASE 9: GOD-MODE ADMIN NODES
+import AdminDashboard from './pages/Admin/Dashboard';
+import AdminUsers from './pages/Admin/Users';
+import AdminFinancials from './pages/Admin/Financials';
+import AdminEvents from './pages/Admin/Events';
+
 // Dynamic module imports for high-performance routing
 const pages = import.meta.glob('./pages/*/index.jsx', { eager: true });
 const dynamicRoutes = Object.keys(pages).map((path) => {
@@ -43,25 +49,27 @@ const dynamicRoutes = Object.keys(pages).map((path) => {
 
 function MainLayout() {
     const location = useLocation();
-    const { isAuthenticated } = useMainStore();
     
-    // FEATURE 1: Strict Route Identification
+    // FEATURE: Security Gatekeeper Props
+    const { isAuthenticated, isAdmin } = useMainStore();
+    
+    // Strict Route Identification
     const isProfilePath = location.pathname.toLowerCase().startsWith('/profile');
+    const isAdminPath = location.pathname.toLowerCase().startsWith('/admin');
     
     // Detect immersive/standalone pages that require complete global Header/Footer suppression
     const isIsolatedPage = ['/event', '/login', '/signup'].some(path => 
         location.pathname.toLowerCase().startsWith(path)
     );
 
-    // FEATURE 2: Route-Based Header Injection (Mega-Header for Explore)
+    // Route-Based Header Injection
     const isExplorePage = location.pathname.toLowerCase() === '/explore' || location.pathname.toLowerCase().startsWith('/explore/');
     
-    // FEATURE 3: Header Separation Logic
-    const hideGlobalHeader = isIsolatedPage || isProfilePath;
+    // Header Separation Logic
+    const hideGlobalHeader = isIsolatedPage || isProfilePath || isAdminPath;
 
     return (
         <InactivityTimeout>
-            {/* GLOBAL REBRAND: Changed base background to White (#FFFFFF) and text to Dark Gray (#333333) */}
             <div className="flex flex-col w-full min-h-screen bg-[#FFFFFF] text-[#333333] relative">
                 
                 {/* Route-Based Header Swapping */}
@@ -69,13 +77,21 @@ function MainLayout() {
                     isExplorePage ? <ExploreHeader /> : <Header />
                 )}
                 
-                <main className={`flex-1 w-full mx-auto ${(isIsolatedPage || isProfilePath) ? '' : 'max-w-[1400px] p-0'}`}>
+                <main className={`flex-1 w-full mx-auto ${(isIsolatedPage || isProfilePath || isAdminPath) ? '' : 'max-w-[1400px] p-0'}`}>
                     <Routes>
                         <Route path="/" element={<Home />} />
                         
                         <Route path="/performer/:id" element={<Performer />} />
                         
-                        {/* 1:1 REPLICA: Nested Profile Architecture */}
+                        {/* PHASE 9: STRICT ADMIN SECURITY PIPELINE */}
+                        <Route path="/admin">
+                            <Route index element={(isAuthenticated && isAdmin) ? <AdminDashboard /> : <Navigate to="/" replace />} />
+                            <Route path="users" element={(isAuthenticated && isAdmin) ? <AdminUsers /> : <Navigate to="/" replace />} />
+                            <Route path="financials" element={(isAuthenticated && isAdmin) ? <AdminFinancials /> : <Navigate to="/" replace />} />
+                            <Route path="events" element={(isAuthenticated && isAdmin) ? <AdminEvents /> : <Navigate to="/" replace />} />
+                        </Route>
+                        
+                        {/* PROFILE PIPELINE */}
                         <Route path="/profile" element={isAuthenticated ? <ProfileLayout /> : <Navigate to="/login" replace />}>
                             <Route index element={<Profile />} />
                             <Route path="orders" element={<Orders />} />
@@ -90,7 +106,7 @@ function MainLayout() {
 
                         {dynamicRoutes.map(({ name, Component }) => {
                             // Skip pages already handled by static routes or excluded
-                            if (['Home', 'Maintenance', 'Profile', 'Dashboard', 'Performer'].includes(name)) return null;
+                            if (['Home', 'Maintenance', 'Profile', 'Dashboard', 'Performer', 'Admin'].includes(name)) return null;
 
                             // Protect Legacy Dashboard
                             if (name === 'Dashboard') {
@@ -105,7 +121,7 @@ function MainLayout() {
                     </Routes>
                 </main>
                 
-                {!isIsolatedPage && <Footer />}
+                {!isIsolatedPage && !isAdminPath && <Footer />}
                 <LocationToast />
             </div>
         </InactivityTimeout>
@@ -137,14 +153,12 @@ export default function App() {
                 if (currentVersion === null) {
                     currentVersion = data.v || '1.0';
                 } else if (data.v && data.v !== currentVersion) {
-                    // GLOBAL REBRAND: Log update
                     console.log("Booknshow Fleet Command: New deployment detected. Initiating instant cache-busted reload.");
                     window.location.reload(true);
                 }
             }
         }, (error) => {
             if (error.code !== 'permission-denied') {
-                // GLOBAL REBRAND: Log update
                 console.warn("Booknshow Fleet Command Listener Status:", error.message);
             }
         });
@@ -156,7 +170,6 @@ export default function App() {
 
     if (authLoading) {
         return (
-            /* GLOBAL REBRAND: Loader styling changed to White background with Red (#E7364D) spinner */
             <div className="min-h-screen bg-[#FFFFFF] flex flex-col items-center justify-center">
                 <div className="w-10 h-10 border-4 border-[#E7364D] border-t-transparent rounded-full animate-spin mb-4"></div>
                 <p className="text-[#626262] font-bold text-[12px] uppercase tracking-widest">Securing Booknshow Connection...</p>

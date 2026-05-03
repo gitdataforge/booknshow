@@ -5,6 +5,7 @@ import { auth } from '../../lib/firebase';
 import { useAppStore } from '../../store/useStore';
 import { useMainStore } from '../../store/useMainStore';
 import { BooknshowLogo } from '../../components/Header'; // Reusing global vector logo
+import { Lock } from 'lucide-react';
 
 // --- CUSTOM SVGS TO EXACTLY MATCH ENTERPRISE UI ---
 
