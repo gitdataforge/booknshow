@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { auth } from '../../lib/firebase';
 import { useAppStore } from '../../store/useStore';
+import { useMainStore } from '../../store/useMainStore';
 import { BooknshowLogo } from '../../components/Header'; // Reusing global vector logo
 
 // --- CUSTOM SVGS TO EXACTLY MATCH ENTERPRISE UI ---
@@ -32,18 +33,20 @@ const CloseIcon = () => (
 );
 
 /**
- * GLOBAL REBRAND: Booknshow Identity Application (Phase 7 Profile Header)
+ * GLOBAL REBRAND: Booknshow Identity Application (Phase 9 Admin Profile Header)
  * Enforced Colors: #FFFFFF, #E7364D, #333333, #EB5B6E, #FAD8DC, #A3A3A3, #626262
  * FEATURE 1: 9-Section Modular Navigation
  * FEATURE 2: Animated Mobile Full-Screen Menu
  * FEATURE 3: Desktop Hover Dropdowns
  * FEATURE 4: Strict Domain Routing (seller-booknshow)
+ * FEATURE 5: Dynamic Admin Panel Injection
  */
 
 export default function ProfileHeader() {
     const navigate = useNavigate();
     const location = useLocation();
     const { setUser } = useAppStore();
+    const { isAdmin } = useMainStore(); // Hook into God-Mode flag
 
     // Interaction States
     const [activeDropdown, setActiveDropdown] = useState(null);
@@ -98,13 +101,16 @@ export default function ProfileHeader() {
         { label: 'Payments', path: '/profile/payments' }
     ];
 
+    // DYNAMIC INJECTION: Add Admin Panel to Profile Links if User is Admin
     const profileLinks = [
+        ...(isAdmin ? [{ label: 'Admin Dashboard', path: '/admin', highlight: true }] : []),
         { label: 'My Hub', path: '/profile' },
         { label: 'Settings', path: '/profile/settings' },
         { label: 'Sign out', action: handleLogout }
     ];
 
     const mobileMenuLinks = [
+        ...(isAdmin ? [{ label: 'Admin Dashboard', path: '/admin', highlight: true }] : []),
         { label: 'Profile', path: '/profile' },
         { label: 'My Orders', path: '/profile/orders' },
         { label: 'My Listings', path: '/profile/listings' },
@@ -207,8 +213,8 @@ export default function ProfileHeader() {
                             <span className={`text-[15px] font-bold transition-colors mr-3 ${activeDropdown === 'profile' ? 'text-[#E7364D]' : 'text-[#333333]'}`}>
                                 Profile
                             </span>
-                            <div className="w-[36px] h-[36px] bg-[#FAD8DC]/30 border border-[#E7364D]/20 rounded-full flex items-center justify-center group-hover:bg-[#FAD8DC]/50 transition-colors">
-                                <UserIcon />
+                            <div className={`w-[36px] h-[36px] border rounded-full flex items-center justify-center transition-colors ${isAdmin ? 'bg-[#333333] border-[#333333] text-[#FFFFFF]' : 'bg-[#FAD8DC]/30 border-[#E7364D]/20 group-hover:bg-[#FAD8DC]/50'}`}>
+                                {isAdmin ? <Lock size={16} /> : <UserIcon />}
                             </div>
                             
                             <AnimatePresence>
@@ -218,7 +224,7 @@ export default function ProfileHeader() {
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0, y: 5 }}
                                         transition={{ duration: 0.15 }}
-                                        className="absolute top-[72px] right-0 w-[180px] bg-[#FFFFFF] shadow-[0_10px_40px_rgba(51,51,51,0.1)] rounded-b-[8px] py-2 z-50 border border-[#A3A3A3]/20"
+                                        className="absolute top-[72px] right-0 w-[200px] bg-[#FFFFFF] shadow-[0_10px_40px_rgba(51,51,51,0.1)] rounded-b-[8px] py-2 z-50 border border-[#A3A3A3]/20"
                                     >
                                         {profileLinks.map((link, idx) => (
                                             link.action ? (
@@ -226,7 +232,7 @@ export default function ProfileHeader() {
                                                     {link.label}
                                                 </button>
                                             ) : (
-                                                <Link key={idx} to={link.path} className="block px-5 py-3 text-[15px] text-[#333333] font-medium hover:bg-[#FAD8DC]/20 hover:text-[#E7364D] transition-colors">
+                                                <Link key={idx} to={link.path} className={`block px-5 py-3 text-[15px] font-medium transition-colors ${link.highlight ? 'bg-[#333333] text-[#FFFFFF] hover:bg-[#E7364D]' : 'text-[#333333] hover:bg-[#FAD8DC]/20 hover:text-[#E7364D]'}`}>
                                                     {link.label}
                                                 </Link>
                                             )
@@ -239,8 +245,8 @@ export default function ProfileHeader() {
 
                     {/* SECTION 8: MOBILE RIGHT User Icon */}
                     <div className="md:hidden flex items-center">
-                        <div onClick={() => navigate('/profile')} className="w-[36px] h-[36px] bg-[#FAD8DC]/30 border border-[#E7364D]/20 rounded-full flex items-center justify-center cursor-pointer">
-                            <UserIcon />
+                        <div onClick={() => navigate('/profile')} className={`w-[36px] h-[36px] border rounded-full flex items-center justify-center cursor-pointer ${isAdmin ? 'bg-[#333333] border-[#333333] text-[#FFFFFF]' : 'bg-[#FAD8DC]/30 border-[#E7364D]/20'}`}>
+                            {isAdmin ? <Lock size={16} /> : <UserIcon />}
                         </div>
                     </div>
 
@@ -292,7 +298,7 @@ export default function ProfileHeader() {
                                         key={idx} 
                                         to={link.path} 
                                         onClick={() => setIsMobileMenuOpen(false)}
-                                        className="block px-6 py-3.5 text-[16px] font-medium text-[#333333] hover:bg-[#FAD8DC]/20 hover:text-[#E7364D] transition-colors"
+                                        className={`block px-6 py-3.5 text-[16px] font-medium transition-colors ${link.highlight ? 'bg-[#333333] text-[#FFFFFF] hover:bg-[#E7364D] font-bold' : 'text-[#333333] hover:bg-[#FAD8DC]/20 hover:text-[#E7364D]'}`}
                                     >
                                         {link.label}
                                     </Link>
