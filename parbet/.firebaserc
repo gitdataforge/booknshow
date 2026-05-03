@@ -1,5 +1,14 @@
 {
   "projects": {
     "default": "parbet-44902"
+  },
+  "targets": {
+    "parbet-44902": {
+      "hosting": {
+        "buyer": [
+          "booknshow"
+        ]
+      }
+    }
   }
 }
