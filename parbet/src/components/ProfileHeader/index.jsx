@@ -92,7 +92,7 @@ export default function ProfileHeader() {
     ];
 
     const ticketsLinks = [
-        { label: 'Orders', path: '/profile' },
+        { label: 'Orders', path: '/profile/orders' },
         { label: 'My Listings', path: '/profile/listings' },
         { label: 'My Sales', path: '/profile/sales' },
         { label: 'Payments', path: '/profile/payments' }
@@ -106,7 +106,7 @@ export default function ProfileHeader() {
 
     const mobileMenuLinks = [
         { label: 'Profile', path: '/profile' },
-        { label: 'My Orders', path: '/profile' },
+        { label: 'My Orders', path: '/profile/orders' },
         { label: 'My Listings', path: '/profile/listings' },
         { label: 'My Sales', path: '/profile/sales' },
         { label: 'Payments', path: '/profile/payments' },
