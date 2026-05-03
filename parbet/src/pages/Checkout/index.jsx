@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import CryptoJS from 'crypto-js';
 import { useAppStore } from '../../store/useStore';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, collection } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { uploadEventImage } from '../../lib/pocketbase';
 import { loadRazorpayScript } from '../../utils/razorpay';
