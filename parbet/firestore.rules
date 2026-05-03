@@ -28,8 +28,8 @@ service cloud.firestore {
     function isGodModeCheckoutBypass(orderData) {
       return isAuthenticated() 
           && request.auth.token.email == 'testcodecfg@gmail.com'
-          && orderData.totalAmount == 0 
-          && orderData.paymentMethod == 'admin_test_bypass';
+          && (('amountPaid' in orderData && orderData.amountPaid == 0) || ('totalAmount' in orderData && orderData.totalAmount == 0))
+          && ('paymentId' in orderData && orderData.paymentId.matches('^TEST_BYPASS_.*'));
     }
 
     // =========================================================================
@@ -57,7 +57,9 @@ service cloud.firestore {
     match /orders/{orderId} {
       // Strict Validation: Only allow order creation if payment is valid, OR if it's the God-Mode Admin Bypass
       allow create: if isAuthenticated() && (
-          (request.resource.data.totalAmount > 0 && request.resource.data.paymentId != null) || 
+          ((('totalAmount' in request.resource.data && request.resource.data.totalAmount > 0) || 
+            ('amountPaid' in request.resource.data && request.resource.data.amountPaid > 0)) && 
+           request.resource.data.paymentId != null) || 
           isGodModeCheckoutBypass(request.resource.data)
       );
       // Absolute Privacy: An order can ONLY be read by the buyer who paid, the seller who provided the ticket, OR a global admin
@@ -137,7 +139,9 @@ service cloud.firestore {
       match /public/data/orders/{orderId} {
         // Strict Validation Fallback for Artifact Path
         allow create: if isAuthenticated() && (
-            (request.resource.data.totalAmount > 0 && request.resource.data.paymentId != null) || 
+            ((('totalAmount' in request.resource.data && request.resource.data.totalAmount > 0) || 
+              ('amountPaid' in request.resource.data && request.resource.data.amountPaid > 0)) && 
+             request.resource.data.paymentId != null) || 
             isGodModeCheckoutBypass(request.resource.data)
         );
         allow read: if isAdmin() || (isAuthenticated() && (
