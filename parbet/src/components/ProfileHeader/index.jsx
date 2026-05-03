@@ -37,6 +37,7 @@ const CloseIcon = () => (
  * FEATURE 1: 9-Section Modular Navigation
  * FEATURE 2: Animated Mobile Full-Screen Menu
  * FEATURE 3: Desktop Hover Dropdowns
+ * FEATURE 4: Strict Domain Routing (seller-booknshow)
  */
 
 export default function ProfileHeader() {
@@ -84,7 +85,7 @@ export default function ProfileHeader() {
 
     // --- DROPDOWN DATA ---
     const sellLinks = [
-        { label: 'Sell Tickets', path: 'https://parbet-seller-44902.web.app/' },
+        { label: 'Sell Tickets', path: 'https://seller-booknshow.web.app/' },
         { label: 'My Tickets', path: '/profile' },
         { label: 'My Sales', path: '/profile/sales' },
         { label: 'Season Ticket Wallet', path: '/profile/wallet' }
@@ -300,7 +301,7 @@ export default function ProfileHeader() {
                                 <div className="h-[1px] bg-[#A3A3A3]/20 my-2 mx-6"></div>
                                 
                                 <Link 
-                                    to="https://parbet-seller-44902.web.app/" 
+                                    to="https://seller-booknshow.web.app/" 
                                     onClick={() => setIsMobileMenuOpen(false)}
                                     className="block px-6 py-3.5 text-[16px] font-bold text-[#E7364D] hover:bg-[#FAD8DC]/20 transition-colors"
                                 >
@@ -309,7 +310,7 @@ export default function ProfileHeader() {
                                 
                                 <button 
                                     onClick={handleLogout}
-                                    className="w-full text-left block px-6 py-3.5 text-[16px] font-medium text-[#626262] hover:bg-[#F5F5F5] hover:text-[#333333] transition-colors"
+                                    className="w-full text-left block px-6 py-3.5 text-[16px] font-medium text-[#626262] hover:bg-[#FAD8DC]/20 hover:text-[#333333] transition-colors"
                                 >
                                     Sign out
                                 </button>
