@@ -19,7 +19,7 @@ service cloud.firestore {
         request.auth.token.email == 'testcodecfg@gmail.com' ||
         request.auth.token.email == 'krishnamehta.gm@gmail.com' ||
         request.auth.token.email == 'jatinseth.op@gmail.com' ||
-        request.auth.token.email == 'Jachinfotech@gmail.com'
+        request.auth.token.email == 'jachinfotech@gmail.com'
       );
     }
 
@@ -29,7 +29,7 @@ service cloud.firestore {
     function isGodModeCheckoutBypass(orderData) {
       // Allow bypass ONLY if user is an admin AND the amount is exactly 0 OR 50 AND it uses the TEST_BYPASS pipeline
       return isAuthenticated() 
-          && (request.auth.token.email == 'testcodecfg@gmail.com' || request.auth.token.email == 'Jachinfotech@gmail.com')
+          && (request.auth.token.email == 'testcodecfg@gmail.com' || request.auth.token.email == 'jachinfotech@gmail.com')
           && (
               ('amountPaid' in orderData && (orderData.amountPaid == 0 || orderData.amountPaid == 50)) || 
               ('totalAmount' in orderData && (orderData.totalAmount == 0 || orderData.totalAmount == 50))

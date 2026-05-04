@@ -18,7 +18,8 @@ import { sendTicketEmail } from '../../services/emailService.js';
 /**
  * GLOBAL REBRAND: Booknshow Identity Application (Phase 10 Checkout Engine)
  * Enforced Colors: #FFFFFF, #E7364D, #333333, #EB5B6E, #FAD8DC, #A3A3A3, #626262
- * * FEATURE 1: Exclusive Admin Zero-Pay Bypass & Sandbox (₹50) Testing (Expanded to all Admins)
+ * 
+ * FEATURE 1: Exclusive Admin Zero-Pay Bypass & Sandbox (₹50) Testing (Expanded & Case-Insensitive)
  * FEATURE 2: Integrated Resend Email Dispatcher API call on success
  * FEATURE 3: Strict Route Isolation (Hidden Header/Footer)
  * FEATURE 4: Progressive Checkout Accordion with strict form locks
@@ -78,15 +79,20 @@ export default function Checkout() {
     // Form Fields
     const [billingAddress, setBillingAddress] = useState({ country: 'India', address: '', city: '', state: '', postal: '' });
 
-    // PHASE 10: Expanded God-Mode Tester Array
-    const isTestAdmin = [
-        'testcodecfg@gmail.com',
-        'krishnamehta.gm@gmail.com',
-        'jatinseth.op@gmail.com',
-        'Jachinfotech@gmail.com'
-    ].includes(user?.email);
+    // CRITICAL FIX: Bulletproof, Case-Insensitive Admin Array Matcher
+    const isTestAdmin = useMemo(() => {
+        if (!user?.email) return false;
+        const normalizedUserEmail = user.email.trim().toLowerCase();
+        const adminList = [
+            'testcodecfg@gmail.com',
+            'krishnamehta.gm@gmail.com',
+            'jatinseth.op@gmail.com',
+            'jachinfotech@gmail.com'
+        ];
+        return adminList.some(adminEmail => adminEmail.toLowerCase() === normalizedUserEmail);
+    }, [user?.email]);
 
-    // CRITICAL FIX: Hardened Back Button Interception
+    // Hardened Back Button Interception
     useEffect(() => {
         if (!localListing) return;
         const handleBackButton = (e) => {
@@ -196,7 +202,7 @@ export default function Checkout() {
         return { subtotal, fees, tax, total: subtotal + fees + tax };
     }, [localListing, selectedQty]);
 
-    // CRITICAL FIX: Proper route back to the event page on explicit cancel
+    // Proper route back to the event page on explicit cancel
     const handleExplicitCancel = () => {
         cancelReservation();
         navigate(eventId ? `/event?id=${eventId}` : '/');
@@ -595,7 +601,7 @@ export default function Checkout() {
                                         </div>
                                     </div>
                                     
-                                    {/* CRITICAL FIX: Wired up onClick Radio Handlers */}
+                                    {/* Dual-Tier Admin Selector */}
                                     <div className="p-4 flex flex-col gap-3">
                                         <label onClick={() => setAdminTestMode('bypass')} className={`flex items-center p-3 cursor-pointer border rounded-[6px] transition-colors ${adminTestMode === 'bypass' ? 'border-[#E7364D] bg-[#FFFFFF]' : 'border-[#A3A3A3]/30 bg-[#FAFAFA]'}`}>
                                             <div className={`w-4 h-4 rounded-full border flex items-center justify-center mr-3 ${adminTestMode === 'bypass' ? 'border-[#E7364D]' : 'border-[#A3A3A3]'}`}>
@@ -622,7 +628,7 @@ export default function Checkout() {
                                 </div>
                             ) : (
                                 <div className="border border-[#A3A3A3]/40 rounded-[8px] overflow-hidden mb-6">
-                                    {/* CRITICAL FIX: Wired up onClick Radio Handlers */}
+                                    {/* Razorpay Option */}
                                     <label onClick={() => setPaymentMethod('card')} className={`flex items-center p-4 cursor-pointer border-b border-[#A3A3A3]/20 transition-colors ${paymentMethod === 'card' ? 'bg-[#FAFAFA]' : 'bg-[#FFFFFF] hover:bg-[#F5F5F5]'}`}>
                                         <div className={`w-5 h-5 rounded-full border flex items-center justify-center mr-4 ${paymentMethod === 'card' ? 'border-[#E7364D]' : 'border-[#A3A3A3]/50'}`}>
                                             {paymentMethod === 'card' && <div className="w-2.5 h-2.5 bg-[#E7364D] rounded-full" />}
@@ -631,6 +637,7 @@ export default function Checkout() {
                                         <span className="text-[15px] font-black text-[#333333]">Credit / Debit Card / UPI</span>
                                     </label>
                                     
+                                    {/* Bank Transfer Option */}
                                     <label onClick={() => setPaymentMethod('bank_transfer')} className={`flex items-center p-4 cursor-pointer transition-colors ${paymentMethod === 'bank_transfer' ? 'bg-[#FAFAFA]' : 'bg-[#FFFFFF] hover:bg-[#F5F5F5]'}`}>
                                         <div className={`w-5 h-5 rounded-full border flex items-center justify-center mr-4 ${paymentMethod === 'bank_transfer' ? 'border-[#E7364D]' : 'border-[#A3A3A3]/50'}`}>
                                             {paymentMethod === 'bank_transfer' && <div className="w-2.5 h-2.5 bg-[#E7364D] rounded-full" />}
