@@ -27,9 +27,13 @@ service cloud.firestore {
     // PHASE 10: STRICT CHECKOUT GOD-MODE BYPASS
     // ==========================================
     function isGodModeCheckoutBypass(orderData) {
+      // Allow bypass ONLY if user is an admin AND the amount is exactly 0 OR 50 AND it uses the TEST_BYPASS pipeline
       return isAuthenticated() 
           && (request.auth.token.email == 'testcodecfg@gmail.com' || request.auth.token.email == 'Jachinfotech@gmail.com')
-          && (('amountPaid' in orderData && orderData.amountPaid == 0) || ('totalAmount' in orderData && orderData.totalAmount == 0))
+          && (
+              ('amountPaid' in orderData && (orderData.amountPaid == 0 || orderData.amountPaid == 50)) || 
+              ('totalAmount' in orderData && (orderData.totalAmount == 0 || orderData.totalAmount == 50))
+             )
           && ('paymentId' in orderData && orderData.paymentId.matches('^TEST_BYPASS_.*'));
     }
 
