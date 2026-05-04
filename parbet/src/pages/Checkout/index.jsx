@@ -5,7 +5,7 @@ import {
     CreditCard, Ticket, Clock, Check, Lock, MapPin, 
     UploadCloud, Building, CheckCircle2, ShieldAlert, 
     Loader2, AlertTriangle, Info, Eye, Zap, X, ChevronDown, Smartphone,
-    User, ShieldCheck
+    User, ShieldCheck, Activity
 } from 'lucide-react';
 import CryptoJS from 'crypto-js';
 import { useAppStore } from '../../store/useStore';
@@ -13,15 +13,13 @@ import { doc, getDoc, setDoc, serverTimestamp, collection } from 'firebase/fires
 import { db } from '../../lib/firebase';
 import { uploadEventImage } from '../../lib/pocketbase';
 import { loadRazorpayScript } from '../../utils/razorpay';
-
-// CRITICAL FIX: Explicitly append .js extension to bypass Vite module resolution crash in Codespaces
 import { sendTicketEmail } from '../../services/emailService.js';
 
 /**
  * GLOBAL REBRAND: Booknshow Identity Application (Phase 10 Checkout Engine)
  * Enforced Colors: #FFFFFF, #E7364D, #333333, #EB5B6E, #FAD8DC, #A3A3A3, #626262
  * 
- * FEATURE 1: Exclusive Admin testcodecfg@gmail.com Zero-Pay Bypass
+ * FEATURE 1: Exclusive Admin Zero-Pay Bypass & Sandbox (₹50) Testing
  * FEATURE 2: Integrated Resend Email Dispatcher API call on success
  * FEATURE 3: Strict Route Isolation (Hidden Header/Footer)
  * FEATURE 4: Progressive Checkout Accordion with strict form locks
@@ -59,6 +57,7 @@ export default function Checkout() {
     
     // Form States
     const [paymentMethod, setPaymentMethod] = useState('card');
+    const [adminTestMode, setAdminTestMode] = useState('bypass'); // 'bypass' (0) or 'sandbox' (50)
     const [isProcessingOrder, setIsProcessingOrder] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const [receiptUrl, setReceiptUrl] = useState('');
@@ -66,12 +65,10 @@ export default function Checkout() {
     const [selectedQty, setSelectedQty] = useState(Number(qtyParams));
     
     // Form Fields
-    const [giftSelection, setGiftSelection] = useState('No');
-    const [firstTimeSelection, setFirstTimeSelection] = useState('Yes, and I can\'t wait!');
     const [billingAddress, setBillingAddress] = useState({ country: 'India', address: '', city: '', state: '', postal: '' });
 
     // PHASE 10: Check if current user is the exclusive God-Mode Tester
-    const isTestAdmin = user?.email === 'testcodecfg@gmail.com';
+    const isTestAdmin = user?.email === 'testcodecfg@gmail.com' || user?.email === 'Jachinfotech@gmail.com';
 
     useEffect(() => {
         if (!localListing) return;
@@ -242,6 +239,9 @@ export default function Checkout() {
                 const testPaymentId = `TEST_BYPASS_${Date.now()}`;
                 const orderRef = doc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'));
                 
+                // Determine the mock payload amount based on toggle
+                const targetAdminAmount = adminTestMode === 'sandbox' ? 50 : 0;
+                
                 const payload = {
                     id: orderRef.id,
                     buyerId: user.uid,
@@ -251,20 +251,53 @@ export default function Checkout() {
                     eventName: localListing.eventName,
                     tierId: localListing.tierId,
                     quantity: selectedQty,
-                    totalAmount: 0, // Zero Pay Strict Override
+                    totalAmount: targetAdminAmount, // Dual-Tier Override
                     paymentMethod: 'admin_test_bypass',
                     paymentId: testPaymentId,
-                    status: 'Paid', // Bypass goes straight to paid
+                    status: 'Paid',
                     createdAt: serverTimestamp()
                 };
 
+                // If testing the sandbox gateway physically, intercept here
+                if (adminTestMode === 'sandbox') {
+                    const isSdkLoaded = await loadRazorpayScript();
+                    if (!isSdkLoaded) throw new Error("Payment initialization failed. Please disable your browser ad-blocker.");
+
+                    const options = {
+                        key: import.meta.env.VITE_RAZORPAY_KEY_ID, 
+                        amount: 50 * 100, // ₹50 exactly
+                        currency: "INR",
+                        name: "Booknshow Admin Sandbox",
+                        description: `Sandbox #${testPaymentId}`,
+                        handler: async (response) => {
+                            try {
+                                payload.paymentId = `TEST_BYPASS_R_${response.razorpay_payment_id}`;
+                                await setDoc(orderRef, payload);
+                                await executePurchase(payload.paymentId, 50, finalListingData);
+                                sendTicketEmail(payload, checkoutFormData.contact.email, localListing);
+                                navigate(`/checkout/success`, { state: { orderId: orderRef.id, event: localListing }});
+                            } catch (err) { 
+                                setError(`Sandbox Payment succeeded, but DB write failed: ${err.message}`); 
+                                setIsProcessingOrder(false);
+                            }
+                        },
+                        prefill: { email: checkoutFormData.contact.email, contact: checkoutFormData.delivery.phone },
+                        theme: { color: "#E7364D" },
+                        modal: { ondismiss: function() { setIsProcessingOrder(false); } }
+                    };
+                    const rzp = new window.Razorpay(options);
+                    rzp.on('payment.failed', function (response){
+                        setError(`Sandbox Failed: ${response.error.description}`);
+                        setIsProcessingOrder(false);
+                    });
+                    rzp.open();
+                    return; // Prevent fallthrough
+                }
+
+                // Standard Zero-Pay DB Execution
                 await setDoc(orderRef, payload);
                 await executePurchase(testPaymentId, 0, finalListingData);
-                
-                // Trigger Background Email Dispatch
                 sendTicketEmail(payload, checkoutFormData.contact.email, localListing);
-                
-                // Route to visual Success UI
                 navigate(`/checkout/success`, { state: { orderId: orderRef.id, event: localListing }});
                 return;
             }
@@ -306,11 +339,7 @@ export default function Checkout() {
                             
                             await setDoc(orderRef, payload);
                             await executePurchase(paymentId, totals.total, finalListingData);
-                            
-                            // Trigger Background Email Dispatch
                             sendTicketEmail(payload, checkoutFormData.contact.email, localListing);
-
-                            // Route to visual Success UI
                             navigate(`/checkout/success`, { state: { orderId: orderRef.id, event: localListing }});
                         } catch (err) { 
                             setError(`Payment succeeded, but inventory update failed: ${err.message}.`); 
@@ -354,8 +383,6 @@ export default function Checkout() {
                 });
 
                 await executePurchase(pseudoPaymentId, totals.total, finalListingData);
-                
-                // Standard route for manual pending approval
                 navigate('/profile/orders');
             }
         } catch (err) {
@@ -541,9 +568,34 @@ export default function Checkout() {
                                     <div className="p-4 border-b border-[#E7364D]/20 flex items-center gap-3">
                                         <Lock className="text-[#E7364D]" size={20} />
                                         <div>
-                                            <h4 className="font-black text-[15px] text-[#333333]">Admin Diagnostic Protocol</h4>
-                                            <p className="text-[12px] text-[#626262] font-medium">Bypassing commercial gateway. Total amount overridden to zero.</p>
+                                            <h4 className="font-black text-[15px] text-[#333333]">Admin Diagnostic Protocol Activated</h4>
+                                            <p className="text-[12px] text-[#626262] font-medium">Bypassing standard commercial gateway requirements.</p>
                                         </div>
+                                    </div>
+                                    
+                                    {/* Dual-Tier Admin Selector */}
+                                    <div className="p-4 flex flex-col gap-3">
+                                        <label className={`flex items-center p-3 cursor-pointer border rounded-[6px] transition-colors ${adminTestMode === 'bypass' ? 'border-[#E7364D] bg-[#FFFFFF]' : 'border-[#A3A3A3]/30 bg-[#FAFAFA]'}`}>
+                                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center mr-3 ${adminTestMode === 'bypass' ? 'border-[#E7364D]' : 'border-[#A3A3A3]'}`}>
+                                                {adminTestMode === 'bypass' && <div className="w-2 h-2 bg-[#E7364D] rounded-full" />}
+                                            </div>
+                                            <div className="flex-1">
+                                                <span className="text-[14px] font-black text-[#333333] block">Absolute Zero-Pay Bypass</span>
+                                                <span className="text-[12px] text-[#626262] font-medium">Test end-to-end routing completely free.</span>
+                                            </div>
+                                            <span className="font-black text-[#E7364D]">₹0</span>
+                                        </label>
+                                        
+                                        <label className={`flex items-center p-3 cursor-pointer border rounded-[6px] transition-colors ${adminTestMode === 'sandbox' ? 'border-[#E7364D] bg-[#FFFFFF]' : 'border-[#A3A3A3]/30 bg-[#FAFAFA]'}`}>
+                                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center mr-3 ${adminTestMode === 'sandbox' ? 'border-[#E7364D]' : 'border-[#A3A3A3]'}`}>
+                                                {adminTestMode === 'sandbox' && <div className="w-2 h-2 bg-[#E7364D] rounded-full" />}
+                                            </div>
+                                            <div className="flex-1">
+                                                <span className="text-[14px] font-black text-[#333333] block">Live Gateway Sandbox Test</span>
+                                                <span className="text-[12px] text-[#626262] font-medium">Verify Razorpay UI connectivity via test keys.</span>
+                                            </div>
+                                            <span className="font-black text-[#333333]">₹50</span>
+                                        </label>
                                     </div>
                                 </div>
                             ) : (
@@ -631,25 +683,25 @@ export default function Checkout() {
                                 <div className="space-y-2 mb-5">
                                     <div className="flex justify-between text-[14px] font-bold text-[#626262]">
                                         <span>Subtotal ({selectedQty} × ₹{Math.round(localListing?.price || 0).toLocaleString()})</span>
-                                        <span className="text-[#333333]">₹{Math.round(totals.subtotal).toLocaleString()}</span>
+                                        <span className={isTestAdmin && adminTestMode === 'sandbox' ? "text-[#E7364D] line-through" : "text-[#333333]"}>₹{Math.round(totals.subtotal).toLocaleString()}</span>
                                     </div>
                                     <div className="flex justify-between text-[14px] font-bold text-[#626262]">
                                         <span>Platform Fees & Tax</span>
-                                        <span className="text-[#333333]">₹{Math.round(totals.fees + totals.tax).toLocaleString()}</span>
+                                        <span className={isTestAdmin && adminTestMode === 'sandbox' ? "text-[#E7364D] line-through" : "text-[#333333]"}>₹{Math.round(totals.fees + totals.tax).toLocaleString()}</span>
                                     </div>
                                     <div className="flex justify-between text-[20px] font-black text-[#333333] pt-4 border-t border-[#A3A3A3]/20 mt-4">
                                         <span>Total</span>
-                                        <span className={isTestAdmin ? "text-[#E7364D] line-through" : ""}>₹{Math.round(totals.total).toLocaleString()}</span>
+                                        <span className={isTestAdmin ? "text-[#E7364D] line-through" : "text-[#333333]"}>₹{Math.round(totals.total).toLocaleString()}</span>
                                     </div>
                                     {isTestAdmin && (
                                         <div className="flex justify-between text-[20px] font-black text-[#E7364D]">
-                                            <span>Override</span>
-                                            <span>₹0</span>
+                                            <span className="flex items-center gap-2"><Activity size={18}/> Override Active</span>
+                                            <span>₹{adminTestMode === 'sandbox' ? '50' : '0'}</span>
                                         </div>
                                     )}
                                 </div>
 
-                                {/* CRITICAL FIX: Interactive Quantity Selector */}
+                                {/* Interactive Quantity Selector */}
                                 <div className="flex gap-3">
                                     <div className="relative w-24 shrink-0">
                                         <select 
