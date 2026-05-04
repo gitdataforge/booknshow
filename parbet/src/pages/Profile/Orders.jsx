@@ -2,13 +2,13 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Ticket, Search, Filter, Calendar, MapPin, 
-    Download, ShieldCheck, Tag, Loader2, ArrowRight, X, AlertTriangle, ExternalLink, HelpCircle
+    Download, ShieldCheck, Tag, Loader2, ArrowRight, X, AlertTriangle, ExternalLink, HelpCircle,
+    BarChart3 // CRITICAL FIX: Explicitly import BarChart3 to prevent ReferenceError crash
 } from 'lucide-react';
 import { useMainStore } from '../../store/useMainStore';
 import { useNavigate } from 'react-router-dom';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-// CRITICAL FIX: Named export to prevent Vite compiler crash
 import { QRCodeSVG } from 'qrcode.react';
 
 /**
