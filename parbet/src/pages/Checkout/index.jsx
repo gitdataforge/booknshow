@@ -19,12 +19,25 @@ import { sendTicketEmail } from '../../services/emailService.js';
  * GLOBAL REBRAND: Booknshow Identity Application (Phase 10 Checkout Engine)
  * Enforced Colors: #FFFFFF, #E7364D, #333333, #EB5B6E, #FAD8DC, #A3A3A3, #626262
  * 
- * FEATURE 1: Exclusive Admin Zero-Pay Bypass & Sandbox (₹50) Testing
+ * FEATURE 1: Exclusive Admin Zero-Pay Bypass & Sandbox (₹50) Testing (Expanded to all Admins)
  * FEATURE 2: Integrated Resend Email Dispatcher API call on success
  * FEATURE 3: Strict Route Isolation (Hidden Header/Footer)
  * FEATURE 4: Progressive Checkout Accordion with strict form locks
  * FEATURE 5: Dynamic Ticket Details Modal popup
  */
+
+// High-End Booknshow SVG Logo Component
+const BooknshowLogo = () => (
+    <div className="flex items-center gap-1.5 relative z-10">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 6C4 4.89543 4.89543 4 6 4H18C19.1046 4 20 4.89543 20 6V18C20 19.1046 19.1046 20 18 20H6C4.89543 20 4 19.1046 4 18V6Z" fill="#333333"/>
+            <path d="M8 10L12 14L16 10" stroke="#E7364D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+        <h1 className="text-[28px] font-black tracking-tighter text-[#333333] uppercase">
+            BOOKN<span className="text-[#E7364D]">SHOW</span>
+        </h1>
+    </div>
+);
 
 export default function Checkout() {
     const [searchParams] = useSearchParams();
@@ -67,8 +80,13 @@ export default function Checkout() {
     // Form Fields
     const [billingAddress, setBillingAddress] = useState({ country: 'India', address: '', city: '', state: '', postal: '' });
 
-    // PHASE 10: Check if current user is the exclusive God-Mode Tester
-    const isTestAdmin = user?.email === 'testcodecfg@gmail.com' || user?.email === 'Jachinfotech@gmail.com';
+    // PHASE 10: Expanded God-Mode Tester Array
+    const isTestAdmin = [
+        'testcodecfg@gmail.com',
+        'krishnamehta.gm@gmail.com',
+        'jatinseth.op@gmail.com',
+        'Jachinfotech@gmail.com'
+    ].includes(user?.email);
 
     useEffect(() => {
         if (!localListing) return;
@@ -488,7 +506,7 @@ export default function Checkout() {
 
             {/* Top Distraction-Free Header */}
             <div className="w-full bg-[#FFFFFF] border-b border-[#A3A3A3]/20 pt-6 pb-4 flex justify-center items-center cursor-pointer shadow-sm" onClick={() => setIsCancelModalOpen(true)}>
-                <h1 className="text-[28px] font-black tracking-tighter text-[#333333] uppercase">BOOKN<span className="text-[#E7364D]">SHOW</span></h1>
+                <BooknshowLogo />
             </div>
 
             {/* Two-Column Checkout Layout */}

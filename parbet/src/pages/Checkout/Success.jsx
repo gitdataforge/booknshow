@@ -44,16 +44,17 @@ const AmbientBackground = () => (
     </div>
 );
 
-// High-End Booknshow SVG Logo Component
-const BooknshowLogo = () => (
-    <div className="flex items-center justify-center gap-2">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M4 6C4 4.89543 4.89543 4 6 4H18C19.1046 4 20 4.89543 20 6V18C20 19.1046 19.1046 20 18 20H6C4.89543 20 4 19.1046 4 18V6Z" fill="#333333"/>
-            <path d="M8 10L12 14L16 10" stroke="#E7364D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+// High-Fidelity Inline SVG Replica of Official Booknshow Logo
+const BooknshowLogo = ({ className = "", textColor = "text-[#333333]" }) => (
+    <div className={`flex items-center justify-center select-none relative z-10 ${className}`}>
+        <span className={`text-[36px] font-black tracking-tighter lowercase leading-none ${textColor}`}>book</span>
+        <svg width="34" height="40" viewBox="0 0 100 120" className="mx-1 transform -translate-y-1 hover:rotate-[-5deg] transition-transform duration-300" fill="none" xmlns="http://www.w3.org/2000/svg">
+            {/* Asymmetric Ticket Base */}
+            <path d="M5,25 L25,5 L50,25 L75,5 L95,25 L90,115 L75,100 L50,115 L25,100 L5,115 Z" fill="#E7364D" />
+            {/* White lowercase 'n' cutout */}
+            <path d="M35,85 L35,55 C35,35 65,35 65,55 L65,85" stroke="#FFFFFF" strokeWidth="15" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
-        <h1 className="text-[32px] font-black tracking-tighter text-[#333333] uppercase">
-            BOOKN<span className="text-[#E7364D]">SHOW</span>
-        </h1>
+        <span className={`text-[36px] font-black tracking-tighter lowercase leading-none ${textColor}`}>show</span>
     </div>
 );
 
@@ -94,9 +95,9 @@ export default function CheckoutSuccess() {
         <div className="min-h-screen bg-[#F5F5F5] font-sans text-[#333333] relative pb-20 pt-10 px-4 flex flex-col items-center">
             <AmbientBackground />
 
-            {/* Top Distraction-Free Header */}
+            {/* Top Distraction-Free Header with New Logo */}
             <div className="w-full max-w-[800px] flex justify-center items-center mb-10 z-10 cursor-pointer" onClick={() => navigate('/')}>
-                <BooknshowLogo />
+                <BooknshowLogo textColor="text-[#333333]" />
             </div>
 
             <motion.div initial="hidden" animate="show" variants={containerVariants} className="w-full max-w-[800px] z-10 relative">
@@ -122,65 +123,73 @@ export default function CheckoutSuccess() {
                 </motion.div>
 
                 {/* SECTION 3: High-Fidelity Interactive Digital Ticket Container */}
-                <motion.div variants={itemVariants} className="bg-[#FFFFFF] rounded-[16px] overflow-hidden shadow-[0_20px_60px_rgba(51,51,51,0.08)] border border-[#A3A3A3]/20 mb-10 flex flex-col md:flex-row relative">
+                <motion.div variants={itemVariants} className="bg-[#FFFFFF] rounded-[16px] overflow-hidden shadow-[0_20px_60px_rgba(51,51,51,0.08)] border border-[#A3A3A3]/20 mb-10 flex flex-col relative">
                     
-                    {/* Visual Cutouts for Ticket Effect */}
-                    <div className="hidden md:block absolute top-0 bottom-0 left-[250px] w-[2px] bg-transparent border-l-2 border-dashed border-[#A3A3A3]/30 z-20"></div>
-                    <div className="hidden md:block absolute -top-4 left-[242px] w-6 h-8 bg-[#F5F5F5] rounded-full z-20"></div>
-                    <div className="hidden md:block absolute -bottom-4 left-[242px] w-6 h-8 bg-[#F5F5F5] rounded-full z-20"></div>
-
-                    {/* Left Panel: SECTION 4 - Cryptographic QR Code Engine */}
-                    <div className="bg-[#FAFAFA] p-8 md:w-[250px] flex flex-col items-center justify-center shrink-0 border-b md:border-b-0 md:border-r border-[#A3A3A3]/20">
-                        <h3 className="text-[14px] font-black text-[#333333] uppercase tracking-widest mb-6">Access Pass</h3>
-                        <div className="bg-[#FFFFFF] p-3 rounded-[12px] border border-[#A3A3A3]/20 shadow-sm mb-4">
-                            {/* Native React SVG implementation of QR */}
-                            <QRCodeSVG value={`BOOKNSHOW_${orderId}`} size={160} fgColor="#333333" level="H" />
-                        </div>
-                        <p className="text-[11px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-1">Order Hash</p>
-                        <p className="text-[16px] font-mono font-black text-[#333333] tracking-wider">#{shortOrderId}</p>
+                    {/* Dark Theme Ticket Header with Inverted Logo */}
+                    <div className="bg-[#333333] w-full pt-6 pb-5 flex flex-col justify-center items-center border-b-4 border-[#E7364D] relative overflow-hidden">
+                        <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+                        <BooknshowLogo textColor="text-[#FFFFFF]" className="scale-75 origin-center -mb-2" />
+                        <p className="text-[10px] text-[#A3A3A3] uppercase tracking-[0.2em] relative z-10 font-bold">Official Access Pass</p>
                     </div>
 
-                    {/* Right Panel: SECTION 5 & 6 - Event & Seat Details */}
-                    <div className="p-8 md:p-10 flex-1 flex flex-col justify-between">
-                        <div>
-                            <div className="flex justify-between items-start mb-6">
-                                <div className="inline-flex items-center bg-[#FAD8DC]/30 text-[#E7364D] border border-[#E7364D]/20 px-2.5 py-1 rounded-[4px] text-[10px] font-black uppercase tracking-widest">
-                                    <Smartphone size={12} className="mr-1.5" /> Mobile E-Ticket
-                                </div>
-                                <div className="w-12 h-12 rounded-[6px] overflow-hidden bg-[#F5F5F5] border border-[#A3A3A3]/20">
-                                    <img src={event.imageUrl || "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=200"} alt="Event Thumbnail" className="w-full h-full object-cover" />
-                                </div>
+                    <div className="flex flex-col md:flex-row relative">
+                        {/* Visual Cutouts for Ticket Effect */}
+                        <div className="hidden md:block absolute top-0 bottom-0 left-[250px] w-[2px] bg-transparent border-l-2 border-dashed border-[#A3A3A3]/30 z-20"></div>
+                        <div className="hidden md:block absolute -top-4 left-[242px] w-6 h-8 bg-[#F5F5F5] rounded-full z-20"></div>
+                        <div className="hidden md:block absolute -bottom-4 left-[242px] w-6 h-8 bg-[#F5F5F5] rounded-full z-20 border-t border-[#A3A3A3]/20"></div>
+
+                        {/* Left Panel: SECTION 4 - Cryptographic QR Code Engine */}
+                        <div className="bg-[#FAFAFA] p-8 md:w-[250px] flex flex-col items-center justify-center shrink-0 border-b md:border-b-0 md:border-r border-[#A3A3A3]/20">
+                            <div className="bg-[#FFFFFF] p-3 rounded-[12px] border border-[#A3A3A3]/20 shadow-sm mb-4">
+                                {/* Native React SVG implementation of QR */}
+                                <QRCodeSVG value={`BOOKNSHOW_SECURE_${orderId}`} size={160} fgColor="#333333" level="H" />
                             </div>
-                            
-                            <h3 className="text-[28px] font-black text-[#333333] leading-tight mb-6">{event.eventName}</h3>
-                            
-                            <div className="space-y-4 mb-8">
-                                <div className="flex items-start gap-4">
-                                    <Calendar size={18} className="text-[#A3A3A3] mt-0.5" />
-                                    <div>
-                                        <p className="text-[11px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-0.5">Date & Time</p>
-                                        <p className="text-[15px] font-black text-[#333333]">{eventDate}</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-start gap-4">
-                                    <MapPin size={18} className="text-[#A3A3A3] mt-0.5" />
-                                    <div>
-                                        <p className="text-[11px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-0.5">Venue Location</p>
-                                        <p className="text-[15px] font-black text-[#333333]">{event.eventLoc || event.stadium || 'Venue TBA'}</p>
-                                    </div>
-                                </div>
-                            </div>
+                            <p className="text-[11px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-1">Order Hash</p>
+                            <p className="text-[16px] font-mono font-black text-[#333333] tracking-wider">#{shortOrderId}</p>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4 pt-6 border-t border-[#A3A3A3]/20 bg-[#FAFAFA] -mx-8 -mb-8 p-8 md:-mx-10 md:-mb-10 md:p-10">
+                        {/* Right Panel: SECTION 5 & 6 - Event & Seat Details */}
+                        <div className="p-8 md:p-10 flex-1 flex flex-col justify-between">
                             <div>
-                                <p className="text-[11px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-1">Ticket Type / Tier</p>
-                                <p className="text-[18px] font-black text-[#E7364D]">{event.tierName || 'General Admission'}</p>
+                                <div className="flex justify-between items-start mb-6">
+                                    <div className="inline-flex items-center bg-[#FAD8DC]/30 text-[#E7364D] border border-[#E7364D]/20 px-2.5 py-1 rounded-[4px] text-[10px] font-black uppercase tracking-widest">
+                                        <Smartphone size={12} className="mr-1.5" /> Mobile E-Ticket
+                                    </div>
+                                    <div className="w-14 h-14 rounded-[6px] overflow-hidden bg-[#F5F5F5] border border-[#A3A3A3]/20 shadow-sm">
+                                        <img src={event.imageUrl || "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=200"} alt="Event Thumbnail" className="w-full h-full object-cover" />
+                                    </div>
+                                </div>
+                                
+                                <h3 className="text-[28px] font-black text-[#333333] leading-tight mb-6">{event.eventName}</h3>
+                                
+                                <div className="space-y-4 mb-8">
+                                    <div className="flex items-start gap-4">
+                                        <Calendar size={18} className="text-[#A3A3A3] mt-0.5" />
+                                        <div>
+                                            <p className="text-[11px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-0.5">Date & Time</p>
+                                            <p className="text-[15px] font-black text-[#333333]">{eventDate}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-4">
+                                        <MapPin size={18} className="text-[#A3A3A3] mt-0.5" />
+                                        <div>
+                                            <p className="text-[11px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-0.5">Venue Location</p>
+                                            <p className="text-[15px] font-black text-[#333333]">{event.eventLoc || event.stadium || 'Venue TBA'}</p>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <div>
-                                <p className="text-[11px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-1">Admit (Quantity)</p>
-                                <div className="flex items-center text-[18px] font-black text-[#333333]">
-                                    <Ticket size={18} className="mr-2 text-[#333333]" /> {event.quantity} Person(s)
+
+                            <div className="grid grid-cols-2 gap-4 pt-6 border-t border-[#A3A3A3]/20 bg-[#FAFAFA] -mx-8 -mb-8 p-8 md:-mx-10 md:-mb-10 md:p-10">
+                                <div>
+                                    <p className="text-[11px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-1">Ticket Type / Tier</p>
+                                    <p className="text-[18px] font-black text-[#E7364D]">{event.tierName || 'General Admission'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[11px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-1">Admit (Quantity)</p>
+                                    <div className="flex items-center text-[18px] font-black text-[#333333]">
+                                        <Ticket size={18} className="mr-2 text-[#333333]" /> {event.quantity} Person(s)
+                                    </div>
                                 </div>
                             </div>
                         </div>
