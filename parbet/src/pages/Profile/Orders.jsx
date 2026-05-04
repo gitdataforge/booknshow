@@ -53,16 +53,23 @@ const AmbientBackground = () => (
 );
 
 // High-Fidelity Inline SVG Replica of Official Booknshow Logo
-const BooknshowLogo = ({ className = "", textColor = "text-[#333333]" }) => (
-    <div className={`flex items-center justify-center select-none relative z-10 ${className}`}>
-        <span className={`text-[36px] font-black tracking-tighter lowercase leading-none ${textColor}`}>book</span>
-        <svg width="34" height="40" viewBox="0 0 100 120" className="mx-1 transform -translate-y-1 hover:rotate-[-5deg] transition-transform duration-300" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M5,25 L25,5 L50,25 L75,5 L95,25 L90,115 L75,100 L50,115 L25,100 L5,115 Z" fill="#E7364D" />
-            <path d="M35,85 L35,55 C35,35 65,35 65,55 L65,85" stroke="#FFFFFF" strokeWidth="15" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-        <span className={`text-[36px] font-black tracking-tighter lowercase leading-none ${textColor}`}>show</span>
-    </div>
-);
+const BooknshowLogo = ({ className = "", textColor = "#FFFFFF" }) => {
+    // Dynamically extract the hex code to ensure it renders pure white in the dark PDF header
+    const fillHex = textColor.includes('#') ? textColor.match(/#(?:[0-9a-fA-F]{3,8})/)[0] : "#FFFFFF";
+    
+    return (
+        <div className={`flex items-center justify-center select-none relative z-10 ${className}`}>
+            <svg viewBox="0 0 400 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-[40px] transform hover:scale-[1.02] transition-transform duration-300">
+                <text x="10" y="70" fontFamily="Inter, sans-serif" fontSize="64" fontWeight="800" fill={fillHex} letterSpacing="-2">book</text>
+                <g transform="translate(170, 10) rotate(-12)">
+                    <path d="M0,0 L16,10 L32,0 L48,10 L64,0 L80,10 L80,95 L60,95 A20,20 0 0,0 20,95 L0,95 Z" fill="#E7364D" />
+                    <text x="21" y="72" fontFamily="Inter, sans-serif" fontSize="60" fontWeight="900" fill="#FFFFFF">n</text>
+                </g>
+                <text x="250" y="70" fontFamily="Inter, sans-serif" fontSize="64" fontWeight="800" fill={fillHex} letterSpacing="-2">show</text>
+            </svg>
+        </div>
+    );
+};
 
 export default function Orders() {
     const navigate = useNavigate();
@@ -394,7 +401,7 @@ export default function Orders() {
                                 {/* Dark Theme Ticket Header with Inverted Logo */}
                                 <div className="bg-[#333333] w-full pt-6 pb-5 flex flex-col justify-center items-center border-b-4 border-[#E7364D] relative overflow-hidden shrink-0">
                                     <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
-                                    <BooknshowLogo textColor="text-[#FFFFFF]" className="scale-75 origin-center -mb-2" />
+                                    <BooknshowLogo textColor="#FFFFFF" className="scale-75 origin-center -mb-2" />
                                     <p className="text-[10px] text-[#A3A3A3] uppercase tracking-[0.2em] relative z-10 font-bold">Official Access Pass</p>
                                 </div>
 
