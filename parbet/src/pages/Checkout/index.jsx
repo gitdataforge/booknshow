@@ -18,24 +18,22 @@ import { sendTicketEmail } from '../../services/emailService.js';
 /**
  * GLOBAL REBRAND: Booknshow Identity Application (Phase 10 Checkout Engine)
  * Enforced Colors: #FFFFFF, #E7364D, #333333, #EB5B6E, #FAD8DC, #A3A3A3, #626262
- * 
- * FEATURE 1: Exclusive Admin Zero-Pay Bypass & Sandbox (₹50) Testing (Expanded to all Admins)
+ * * FEATURE 1: Exclusive Admin Zero-Pay Bypass & Sandbox (₹50) Testing (Expanded to all Admins)
  * FEATURE 2: Integrated Resend Email Dispatcher API call on success
  * FEATURE 3: Strict Route Isolation (Hidden Header/Footer)
  * FEATURE 4: Progressive Checkout Accordion with strict form locks
  * FEATURE 5: Dynamic Ticket Details Modal popup
  */
 
-// High-End Booknshow SVG Logo Component
-const BooknshowLogo = () => (
-    <div className="flex items-center gap-1.5 relative z-10">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M4 6C4 4.89543 4.89543 4 6 4H18C19.1046 4 20 4.89543 20 6V18C20 19.1046 19.1046 20 18 20H6C4.89543 20 4 19.1046 4 18V6Z" fill="#333333"/>
-            <path d="M8 10L12 14L16 10" stroke="#E7364D" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+// High-Fidelity Inline SVG Replica of Official Booknshow Logo
+const BooknshowLogo = ({ className = "", textColor = "text-[#333333]" }) => (
+    <div className={`flex items-center justify-center select-none relative z-10 ${className}`}>
+        <span className={`text-[36px] font-black tracking-tighter lowercase leading-none ${textColor}`}>book</span>
+        <svg width="34" height="40" viewBox="0 0 100 120" className="mx-1 transform -translate-y-1 hover:rotate-[-5deg] transition-transform duration-300" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M5,25 L25,5 L50,25 L75,5 L95,25 L90,115 L75,100 L50,115 L25,100 L5,115 Z" fill="#E7364D" />
+            <path d="M35,85 L35,55 C35,35 65,35 65,55 L65,85" stroke="#FFFFFF" strokeWidth="15" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
-        <h1 className="text-[28px] font-black tracking-tighter text-[#333333] uppercase">
-            BOOKN<span className="text-[#E7364D]">SHOW</span>
-        </h1>
+        <span className={`text-[36px] font-black tracking-tighter lowercase leading-none ${textColor}`}>show</span>
     </div>
 );
 
@@ -88,13 +86,18 @@ export default function Checkout() {
         'Jachinfotech@gmail.com'
     ].includes(user?.email);
 
+    // CRITICAL FIX: Hardened Back Button Interception
     useEffect(() => {
         if (!localListing) return;
         const handleBackButton = (e) => {
             e.preventDefault();
+            e.stopPropagation();
+            window.history.pushState(null, null, window.location.pathname + window.location.search);
             window.history.pushState(null, null, window.location.pathname + window.location.search);
             setIsCancelModalOpen(true);
         };
+        // Push state twice to ensure we securely trap the back navigation pop
+        window.history.pushState(null, null, window.location.pathname + window.location.search);
         window.history.pushState(null, null, window.location.pathname + window.location.search);
         window.addEventListener('popstate', handleBackButton);
         return () => window.removeEventListener('popstate', handleBackButton);
@@ -193,6 +196,7 @@ export default function Checkout() {
         return { subtotal, fees, tax, total: subtotal + fees + tax };
     }, [localListing, selectedQty]);
 
+    // CRITICAL FIX: Proper route back to the event page on explicit cancel
     const handleExplicitCancel = () => {
         cancelReservation();
         navigate(eventId ? `/event?id=${eventId}` : '/');
@@ -506,7 +510,7 @@ export default function Checkout() {
 
             {/* Top Distraction-Free Header */}
             <div className="w-full bg-[#FFFFFF] border-b border-[#A3A3A3]/20 pt-6 pb-4 flex justify-center items-center cursor-pointer shadow-sm" onClick={() => setIsCancelModalOpen(true)}>
-                <BooknshowLogo />
+                <BooknshowLogo textColor="text-[#333333]" />
             </div>
 
             {/* Two-Column Checkout Layout */}
@@ -591,9 +595,9 @@ export default function Checkout() {
                                         </div>
                                     </div>
                                     
-                                    {/* Dual-Tier Admin Selector */}
+                                    {/* CRITICAL FIX: Wired up onClick Radio Handlers */}
                                     <div className="p-4 flex flex-col gap-3">
-                                        <label className={`flex items-center p-3 cursor-pointer border rounded-[6px] transition-colors ${adminTestMode === 'bypass' ? 'border-[#E7364D] bg-[#FFFFFF]' : 'border-[#A3A3A3]/30 bg-[#FAFAFA]'}`}>
+                                        <label onClick={() => setAdminTestMode('bypass')} className={`flex items-center p-3 cursor-pointer border rounded-[6px] transition-colors ${adminTestMode === 'bypass' ? 'border-[#E7364D] bg-[#FFFFFF]' : 'border-[#A3A3A3]/30 bg-[#FAFAFA]'}`}>
                                             <div className={`w-4 h-4 rounded-full border flex items-center justify-center mr-3 ${adminTestMode === 'bypass' ? 'border-[#E7364D]' : 'border-[#A3A3A3]'}`}>
                                                 {adminTestMode === 'bypass' && <div className="w-2 h-2 bg-[#E7364D] rounded-full" />}
                                             </div>
@@ -604,7 +608,7 @@ export default function Checkout() {
                                             <span className="font-black text-[#E7364D]">₹0</span>
                                         </label>
                                         
-                                        <label className={`flex items-center p-3 cursor-pointer border rounded-[6px] transition-colors ${adminTestMode === 'sandbox' ? 'border-[#E7364D] bg-[#FFFFFF]' : 'border-[#A3A3A3]/30 bg-[#FAFAFA]'}`}>
+                                        <label onClick={() => setAdminTestMode('sandbox')} className={`flex items-center p-3 cursor-pointer border rounded-[6px] transition-colors ${adminTestMode === 'sandbox' ? 'border-[#E7364D] bg-[#FFFFFF]' : 'border-[#A3A3A3]/30 bg-[#FAFAFA]'}`}>
                                             <div className={`w-4 h-4 rounded-full border flex items-center justify-center mr-3 ${adminTestMode === 'sandbox' ? 'border-[#E7364D]' : 'border-[#A3A3A3]'}`}>
                                                 {adminTestMode === 'sandbox' && <div className="w-2 h-2 bg-[#E7364D] rounded-full" />}
                                             </div>
@@ -618,8 +622,8 @@ export default function Checkout() {
                                 </div>
                             ) : (
                                 <div className="border border-[#A3A3A3]/40 rounded-[8px] overflow-hidden mb-6">
-                                    {/* Razorpay Option */}
-                                    <label className={`flex items-center p-4 cursor-pointer border-b border-[#A3A3A3]/20 transition-colors ${paymentMethod === 'card' ? 'bg-[#FAFAFA]' : 'bg-[#FFFFFF] hover:bg-[#F5F5F5]'}`}>
+                                    {/* CRITICAL FIX: Wired up onClick Radio Handlers */}
+                                    <label onClick={() => setPaymentMethod('card')} className={`flex items-center p-4 cursor-pointer border-b border-[#A3A3A3]/20 transition-colors ${paymentMethod === 'card' ? 'bg-[#FAFAFA]' : 'bg-[#FFFFFF] hover:bg-[#F5F5F5]'}`}>
                                         <div className={`w-5 h-5 rounded-full border flex items-center justify-center mr-4 ${paymentMethod === 'card' ? 'border-[#E7364D]' : 'border-[#A3A3A3]/50'}`}>
                                             {paymentMethod === 'card' && <div className="w-2.5 h-2.5 bg-[#E7364D] rounded-full" />}
                                         </div>
@@ -627,8 +631,7 @@ export default function Checkout() {
                                         <span className="text-[15px] font-black text-[#333333]">Credit / Debit Card / UPI</span>
                                     </label>
                                     
-                                    {/* Bank Transfer Option */}
-                                    <label className={`flex items-center p-4 cursor-pointer transition-colors ${paymentMethod === 'bank_transfer' ? 'bg-[#FAFAFA]' : 'bg-[#FFFFFF] hover:bg-[#F5F5F5]'}`}>
+                                    <label onClick={() => setPaymentMethod('bank_transfer')} className={`flex items-center p-4 cursor-pointer transition-colors ${paymentMethod === 'bank_transfer' ? 'bg-[#FAFAFA]' : 'bg-[#FFFFFF] hover:bg-[#F5F5F5]'}`}>
                                         <div className={`w-5 h-5 rounded-full border flex items-center justify-center mr-4 ${paymentMethod === 'bank_transfer' ? 'border-[#E7364D]' : 'border-[#A3A3A3]/50'}`}>
                                             {paymentMethod === 'bank_transfer' && <div className="w-2.5 h-2.5 bg-[#E7364D] rounded-full" />}
                                         </div>
