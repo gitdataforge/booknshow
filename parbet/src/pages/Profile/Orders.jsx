@@ -25,7 +25,7 @@ import { QRCodeSVG } from 'qrcode.react';
  * FEATURE 7: Transaction Status Trackers (Pending vs Confirmed)
  * FEATURE 8: 1:1 Rebranded Troubleshooting Empty State
  * FEATURE 9: Resale Portal Triggers
- * FEATURE 10: Support & Help Quick Actions
+ * FEATURE 10: Strict Array Deduplication & Expanded PDF Layout
  */
 
 // Safe Date Formatter
@@ -57,9 +57,7 @@ const BooknshowLogo = ({ className = "", textColor = "text-[#333333]" }) => (
     <div className={`flex items-center justify-center select-none relative z-10 ${className}`}>
         <span className={`text-[36px] font-black tracking-tighter lowercase leading-none ${textColor}`}>book</span>
         <svg width="34" height="40" viewBox="0 0 100 120" className="mx-1 transform -translate-y-1 hover:rotate-[-5deg] transition-transform duration-300" fill="none" xmlns="http://www.w3.org/2000/svg">
-            {/* Asymmetric Ticket Base */}
             <path d="M5,25 L25,5 L50,25 L75,5 L95,25 L90,115 L75,100 L50,115 L25,100 L5,115 Z" fill="#E7364D" />
-            {/* White lowercase 'n' cutout */}
             <path d="M35,85 L35,55 C35,35 65,35 65,55 L65,85" stroke="#FFFFFF" strokeWidth="15" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
         <span className={`text-[36px] font-black tracking-tighter lowercase leading-none ${textColor}`}>show</span>
@@ -77,13 +75,25 @@ export default function Orders() {
     const [isDownloading, setIsDownloading] = useState(false);
     const ticketRef = useRef(null);
 
-    // SECTION 4: Analytics Calculation Logic
+    // SECTION 5: STRICT LOGICAL DATA FILTERING & DEDUPLICATION
+    const uniqueOrders = useMemo(() => {
+        if (!orders) return [];
+        const seen = new Set();
+        return orders.filter(order => {
+            // Guarantee we do not render the exact same ticket array object twice
+            const isDuplicate = seen.has(order.id);
+            seen.add(order.id);
+            return !isDuplicate;
+        });
+    }, [orders]);
+
+    // SECTION 4: Analytics Calculation Logic (Now operating on the deduplicated array)
     const analytics = useMemo(() => {
         let active = 0;
         let totalSpent = 0;
         const now = new Date().getTime();
         
-        (orders || []).forEach(order => {
+        uniqueOrders.forEach(order => {
             totalSpent += Number(order.amountPaid || order.totalAmount || 0);
             const eventTime = new Date(order.commence_time?.seconds ? order.commence_time.seconds * 1000 : order.commence_time || order.eventTimestamp || order.createdAt?.seconds ? order.createdAt.seconds * 1000 : order.createdAt).getTime();
             if (!isNaN(eventTime) && eventTime >= now) {
@@ -92,17 +102,7 @@ export default function Orders() {
         });
         
         return { active, totalSpent };
-    }, [orders]);
-
-    // SECTION 5: Logical Data Filtering & Deduplication
-    const uniqueOrders = useMemo(() => {
-        const seen = new Set();
-        return (orders || []).filter(order => {
-            const isDuplicate = seen.has(order.id);
-            seen.add(order.id);
-            return !isDuplicate;
-        });
-    }, [orders]);
+    }, [uniqueOrders]);
 
     const filteredOrders = useMemo(() => {
         const now = new Date().getTime();
@@ -389,17 +389,17 @@ export default function Orders() {
                             </button>
 
                             {/* The Digital Ticket Container (Captured by html2canvas) */}
-                            <div ref={ticketRef} className="bg-[#FFFFFF] rounded-[16px] overflow-hidden shadow-2xl relative">
+                            <div ref={ticketRef} className="bg-[#FFFFFF] rounded-[16px] overflow-hidden shadow-2xl relative flex flex-col">
                                 
                                 {/* Dark Theme Ticket Header with Inverted Logo */}
-                                <div className="bg-[#333333] w-full pt-6 pb-5 flex flex-col justify-center items-center border-b-4 border-[#E7364D] relative overflow-hidden">
+                                <div className="bg-[#333333] w-full pt-6 pb-5 flex flex-col justify-center items-center border-b-4 border-[#E7364D] relative overflow-hidden shrink-0">
                                     <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
                                     <BooknshowLogo textColor="text-[#FFFFFF]" className="scale-75 origin-center -mb-2" />
                                     <p className="text-[10px] text-[#A3A3A3] uppercase tracking-[0.2em] relative z-10 font-bold">Official Access Pass</p>
                                 </div>
 
                                 {/* Event Info */}
-                                <div className="p-6 md:p-8 bg-[#FFFFFF] relative">
+                                <div className="p-6 md:p-8 bg-[#FFFFFF] relative flex-1 flex flex-col">
                                     <div className="mb-6 pb-6 border-b border-dashed border-[#A3A3A3]/40">
                                         <h2 className="text-[22px] font-black text-[#333333] leading-tight mb-4">{selectedTicket.eventName}</h2>
                                         
@@ -424,11 +424,11 @@ export default function Orders() {
                                         </div>
                                     </div>
 
-                                    {/* Seat/Tier Grid */}
+                                    {/* Expanded Seat/Tier Grid */}
                                     <div className="grid grid-cols-2 gap-4 mb-6">
                                         <div className="bg-[#FAFAFA] p-3 rounded-[8px] border border-[#A3A3A3]/20">
                                             <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-1">Tier / Section</p>
-                                            <p className="text-[15px] font-black text-[#E7364D] truncate">{selectedTicket.tierName || 'General Admission'}</p>
+                                            <p className="text-[15px] font-black text-[#E7364D] truncate">{selectedTicket.tierName}</p>
                                         </div>
                                         <div className="bg-[#FAFAFA] p-3 rounded-[8px] border border-[#A3A3A3]/20">
                                             <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-1">Admit</p>
@@ -440,10 +440,27 @@ export default function Orders() {
                                         </div>
                                     </div>
 
+                                    {/* CRITICAL FIX: Pricing Breakdown included in the PDF layout */}
+                                    <div className="bg-[#FAFAFA] p-4 rounded-[8px] border border-[#A3A3A3]/20 mb-6">
+                                        <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-3 border-b border-[#A3A3A3]/20 pb-2">Payment Summary</p>
+                                        <div className="flex justify-between items-center mb-1">
+                                            <span className="text-[13px] font-bold text-[#626262]">Subtotal & Fees</span>
+                                            <span className="text-[13px] font-bold text-[#333333]">₹{Math.round((Number(selectedTicket.totalAmount || selectedTicket.amountPaid) || 0) * 0.85).toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center mb-3">
+                                            <span className="text-[13px] font-bold text-[#626262]">Taxes (18%)</span>
+                                            <span className="text-[13px] font-bold text-[#333333]">₹{Math.round((Number(selectedTicket.totalAmount || selectedTicket.amountPaid) || 0) * 0.15).toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center pt-2 border-t border-[#A3A3A3]/20">
+                                            <span className="text-[14px] font-black text-[#333333]">Total Paid</span>
+                                            <span className="text-[16px] font-black text-[#E7364D]">₹{(Number(selectedTicket.totalAmount || selectedTicket.amountPaid) || 0).toLocaleString()}</span>
+                                        </div>
+                                    </div>
+
                                     {/* QR Code Section */}
-                                    <div className="flex flex-col items-center justify-center p-4 bg-[#F5F5F5] rounded-[12px] border border-[#A3A3A3]/20">
+                                    <div className="flex flex-col items-center justify-center p-4 bg-[#F5F5F5] rounded-[12px] border border-[#A3A3A3]/20 mt-auto">
                                         <div className="bg-[#FFFFFF] p-2 rounded-[8px] shadow-sm mb-3">
-                                            <QRCodeSVG value={`BOOKNSHOW_SECURE_${selectedTicket.id}`} size={140} fgColor="#333333" level="H" />
+                                            <QRCodeSVG value={`BOOKNSHOW_SECURE_${selectedTicket.id}`} size={120} fgColor="#333333" level="H" />
                                         </div>
                                         <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-0.5">Ticket ID</p>
                                         <p className="text-[14px] font-mono font-black text-[#333333] tracking-widest">{selectedTicket.id.substring(0, 12).toUpperCase()}</p>
@@ -451,7 +468,7 @@ export default function Orders() {
                                 </div>
                                 
                                 {/* Bottom Perforation Visual */}
-                                <div className="h-4 w-full bg-[radial-gradient(circle,transparent_4px,#FFFFFF_4px)] bg-[length:16px_16px] -mt-2"></div>
+                                <div className="h-4 w-full bg-[radial-gradient(circle,transparent_4px,#FFFFFF_4px)] bg-[length:16px_16px] -mt-2 shrink-0"></div>
                             </div>
 
                             {/* Download Button (Outside the PDF capture area) */}
