@@ -1,11 +1,10 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-// CRITICAL FIX: Restored ALL missing lucide-react icons required by the component to prevent ReferenceError crashes
 import { 
     Ticket, Search, Filter, Calendar, MapPin, 
     Download, ShieldCheck, Tag, Loader2, ArrowRight, 
     X, AlertCircle, CheckCircle2, ExternalLink, HelpCircle,
-    BarChart3, Repeat, Eye, Zap, ChevronRight
+    BarChart3, Repeat, Eye, Zap, ChevronRight, Clock, Maximize2
 } from 'lucide-react';
 import { useMainStore } from '../../store/useMainStore';
 import { useNavigate } from 'react-router-dom';
@@ -14,7 +13,7 @@ import jsPDF from 'jspdf';
 import { QRCodeSVG } from 'qrcode.react';
 
 /**
- * GLOBAL REBRAND: Booknshow Identity Application (Phase 7 Profile Orders)
+ * GLOBAL REBRAND: Booknshow Identity Application (Phase 8 Profile Orders)
  * Enforced Colors: #FFFFFF, #E7364D, #333333, #EB5B6E, #FAD8DC, #A3A3A3, #626262
  * FEATURE 1: Illustrative Ambient Backgrounds
  * FEATURE 2: Real-Time Order Hydration from Global Store
@@ -27,9 +26,10 @@ import { QRCodeSVG } from 'qrcode.react';
  * FEATURE 9: Resale Portal Triggers
  * FEATURE 10: Strict Array Deduplication, Expanded PDF Layout & Exact SVG Logo
  * FEATURE 11: Micro-Typography Flex Layout for Complex Seat Strings
+ * FEATURE 12: Dual-Timestamp Architecture (Booking Date vs Event Date)
+ * FEATURE 13: Interactive High-Brightness QR Zoom Modal for Scanner Gates
  */
 
-// Safe Date Formatter
 const formatDate = (isoString) => {
     if (!isoString) return 'Date TBA';
     const d = new Date(isoString);
@@ -37,7 +37,13 @@ const formatDate = (isoString) => {
     return d.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 };
 
-// SECTION 1: Ambient Illustrative Background
+const formatTime = (isoString) => {
+    if (!isoString) return '';
+    const d = new Date(isoString);
+    if (isNaN(d)) return '';
+    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+};
+
 const AmbientBackground = () => (
     <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
         <motion.div
@@ -53,9 +59,7 @@ const AmbientBackground = () => (
     </div>
 );
 
-// High-Fidelity Inline SVG Replica of Official Booknshow Logo
 const BooknshowLogo = ({ className = "", textColor = "#FFFFFF" }) => {
-    // Dynamically extract the hex code to ensure it renders pure white in the dark PDF header
     const fillHex = textColor.includes('#') ? textColor.match(/#(?:[0-9a-fA-F]{3,8})/)[0] : "#FFFFFF";
     
     return (
@@ -76,26 +80,25 @@ export default function Orders() {
     const navigate = useNavigate();
     const { user, orders, isLoadingOrders } = useMainStore();
     
-    // SECTION 2: State Management
     const [activeTab, setActiveTab] = useState('Upcoming');
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedTicket, setSelectedTicket] = useState(null);
     const [isDownloading, setIsDownloading] = useState(false);
+    
+    // FEATURE 13: Zoomed QR State
+    const [zoomedQR, setZoomedQR] = useState(null);
     const ticketRef = useRef(null);
 
-    // SECTION 5: STRICT LOGICAL DATA FILTERING & DEDUPLICATION
     const uniqueOrders = useMemo(() => {
         if (!orders) return [];
         const seen = new Set();
         return orders.filter(order => {
-            // Guarantee we do not render the exact same ticket array object twice
             const isDuplicate = seen.has(order.id);
             seen.add(order.id);
             return !isDuplicate;
         });
     }, [orders]);
 
-    // SECTION 4: Analytics Calculation Logic (Now operating on the deduplicated array)
     const analytics = useMemo(() => {
         let active = 0;
         let totalSpent = 0;
@@ -104,7 +107,6 @@ export default function Orders() {
         uniqueOrders.forEach(order => {
             totalSpent += Number(order.amountPaid || order.totalAmount || 0);
             
-            // CRITICAL FIX: Robust Date Fallback for the Upcoming/Past calculation
             let eventTime;
             if (order.commence_time?.seconds) eventTime = order.commence_time.seconds * 1000;
             else if (order.commence_time) eventTime = new Date(order.commence_time).getTime();
@@ -112,7 +114,6 @@ export default function Orders() {
             else if (order.createdAt?.seconds) eventTime = order.createdAt.seconds * 1000;
             else eventTime = new Date(order.createdAt).getTime();
 
-            // Default to active if date parsing completely fails, preventing valid tickets from hiding in 'Past'
             if (isNaN(eventTime) || eventTime >= now) {
                 active += Number(order.quantity || 1);
             }
@@ -124,7 +125,6 @@ export default function Orders() {
     const filteredOrders = useMemo(() => {
         const now = new Date().getTime();
         return uniqueOrders.filter(order => {
-            // CRITICAL FIX: Tab Sorting Logic Hardening
             let eventTime;
             if (order.commence_time?.seconds) eventTime = order.commence_time.seconds * 1000;
             else if (order.commence_time) eventTime = new Date(order.commence_time).getTime();
@@ -132,14 +132,11 @@ export default function Orders() {
             else if (order.createdAt?.seconds) eventTime = order.createdAt.seconds * 1000;
             else eventTime = new Date(order.createdAt).getTime();
             
-            // If date cannot be resolved, assume it's Upcoming to avoid hiding fresh orders
             const isPast = !isNaN(eventTime) && eventTime < now;
             
-            // Tab Filter
             if (activeTab === 'Upcoming' && isPast) return false;
             if (activeTab === 'Past' && !isPast) return false;
             
-            // Search Filter
             if (searchQuery) {
                 const query = searchQuery.toLowerCase();
                 const eventName = (order.eventName || '').toLowerCase();
@@ -174,7 +171,6 @@ export default function Orders() {
         }
     };
 
-    // Animation Variants
     const containerVariants = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05 } } };
     const itemVariants = { hidden: { opacity: 0, y: 15 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } } };
 
@@ -184,7 +180,6 @@ export default function Orders() {
             
             <motion.div initial="hidden" animate="show" variants={containerVariants} className="relative z-10 w-full">
                 
-                {/* SECTION 6: Header & Analytics Dashboard */}
                 <div className="px-6 md:px-8 mb-8">
                     <motion.h1 variants={itemVariants} className="text-[32px] font-black text-[#333333] mb-6 tracking-tight leading-tight">
                         My Orders
@@ -210,12 +205,11 @@ export default function Orders() {
                                 <CheckCircle2 size={16} className="mr-2 text-[#E7364D]" />
                                 <span className="text-[13px] font-bold uppercase tracking-wider">Total Spent</span>
                             </div>
-                            <span className="text-[28px] font-black text-[#333333]">₹{analytics.totalSpent.toLocaleString()}</span>
+                            <span className="text-[28px] font-black text-[#333333]">INR {analytics.totalSpent.toLocaleString()}</span>
                         </div>
                     </motion.div>
                 </div>
                 
-                {/* SECTION 7: Interactive Tab Navigation & Search */}
                 <motion.div variants={itemVariants} className="flex flex-col md:flex-row md:items-center justify-between border-b border-[#A3A3A3]/20 mb-8 px-6 md:px-8 gap-4">
                     <div className="flex">
                         {['Upcoming', 'Past'].map((tab) => (
@@ -251,7 +245,6 @@ export default function Orders() {
                 </motion.div>
 
                 <div className="px-6 md:px-8">
-                    {/* SECTION 8: Real-Time Loading State Logic */}
                     {isLoadingOrders ? (
                         <div className="flex flex-col items-center justify-center py-20">
                             <Loader2 className="animate-spin text-[#E7364D] mb-4" size={32} />
@@ -259,19 +252,23 @@ export default function Orders() {
                         </div>
                     ) : filteredOrders.length > 0 ? (
                         
-                        /* SECTION 9: Populated Orders List */
                         <div className="space-y-6">
                             <AnimatePresence>
                                 {filteredOrders.map((order) => {
                                     const isPending = order.status === 'pending_approval' || order.paymentMethod === 'bank_transfer' || order.status === 'Pending';
                                     
-                                    // CRITICAL FIX: Safe Date Rendering for the UI Card
+                                    // FEATURE 12: Dual Timestamp Resolution
+                                    // 1. Transaction Date
+                                    let transactionDate;
+                                    if (order.createdAt?.seconds) transactionDate = order.createdAt.seconds * 1000;
+                                    else transactionDate = order.createdAt;
+
+                                    // 2. Scheduled Event Date
                                     let eventDate;
                                     if (order.commence_time?.seconds) eventDate = order.commence_time.seconds * 1000;
                                     else if (order.commence_time) eventDate = order.commence_time;
                                     else if (order.eventTimestamp) eventDate = order.eventTimestamp;
-                                    else if (order.createdAt?.seconds) eventDate = order.createdAt.seconds * 1000;
-                                    else eventDate = order.createdAt;
+                                    else eventDate = transactionDate; // Fallback only if totally missing
                                     
                                     return (
                                         <motion.div 
@@ -282,7 +279,6 @@ export default function Orders() {
                                             exit={{ opacity: 0, scale: 0.95 }}
                                             className="bg-[#FFFFFF] border border-[#A3A3A3]/20 rounded-[12px] overflow-hidden shadow-[0_4px_20px_rgba(51,51,51,0.03)] hover:shadow-[0_8px_30px_rgba(231,54,77,0.08)] hover:border-[#E7364D]/30 transition-all group"
                                         >
-                                            {/* Status Header */}
                                             <div className={`px-5 py-3 flex items-center justify-between border-b border-[#A3A3A3]/10 ${isPending ? 'bg-[#FAD8DC]/20' : 'bg-[#F5F5F5]'}`}>
                                                 <div className="flex items-center gap-2.5">
                                                     {isPending ? <AlertCircle size={16} className="text-[#EB5B6E]" /> : <CheckCircle2 size={16} className="text-[#E7364D]" />}
@@ -295,20 +291,33 @@ export default function Orders() {
                                                 </span>
                                             </div>
                                             
-                                            {/* Body */}
                                             <div className="p-6 flex flex-col md:flex-row gap-8">
                                                 <div className="flex-1 flex flex-col justify-between space-y-5">
                                                     <div>
                                                         <h3 className="text-[20px] font-black text-[#333333] leading-tight mb-3 group-hover:text-[#E7364D] transition-colors">{order.eventName || 'Booknshow Event'}</h3>
-                                                        <div className="flex items-center text-[14px] text-[#626262] font-medium mb-2">
-                                                            <Calendar size={16} className="mr-3 text-[#A3A3A3]" /> {formatDate(eventDate)}
+                                                        
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 bg-[#FAFAFA] p-3 rounded-[8px] border border-[#A3A3A3]/20">
+                                                            <div className="flex items-center text-[13px] text-[#626262] font-medium">
+                                                                <Clock size={16} className="mr-2 text-[#A3A3A3]" /> 
+                                                                <div>
+                                                                    <p className="text-[10px] font-bold uppercase tracking-widest text-[#A3A3A3]">Order Placed</p>
+                                                                    <p className="font-black text-[#333333]">{formatDate(transactionDate)}</p>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center text-[13px] text-[#626262] font-medium">
+                                                                <Calendar size={16} className="mr-2 text-[#E7364D]" /> 
+                                                                <div>
+                                                                    <p className="text-[10px] font-bold uppercase tracking-widest text-[#E7364D]">Event Date</p>
+                                                                    <p className="font-black text-[#333333]">{formatDate(eventDate)} {formatTime(eventDate)}</p>
+                                                                </div>
+                                                            </div>
                                                         </div>
-                                                        <div className="flex items-center text-[14px] text-[#626262] font-medium">
+
+                                                        <div className="flex items-center text-[14px] text-[#626262] font-medium mt-4">
                                                             <MapPin size={16} className="mr-3 text-[#A3A3A3]" /> {order.eventLoc || 'Venue TBA'}
                                                         </div>
                                                     </div>
                                                     
-                                                    {/* Action Bar */}
                                                     <div className="flex flex-wrap items-center gap-3 pt-5 border-t border-[#A3A3A3]/10">
                                                         <button 
                                                             disabled={isPending} 
@@ -326,7 +335,6 @@ export default function Orders() {
                                                     </div>
                                                 </div>
                                                 
-                                                {/* Ticket Summary Side-Panel */}
                                                 <div className="w-full md:w-[240px] bg-[#F5F5F5] rounded-[8px] border border-[#A3A3A3]/20 p-5 flex flex-col justify-center">
                                                     <div className="space-y-4">
                                                         <div>
@@ -339,7 +347,7 @@ export default function Orders() {
                                                         </div>
                                                         <div className="pt-3 border-t border-[#A3A3A3]/20">
                                                             <p className="text-[11px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-1">Total Paid</p>
-                                                            <p className="text-[18px] font-black text-[#E7364D]">₹{(Number(order.totalAmount || order.amountPaid) || 0).toLocaleString()}</p>
+                                                            <p className="text-[18px] font-black text-[#E7364D]">INR {(Number(order.totalAmount || order.amountPaid) || 0).toLocaleString()}</p>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -350,11 +358,9 @@ export default function Orders() {
                             </AnimatePresence>
                         </div>
                     ) : (
-                        /* SECTION 10: 1:1 Rebranded Troubleshooting Empty State */
                         <motion.div variants={itemVariants} className="w-full flex flex-col items-center md:items-start mt-4">
                             <div className="w-full max-w-[800px] border border-[#A3A3A3]/20 rounded-[12px] p-8 md:p-10 mb-10 bg-[#FFFFFF] shadow-[0_10px_40px_rgba(51,51,51,0.05)] relative overflow-hidden">
                                 
-                                {/* Empty State Decorator */}
                                 <div className="absolute top-0 right-0 w-[150px] h-[150px] bg-[#FAD8DC]/30 rounded-bl-full -z-0"></div>
                                 
                                 <div className="relative z-10">
@@ -408,44 +414,53 @@ export default function Orders() {
             {/* Ticket Modal */}
             <AnimatePresence>
                 {selectedTicket && (
-                    <div className="fixed inset-0 z-[999] flex items-center justify-center bg-[#333333]/80 backdrop-blur-sm p-4 overflow-y-auto">
+                    <div className="fixed inset-0 z-[990] flex items-center justify-center bg-[#333333]/80 backdrop-blur-sm p-4 overflow-y-auto">
                         <motion.div 
                             initial={{ scale: 0.95, opacity: 0 }} 
                             animate={{ scale: 1, opacity: 1 }} 
                             exit={{ opacity: 0 }} 
                             className="bg-transparent w-full max-w-md relative my-auto"
                         >
-                            {/* Close Button Outside Ticket to not be captured in PDF */}
                             <button onClick={() => setSelectedTicket(null)} className="absolute -top-12 right-0 text-[#FFFFFF] hover:text-[#E7364D] transition-colors bg-[#333333] p-2 rounded-full z-50 shadow-xl">
                                 <X size={24} />
                             </button>
 
-                            {/* The Digital Ticket Container (Captured by html2canvas) */}
                             <div ref={ticketRef} className="bg-[#FFFFFF] rounded-[16px] overflow-hidden shadow-2xl relative flex flex-col">
                                 
-                                {/* Dark Theme Ticket Header with Inverted Logo */}
                                 <div className="bg-[#333333] w-full pt-6 pb-5 flex flex-col justify-center items-center border-b-4 border-[#E7364D] relative overflow-hidden shrink-0">
                                     <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
                                     <BooknshowLogo textColor="#FFFFFF" className="scale-75 origin-center -mb-2" />
                                     <p className="text-[10px] text-[#A3A3A3] uppercase tracking-[0.2em] relative z-10 font-bold">Official Access Pass</p>
                                 </div>
 
-                                {/* Event Info */}
                                 <div className="p-6 md:p-8 bg-[#FFFFFF] relative flex-1 flex flex-col">
                                     <div className="mb-6 pb-6 border-b border-dashed border-[#A3A3A3]/40">
                                         <h2 className="text-[22px] font-black text-[#333333] leading-tight mb-4">{selectedTicket.eventName}</h2>
                                         
                                         <div className="space-y-3">
+                                            {/* FEATURE 12: Dual Timestamp Ticket Injection */}
                                             <div className="flex items-start gap-3">
-                                                <Calendar size={16} className="text-[#A3A3A3] mt-0.5 shrink-0" />
+                                                <Calendar size={16} className="text-[#E7364D] mt-0.5 shrink-0" />
                                                 <div>
-                                                    <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-0.5">Date & Time</p>
+                                                    <p className="text-[10px] font-bold text-[#E7364D] uppercase tracking-widest mb-0.5">Event Date</p>
                                                     <p className="text-[14px] font-black text-[#333333]">
                                                         {selectedTicket.commence_time?.seconds ? new Date(selectedTicket.commence_time.seconds * 1000).toLocaleString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 
-                                                         selectedTicket.createdAt?.seconds ? new Date(selectedTicket.createdAt.seconds * 1000).toLocaleString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Date TBA'}
+                                                         selectedTicket.commence_time ? new Date(selectedTicket.commence_time).toLocaleString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) :
+                                                         selectedTicket.eventTimestamp ? new Date(selectedTicket.eventTimestamp).toLocaleString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Date TBA'}
                                                     </p>
                                                 </div>
                                             </div>
+                                            <div className="flex items-start gap-3">
+                                                <Clock size={16} className="text-[#A3A3A3] mt-0.5 shrink-0" />
+                                                <div>
+                                                    <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-0.5">Order Placed</p>
+                                                    <p className="text-[14px] font-black text-[#626262]">
+                                                        {selectedTicket.createdAt?.seconds ? new Date(selectedTicket.createdAt.seconds * 1000).toLocaleString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }) : 
+                                                         selectedTicket.createdAt ? new Date(selectedTicket.createdAt).toLocaleString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }) : 'Unknown'}
+                                                    </p>
+                                                </div>
+                                            </div>
+
                                             <div className="flex items-start gap-3">
                                                 <MapPin size={16} className="text-[#A3A3A3] mt-0.5 shrink-0" />
                                                 <div>
@@ -456,7 +471,6 @@ export default function Orders() {
                                         </div>
                                     </div>
 
-                                    {/* Expanded Seat/Tier Grid */}
                                     <div className="grid grid-cols-2 gap-4 mb-6">
                                         <div className="bg-[#FAFAFA] p-3 rounded-[8px] border border-[#A3A3A3]/20">
                                             <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-1">Tier / Section</p>
@@ -467,16 +481,15 @@ export default function Orders() {
                                             <p className="text-[15px] font-black text-[#333333]">{selectedTicket.quantity} Person(s)</p>
                                         </div>
                                         
-                                        {/* CRITICAL FIX FEATURE 11: MICRO-TYPOGRAPHY FLEX LAYOUT FOR COMPLEX SEAT STRINGS */}
                                         <div className="bg-[#FAFAFA] p-3 rounded-[8px] border border-[#A3A3A3]/20 col-span-2">
                                             <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-1">Allocated Seats</p>
-                                            <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                            <div className="flex flex-wrap gap-1 mt-1">
                                                 {selectedTicket.seatNumbers && selectedTicket.seatNumbers.length > 0 ? (
                                                     selectedTicket.seatNumbers.map(seat => (
-                                                        <span key={seat} className="bg-[#E7364D] text-[#FFFFFF] px-1.5 py-0.5 rounded-[4px] text-[10px] font-black tracking-wider shadow-sm break-all">{seat}</span>
+                                                        <span key={seat} className="bg-[#E7364D] text-[#FFFFFF] px-1.5 py-0.5 rounded-[3px] text-[9px] font-black tracking-widest shadow-sm break-all inline-block">{seat}</span>
                                                     ))
                                                 ) : (
-                                                    <span className="text-[13px] font-bold text-[#626262]">General Admission / Unassigned</span>
+                                                    <span className="text-[11px] font-bold text-[#626262]">General Admission / Unassigned</span>
                                                 )}
                                             </div>
                                         </div>
@@ -487,38 +500,43 @@ export default function Orders() {
                                         </div>
                                     </div>
 
-                                    {/* Pricing Breakdown */}
                                     <div className="bg-[#FAFAFA] p-4 rounded-[8px] border border-[#A3A3A3]/20 mb-6">
                                         <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-3 border-b border-[#A3A3A3]/20 pb-2">Payment Summary</p>
                                         <div className="flex justify-between items-center mb-1">
                                             <span className="text-[13px] font-bold text-[#626262]">Subtotal & Fees</span>
-                                            <span className="text-[13px] font-bold text-[#333333]">₹{Math.round((Number(selectedTicket.totalAmount || selectedTicket.amountPaid) || 0) * 0.85).toLocaleString()}</span>
+                                            <span className="text-[13px] font-bold text-[#333333]">INR {Math.round((Number(selectedTicket.totalAmount || selectedTicket.amountPaid) || 0) * 0.85).toLocaleString()}</span>
                                         </div>
                                         <div className="flex justify-between items-center mb-3">
                                             <span className="text-[13px] font-bold text-[#626262]">Taxes (18%)</span>
-                                            <span className="text-[13px] font-bold text-[#333333]">₹{Math.round((Number(selectedTicket.totalAmount || selectedTicket.amountPaid) || 0) * 0.15).toLocaleString()}</span>
+                                            <span className="text-[13px] font-bold text-[#333333]">INR {Math.round((Number(selectedTicket.totalAmount || selectedTicket.amountPaid) || 0) * 0.15).toLocaleString()}</span>
                                         </div>
                                         <div className="flex justify-between items-center pt-2 border-t border-[#A3A3A3]/20">
                                             <span className="text-[14px] font-black text-[#333333]">Total Paid</span>
-                                            <span className="text-[16px] font-black text-[#E7364D]">₹{(Number(selectedTicket.totalAmount || selectedTicket.amountPaid) || 0).toLocaleString()}</span>
+                                            <span className="text-[16px] font-black text-[#E7364D]">INR {(Number(selectedTicket.totalAmount || selectedTicket.amountPaid) || 0).toLocaleString()}</span>
                                         </div>
                                     </div>
 
-                                    {/* QR Code Section */}
-                                    <div className="flex flex-col items-center justify-center p-4 bg-[#F5F5F5] rounded-[12px] border border-[#A3A3A3]/20 mt-auto">
-                                        <div className="bg-[#FFFFFF] p-2 rounded-[8px] shadow-sm mb-3">
+                                    {/* FEATURE 13: Interactive Tap-to-Zoom QR Trigger */}
+                                    <div className="flex flex-col items-center justify-center p-4 bg-[#F5F5F5] rounded-[12px] border border-[#A3A3A3]/20 mt-auto group">
+                                        <button 
+                                            onClick={() => setZoomedQR(`BOOKNSHOW_SECURE_${selectedTicket.id}`)}
+                                            className="bg-[#FFFFFF] p-2 rounded-[8px] shadow-sm mb-3 relative cursor-pointer hover:border-[#E7364D] border border-transparent transition-all"
+                                            title="Tap to enlarge for gate scanner"
+                                        >
                                             <QRCodeSVG value={`BOOKNSHOW_SECURE_${selectedTicket.id}`} size={120} fgColor="#333333" level="H" />
-                                        </div>
+                                            <div className="absolute inset-0 bg-[#FFFFFF]/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-[8px] backdrop-blur-[1px]">
+                                                <Maximize2 size={24} className="text-[#E7364D]" />
+                                            </div>
+                                        </button>
                                         <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-0.5">Ticket ID</p>
                                         <p className="text-[14px] font-mono font-black text-[#333333] tracking-widest">{selectedTicket.id.substring(0, 12).toUpperCase()}</p>
+                                        <p className="text-[10px] font-bold text-[#E7364D] uppercase tracking-widest mt-3 flex items-center"><Maximize2 size={10} className="mr-1"/> Tap QR code to zoom for scanner</p>
                                     </div>
                                 </div>
                                 
-                                {/* Bottom Perforation Visual */}
                                 <div className="h-4 w-full bg-[radial-gradient(circle,transparent_4px,#FFFFFF_4px)] bg-[length:16px_16px] -mt-2 shrink-0"></div>
                             </div>
 
-                            {/* Download Button (Outside the PDF capture area) */}
                             <div className="mt-6">
                                 <button 
                                     onClick={handleDownloadTicket} 
@@ -529,6 +547,29 @@ export default function Orders() {
                                     {isDownloading ? 'Generating PDF...' : 'Download E-Ticket'}
                                 </button>
                             </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* FEATURE 13: Fullscreen Max-Brightness QR Zoom Overlay */}
+            <AnimatePresence>
+                {zoomedQR && (
+                    <div className="fixed inset-0 z-[1000] flex flex-col items-center justify-center bg-[#FFFFFF] p-6">
+                        <button onClick={() => setZoomedQR(null)} className="absolute top-6 right-6 text-[#333333] hover:text-[#E7364D] transition-colors p-2 bg-[#F5F5F5] rounded-full">
+                            <X size={32} />
+                        </button>
+                        
+                        <motion.div 
+                            initial={{ scale: 0.8, opacity: 0 }} 
+                            animate={{ scale: 1, opacity: 1 }} 
+                            exit={{ scale: 0.8, opacity: 0 }}
+                            className="bg-[#FFFFFF] p-8 rounded-[24px] shadow-[0_20px_60px_rgba(51,51,51,0.15)] flex flex-col items-center border border-[#A3A3A3]/20"
+                        >
+                            <QRCodeSVG value={zoomedQR} size={300} fgColor="#000000" level="H" includeMargin={true} />
+                            <h2 className="text-[20px] font-black text-[#333333] mt-8 tracking-widest uppercase border-b-2 border-[#E7364D] pb-2">Ready for Scan</h2>
+                            <p className="text-[13px] font-bold text-[#626262] mt-3">Present this code directly to the gate steward.</p>
+                            <p className="text-[11px] font-bold text-[#A3A3A3] mt-1">Please maximize your screen brightness.</p>
                         </motion.div>
                     </div>
                 )}
