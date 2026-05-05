@@ -4,8 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import { 
     Calendar, Search, ShieldCheck, Download, 
     MoreVertical, Lock, Ticket, MapPin, 
-    AlertTriangle, CheckCircle2, Eye, X, RefreshCcw, Clock
+    AlertTriangle, CheckCircle2, Eye, X, RefreshCcw, Clock, ShieldAlert, Check
 } from 'lucide-react';
+import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
 
 // Global Stores
 import { useAdminStore } from '../../store/useAdminStore';
@@ -26,6 +28,7 @@ import { useMainStore } from '../../store/useMainStore';
  * SECTION 8: Interactive Moderation Modal
  * SECTION 9: CSV Global Export Engine
  * FEATURE 10: Strict Route Gatekeeper
+ * FEATURE 11: Seat Availability Override Engine (Admin Block/Release)
  */
 
 const formatDate = (timestamp) => {
@@ -43,6 +46,23 @@ const safeGetTime = (val) => {
 };
 
 const generateShortHash = (id) => id ? id.substring(0, 8).toUpperCase() : '00000000';
+
+// High-Fidelity Inline SVG Replica of Official Booknshow Logo
+const BooknshowLogo = ({ className = "", textColor = "#FFFFFF" }) => {
+    const fillHex = textColor.includes('#') ? textColor.match(/#(?:[0-9a-fA-F]{3,8})/)[0] : "#FFFFFF";
+    return (
+        <div className={`flex items-center justify-center select-none relative z-10 ${className}`}>
+            <svg viewBox="0 0 400 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-[40px] transform hover:scale-[1.02] transition-transform duration-300">
+                <text x="10" y="70" fontFamily="Inter, sans-serif" fontSize="64" fontWeight="800" fill={fillHex} letterSpacing="-2">book</text>
+                <g transform="translate(170, 10) rotate(-12)">
+                    <path d="M0,0 L16,10 L32,0 L48,10 L64,0 L80,10 L80,95 L60,95 A20,20 0 0,0 20,95 L0,95 Z" fill="#E7364D" />
+                    <text x="21" y="72" fontFamily="Inter, sans-serif" fontSize="60" fontWeight="900" fill="#FFFFFF">n</text>
+                </g>
+                <text x="250" y="70" fontFamily="Inter, sans-serif" fontSize="64" fontWeight="800" fill={fillHex} letterSpacing="-2">show</text>
+            </svg>
+        </div>
+    );
+};
 
 // SECTION 1: Ambient Background
 const AmbientBackground = () => (
@@ -71,6 +91,11 @@ export default function AdminEvents() {
     const [searchTerm, setSearchTerm] = useState('');
     const [timelineFilter, setTimelineFilter] = useState('All');
     const [selectedEvent, setSelectedEvent] = useState(null);
+    
+    // Seat Override States
+    const [seatTarget, setSeatTarget] = useState('');
+    const [isUpdatingSeat, setIsUpdatingSeat] = useState(false);
+    const [seatMsg, setSeatMsg] = useState('');
 
     // FEATURE 10: Security Gatekeeper
     useEffect(() => {
@@ -137,6 +162,16 @@ export default function AdminEvents() {
         };
     }, [allEvents, searchTerm, timelineFilter]);
 
+    // Update Local Selected Event when the global store updates to reflect seat changes
+    useEffect(() => {
+        if (selectedEvent) {
+            const updated = allEvents.find(e => e.id === selectedEvent.id);
+            if (updated) {
+                setSelectedEvent(prev => ({ ...prev, bookedSeats: updated.bookedSeats || [] }));
+            }
+        }
+    }, [allEvents]);
+
     // SECTION 9: CSV Export Engine
     const handleDownloadCSV = () => {
         if (processedEvents.length === 0) return alert("No data to export.");
@@ -153,6 +188,45 @@ export default function AdminEvents() {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+    };
+
+    // FEATURE 11: Seat Override Handlers
+    const handleOverrideSeat = async (action) => {
+        if (!seatTarget || !selectedEvent) return;
+        
+        // Normalize input: e.g., "a1", " A1 ", "A-1" to "A1"
+        const normalizedSeat = seatTarget.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+        
+        if (!normalizedSeat) {
+            setSeatMsg('Invalid seat format.');
+            setTimeout(() => setSeatMsg(''), 3000);
+            return;
+        }
+
+        setIsUpdatingSeat(true);
+        setSeatMsg('');
+
+        try {
+            const eventRef = doc(db, 'events', selectedEvent.id);
+            
+            if (action === 'block') {
+                await updateDoc(eventRef, {
+                    bookedSeats: arrayUnion(normalizedSeat)
+                });
+                setSeatMsg(`${normalizedSeat} blocked successfully.`);
+            } else if (action === 'release') {
+                await updateDoc(eventRef, {
+                    bookedSeats: arrayRemove(normalizedSeat)
+                });
+                setSeatMsg(`${normalizedSeat} released successfully.`);
+            }
+            setSeatTarget('');
+            setTimeout(() => setSeatMsg(''), 3000);
+        } catch (error) {
+            setSeatMsg(`Error: ${error.message}`);
+        } finally {
+            setIsUpdatingSeat(false);
+        }
     };
 
     // Animation Config
@@ -323,10 +397,10 @@ export default function AdminEvents() {
                 {selectedEvent && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[#333333]/80 backdrop-blur-sm" onClick={() => setSelectedEvent(null)} />
-                        <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative bg-[#FFFFFF] rounded-[16px] w-full max-w-2xl overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.2)]">
+                        <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative bg-[#FFFFFF] rounded-[16px] w-full max-w-2xl overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.2)] flex flex-col max-h-[90vh]">
                             <button onClick={() => setSelectedEvent(null)} className="absolute top-4 right-4 text-[#FFFFFF] hover:text-[#E7364D] transition-colors z-20 bg-[#333333]/50 p-1 rounded-full backdrop-blur-md"><X size={24} /></button>
                             
-                            <div className="h-48 w-full relative bg-[#F5F5F5]">
+                            <div className="h-40 w-full relative bg-[#F5F5F5] shrink-0">
                                 <img src={selectedEvent.imageUrl || "https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=800"} alt="Event Cover" className="w-full h-full object-cover" />
                                 <div className="absolute inset-0 bg-gradient-to-t from-[#333333] to-transparent"></div>
                                 <div className="absolute bottom-4 left-6 right-6">
@@ -337,7 +411,7 @@ export default function AdminEvents() {
                                 </div>
                             </div>
 
-                            <div className="p-6 md:p-8 max-h-[60vh] overflow-y-auto">
+                            <div className="p-6 md:p-8 overflow-y-auto flex-1">
                                 <div className="grid grid-cols-2 gap-6 mb-8">
                                     <div>
                                         <p className="text-[11px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-1">Date & Time</p>
@@ -354,6 +428,56 @@ export default function AdminEvents() {
                                     <div>
                                         <p className="text-[11px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-1">Total Capacity</p>
                                         <p className="text-[14px] font-bold text-[#333333]">{selectedEvent.capacity} Tickets</p>
+                                    </div>
+                                </div>
+
+                                {/* FEATURE 11: Seat Override Engine */}
+                                <div className="bg-[#F5F5F5] border border-[#A3A3A3]/20 rounded-[8px] p-5 mb-8">
+                                    <h4 className="flex items-center text-[14px] font-black text-[#333333] uppercase tracking-wider mb-2"><ShieldAlert size={16} className="mr-2 text-[#E7364D]"/> Seat Availability Override</h4>
+                                    <p className="text-[12px] text-[#626262] font-medium leading-relaxed mb-4">Manually block or release specific seat numbers (e.g., "A1", "B5"). This forces updates to the live map.</p>
+                                    
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <input 
+                                            type="text" 
+                                            placeholder="Seat No. (e.g., A1)"
+                                            value={seatTarget}
+                                            onChange={(e) => setSeatTarget(e.target.value.toUpperCase())}
+                                            className="bg-[#FFFFFF] border border-[#A3A3A3]/40 focus:border-[#E7364D] rounded-[6px] px-3 py-2 text-[14px] font-black text-[#333333] outline-none w-32"
+                                            maxLength={4}
+                                        />
+                                        <button 
+                                            onClick={() => handleOverrideSeat('block')}
+                                            disabled={!seatTarget || isUpdatingSeat}
+                                            className="bg-[#333333] text-[#FFFFFF] px-4 py-2 rounded-[6px] text-[12px] font-black uppercase tracking-widest disabled:opacity-50 hover:bg-[#E7364D] transition-colors"
+                                        >
+                                            Force Block
+                                        </button>
+                                        <button 
+                                            onClick={() => handleOverrideSeat('release')}
+                                            disabled={!seatTarget || isUpdatingSeat}
+                                            className="bg-[#FFFFFF] border border-[#333333] text-[#333333] px-4 py-2 rounded-[6px] text-[12px] font-black uppercase tracking-widest disabled:opacity-50 hover:bg-[#F5F5F5] transition-colors"
+                                        >
+                                            Release
+                                        </button>
+                                    </div>
+                                    
+                                    {seatMsg && (
+                                        <p className="text-[12px] font-bold text-[#E7364D]">{seatMsg}</p>
+                                    )}
+
+                                    <div className="mt-4 pt-4 border-t border-[#A3A3A3]/20">
+                                        <p className="text-[11px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-2">Currently Blocked / Sold Seats</p>
+                                        <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto pr-2">
+                                            {selectedEvent.bookedSeats && selectedEvent.bookedSeats.length > 0 ? (
+                                                selectedEvent.bookedSeats.map(seat => (
+                                                    <span key={seat} className="bg-[#E5E5E5] text-[#626262] border border-[#A3A3A3]/20 px-2 py-1 rounded-[4px] text-[11px] font-black tracking-widest shadow-sm">
+                                                        {seat}
+                                                    </span>
+                                                ))
+                                            ) : (
+                                                <span className="text-[12px] font-medium text-[#626262]">No seats currently blocked.</span>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
 
@@ -380,8 +504,10 @@ export default function AdminEvents() {
                                         <p className="text-[16px] font-black text-[#E7364D]">₹{Number(selectedEvent.price).toLocaleString()}</p>
                                     </div>
                                 )}
-
-                                <div className="flex gap-4 pt-6 border-t border-[#A3A3A3]/20">
+                            </div>
+                            
+                            <div className="p-6 bg-[#FFFFFF] border-t border-[#A3A3A3]/20 shrink-0">
+                                <div className="flex gap-4">
                                     <button className="flex-1 bg-[#333333] text-[#FFFFFF] py-3.5 rounded-[8px] font-bold text-[14px] hover:bg-[#626262] transition-colors flex items-center justify-center">
                                         <ShieldCheck size={18} className="mr-2"/> Approve Listing
                                     </button>

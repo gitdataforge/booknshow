@@ -25,7 +25,7 @@ import { QRCodeSVG } from 'qrcode.react';
  * FEATURE 7: Transaction Status Trackers (Pending vs Confirmed)
  * FEATURE 8: 1:1 Rebranded Troubleshooting Empty State
  * FEATURE 9: Resale Portal Triggers
- * FEATURE 10: Strict Array Deduplication & Expanded PDF Layout
+ * FEATURE 10: Strict Array Deduplication, Expanded PDF Layout & Exact SVG Logo
  */
 
 // Safe Date Formatter
@@ -441,13 +441,28 @@ export default function Orders() {
                                             <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-1">Admit</p>
                                             <p className="text-[15px] font-black text-[#333333]">{selectedTicket.quantity} Person(s)</p>
                                         </div>
+                                        
+                                        {/* CRITICAL FIX: DYNAMIC SEAT ALLOCATION RENDERED IN TICKET */}
+                                        <div className="bg-[#FAFAFA] p-3 rounded-[8px] border border-[#A3A3A3]/20 col-span-2">
+                                            <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-1">Allocated Seats</p>
+                                            <div className="flex flex-wrap gap-2 mt-1">
+                                                {selectedTicket.seatNumbers && selectedTicket.seatNumbers.length > 0 ? (
+                                                    selectedTicket.seatNumbers.map(seat => (
+                                                        <span key={seat} className="bg-[#E7364D] text-[#FFFFFF] px-2 py-0.5 rounded-[4px] text-[12px] font-black tracking-wide shadow-sm">{seat}</span>
+                                                    ))
+                                                ) : (
+                                                    <span className="text-[13px] font-bold text-[#626262]">General Admission / Unassigned</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        
                                         <div className="bg-[#FAFAFA] p-3 rounded-[8px] border border-[#A3A3A3]/20 col-span-2">
                                             <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-1">Buyer Details</p>
                                             <p className="text-[14px] font-black text-[#333333] truncate">{selectedTicket.buyerName || selectedTicket.buyerEmail || user?.email}</p>
                                         </div>
                                     </div>
 
-                                    {/* CRITICAL FIX: Pricing Breakdown included in the PDF layout */}
+                                    {/* Pricing Breakdown */}
                                     <div className="bg-[#FAFAFA] p-4 rounded-[8px] border border-[#A3A3A3]/20 mb-6">
                                         <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-3 border-b border-[#A3A3A3]/20 pb-2">Payment Summary</p>
                                         <div className="flex justify-between items-center mb-1">

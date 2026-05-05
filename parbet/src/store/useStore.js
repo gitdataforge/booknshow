@@ -47,6 +47,7 @@ const getCurrencyFromCountry = (countryCode) => {
  * FEATURE 15: Strict Singleton Network Interceptor (Fixes infinite QUIC loops)
  * FEATURE 16: Admin Config Hydration (Home Banners)
  * FEATURE 17: Expanded Viagogo Checkout Schema (Billing, Gifts, Timer States)
+ * FEATURE 18: Real-Time Seat Allocation Sync (Firestore onSnapshot Listener)
  */
 
 export const useAppStore = create((set, get) => ({
@@ -109,7 +110,11 @@ export const useAppStore = create((set, get) => ({
     isCheckoutLocked: false,
     reservedListing: null,
     checkoutSessionId: null,
-    isTimerStarted: false, // NEW: Controls the 10-minute Viagogo UI modal lock
+    isTimerStarted: false, 
+    
+    // FEATURE 18: Real-Time Seat Synchronization State
+    realTimeBookedSeats: [],
+    unsubscribeSeatListener: null,
     
     // FEATURE 17: Expanded Form Payload matching 1:1 Viagogo Checkout
     checkoutFormData: {
@@ -159,9 +164,41 @@ export const useAppStore = create((set, get) => ({
     explorePriceFilter: 'Price',
 
     // ------------------------------------------------------------------
+    // REAL-TIME SEAT ENGINE (FEATURE 18)
+    // ------------------------------------------------------------------
+    startSeatListener: (eventId) => {
+        const state = get();
+        if (state.unsubscribeSeatListener) {
+            state.unsubscribeSeatListener(); // Clear existing listener
+        }
+        
+        if (!eventId) return;
+
+        const eventRef = doc(db, 'events', eventId);
+        const unsubscribe = onSnapshot(eventRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                set({ realTimeBookedSeats: data.bookedSeats || [] });
+            }
+        }, (error) => {
+            console.error("[SeatMap Sync] Firestore listener failed:", error);
+        });
+
+        set({ unsubscribeSeatListener: unsubscribe });
+    },
+
+    stopSeatListener: () => {
+        const state = get();
+        if (state.unsubscribeSeatListener) {
+            state.unsubscribeSeatListener();
+            set({ unsubscribeSeatListener: null, realTimeBookedSeats: [] });
+        }
+    },
+
+    // ------------------------------------------------------------------
     // HEADER DROPDOWNS & NOTIFICATION ENGINE
     // ------------------------------------------------------------------
-    activeDropdown: null, // Tracks: 'sell', 'tickets', 'profile', 'notifications', or null
+    activeDropdown: null, 
     notifications: [],
     unreadNotificationCount: 0,
     unsubscribeNotifications: null,
@@ -288,13 +325,13 @@ export const useAppStore = create((set, get) => ({
             reservedListing: listingData,
             checkoutSessionId: sessionId,
             checkoutStep: 1,
-            isTimerStarted: false // Require user to click "Start"
+            isTimerStarted: false 
         });
-        // We no longer auto-start the timer here; the UI button triggers `startCheckoutTimer`
         console.log(`[Security Protocol] Checkout Hydrated & Locked: ${sessionId}`);
     },
 
     cancelReservation: () => {
+        get().stopSeatListener(); // Ensure listener dies if user backs out
         set({
             isCheckoutLocked: false,
             reservedListing: null,
@@ -355,13 +392,16 @@ export const useAppStore = create((set, get) => ({
         set({ checkoutExpiration: tenMinutesFromNow, isTimerStarted: true });
     },
     
-    resetCheckoutTimer: () => set({ 
-        checkoutExpiration: null, 
-        checkoutStep: 1, 
-        isCheckoutLocked: false,
-        isTimerStarted: false,
-        reservedListing: null 
-    }),
+    resetCheckoutTimer: () => {
+        get().stopSeatListener();
+        set({ 
+            checkoutExpiration: null, 
+            checkoutStep: 1, 
+            isCheckoutLocked: false,
+            isTimerStarted: false,
+            reservedListing: null 
+        });
+    },
 
     // ------------------------------------------------------------------
     // FIREBASE SYNC & ATOMIC TRANSACTIONS
@@ -615,6 +655,7 @@ export const useAppStore = create((set, get) => ({
                 });
             });
 
+            get().stopSeatListener(); // Clean up listener after successful checkout
             set({ isCheckingOut: false, isCheckoutLocked: false, reservedListing: null, isTimerStarted: false });
             return { success: true };
         } catch (error) {
