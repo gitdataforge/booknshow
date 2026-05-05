@@ -9,6 +9,7 @@ import {
     getDocs, 
     runTransaction, 
     doc, 
+    getDoc,
     addDoc,
     setDoc,
     onSnapshot,
@@ -48,11 +49,16 @@ const getCurrencyFromCountry = (countryCode) => {
  * FEATURE 16: Admin Config Hydration (Home Banners)
  * FEATURE 17: Expanded Viagogo Checkout Schema (Billing, Gifts, Timer States)
  * FEATURE 18: Real-Time Seat Allocation Sync (Firestore onSnapshot Listener)
+ * FEATURE 19: Strict Role-Based Access Control (RBAC) Architecture
  */
 
 export const useAppStore = create((set, get) => ({
     // User & Authentication
     user: null, 
+    
+    // FEATURE 19: Strict RBAC Role State
+    userRole: 'guest', // Can be 'guest', 'buyer', 'seller', 'admin'
+    
     balance: 0, 
     diamonds: 0,
     hasOnboarded: localStorage.getItem('parbet_onboarded') === 'true',
@@ -272,18 +278,46 @@ export const useAppStore = create((set, get) => ({
         if (!status) {
             const unsub = get().unsubscribeNotifications;
             if (unsub) unsub();
-            set({ notifications: [], unreadNotificationCount: 0, unsubscribeNotifications: null, activeDropdown: null });
+            set({ notifications: [], unreadNotificationCount: 0, unsubscribeNotifications: null, activeDropdown: null, userRole: 'guest' });
         }
     },
     
-    setUser: (user) => {
+    // FEATURE 19: Modified setUser to securely fetch role from firestore
+    setUser: async (user) => {
         set({ user });
         if (user) {
             get().initNotificationsListener();
+            
+            try {
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                const userDocRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data');
+                const userDocSnap = await getDoc(userDocRef);
+                
+                if (userDocSnap.exists()) {
+                    const userData = userDocSnap.data();
+                    
+                    // Admin Override Array
+                    const adminEmails = ['testcodecfg@gmail.com', 'krishnamehta.gm@gmail.com', 'jatinseth.op@gmail.com', 'jachinfotech@gmail.com'];
+                    
+                    if (user.email && adminEmails.includes(user.email.toLowerCase())) {
+                        set({ userRole: 'admin' });
+                    } else if (userData.role === 'seller' || userData.isSeller === true) {
+                        set({ userRole: 'seller' });
+                    } else {
+                        set({ userRole: 'buyer' });
+                    }
+                } else {
+                    set({ userRole: 'buyer' });
+                }
+            } catch (error) {
+                console.error("[RBAC] Failed to resolve user role:", error);
+                set({ userRole: 'buyer' });
+            }
+
         } else {
             const unsub = get().unsubscribeNotifications;
             if (unsub) unsub();
-            set({ notifications: [], unreadNotificationCount: 0, unsubscribeNotifications: null, activeDropdown: null });
+            set({ notifications: [], unreadNotificationCount: 0, unsubscribeNotifications: null, activeDropdown: null, userRole: 'guest' });
         }
     },
 
