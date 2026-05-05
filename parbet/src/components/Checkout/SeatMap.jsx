@@ -8,19 +8,20 @@ import {
 } from 'lucide-react';
 
 /**
- * GLOBAL REBRAND: Booknshow Interactive Stadium Matrix (Phase 12)
+ * GLOBAL REBRAND: Booknshow Interactive Stadium Matrix (Phase 13)
  * Enforced Colors: #FFFFFF, #E7364D, #333333, #EB5B6E, #FAD8DC, #A3A3A3, #626262
  * 
  * --- 10+ REAL FEATURES & 9+ SECTIONS ---
  * SECTION 1: Ambient Illustrative Backgrounds
  * SECTION 2: Header & Brand Real-estate
- * SECTION 3: Macro-Level Stand Selector (North, South, East, West)
- * SECTION 4: Meso-Level Block/Tier Selector (Upper/Lower)
- * SECTION 5: Micro-Level Exact Seat Matrix (Rows A-Z, Seats 1-50)
+ * SECTION 3: Macro-Level Stand Selector (Dynamic from Seller Config)
+ * SECTION 4: Meso-Level Block/Tier Selector (Dynamic from Seller Config)
+ * SECTION 5: Micro-Level Exact Seat Matrix (Dynamic Generation)
  * SECTION 6: The Pitch Visualizer (Orientation Context)
  * SECTION 7: Intelligent Legend & VIP Mapping
  * SECTION 8: Live Selection Summary Pane
  * SECTION 9: 10+ Dynamic Event Guidelines & Security Protocols
+ * FEATURE 10: Dynamic JSON Config Injector (Replaces Hardcoded Array)
  */
 
 // Official Booknshow Logo Component
@@ -56,12 +57,12 @@ const AmbientBackground = () => (
     </div>
 );
 
-// Realistic 2026 Indian Stadium Architecture Config
-const STADIUM_CONFIG = [
-    { id: 'NORTH', name: 'North Pavilion', type: 'Premium / VIP', color: '#E7364D', blocks: ['LOWER-A', 'UPPER-A', 'UPPER-B'] },
-    { id: 'SOUTH', name: 'South Pavilion', type: 'Members Enclosure', color: '#333333', blocks: ['LOWER-A', 'LOWER-B', 'UPPER-A'] },
-    { id: 'EAST', name: 'East Stand', type: 'General Admission', color: '#626262', blocks: ['LOWER-A', 'LOWER-B', 'LOWER-C', 'UPPER-A', 'UPPER-B'] },
-    { id: 'WEST', name: 'West Stand', type: 'General Admission', color: '#A3A3A3', blocks: ['LOWER-A', 'LOWER-B', 'LOWER-C', 'UPPER-A', 'UPPER-B'] }
+// Fallback Default Config (Used if Seller did not provide a custom layout)
+const DEFAULT_CONFIG = [
+    { id: 'NORTH', name: 'North Pavilion', type: 'Premium / VIP', color: '#E7364D', blocks: [{ id: 'LOWER-A', rows: 10, seatsPerRow: 20 }, { id: 'UPPER-A', rows: 15, seatsPerRow: 30 }] },
+    { id: 'SOUTH', name: 'South Pavilion', type: 'Members', color: '#333333', blocks: [{ id: 'LOWER-A', rows: 12, seatsPerRow: 25 }] },
+    { id: 'EAST', name: 'East Stand', type: 'General', color: '#626262', blocks: [{ id: 'LOWER-A', rows: 20, seatsPerRow: 40 }] },
+    { id: 'WEST', name: 'West Stand', type: 'General', color: '#A3A3A3', blocks: [{ id: 'LOWER-A', rows: 20, seatsPerRow: 40 }] }
 ];
 
 export default function SeatMap({ 
@@ -69,24 +70,30 @@ export default function SeatMap({
     bookedSeats = [], 
     selectedQty = 1, 
     selectedSeats = [], 
-    onSeatSelect 
+    onSeatSelect,
+    customConfig = null // FEATURE 10: Inject dynamic seller payload here
 }) {
+    const activeConfig = customConfig || DEFAULT_CONFIG;
+
     // Drill-down UI States
     const [activeStand, setActiveStand] = useState(null);
     const [activeBlock, setActiveBlock] = useState(null);
     const [errorMsg, setErrorMsg] = useState('');
     const [seatGrid, setSeatGrid] = useState([]);
 
-    // Generate specific matrix when a block is selected
+    // Generate specific matrix when a block is selected based on Dynamic Config
     useEffect(() => {
         if (activeStand && activeBlock) {
-            // Realistic block size: Rows A-M (13 rows), 30 seats per row
-            const rows = 13; 
-            const seatsPerRow = 30;
+            
+            // Find specific block configuration, fallback to default sizing if missing
+            const blockConfig = activeStand.blocks.find(b => (typeof b === 'string' ? b : b.id) === activeBlock);
+            const rows = blockConfig?.rows || 13; 
+            const seatsPerRow = blockConfig?.seatsPerRow || 30;
+            
             const grid = [];
             
             for (let r = 0; r < rows; r++) {
-                const rowLabel = String.fromCharCode(65 + r); // A, B, C...
+                const rowLabel = String.fromCharCode(65 + (r % 26)) + (r >= 26 ? Math.floor(r/26) : ''); // A, B... Z, A1, B1
                 const rowSeats = [];
                 for (let c = 1; c <= seatsPerRow; c++) {
                     // String Format: NORTH-UPPER-A-R_F-S10
@@ -95,7 +102,7 @@ export default function SeatMap({
                         id: seatId,
                         shortId: c,
                         row: rowLabel,
-                        isPremium: r < 3, // Rows A-C are premium
+                        isPremium: r < 3, // First 3 rows are always visually marked premium
                         isBooked: bookedSeats.includes(seatId),
                     });
                 }
@@ -198,17 +205,17 @@ export default function SeatMap({
                                 </div>
                                 
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full">
-                                    {STADIUM_CONFIG.map(stand => (
+                                    {activeConfig.map(stand => (
                                         <button 
                                             key={stand.id}
                                             onClick={() => setActiveStand(stand)}
                                             className="bg-[#FFFFFF] border border-[#A3A3A3]/30 p-5 rounded-[12px] flex flex-col items-center text-center hover:border-[#E7364D] hover:shadow-[0_8px_30px_rgba(231,54,77,0.1)] transition-all group"
                                         >
-                                            <div className="w-10 h-10 rounded-full mb-3 flex items-center justify-center" style={{ backgroundColor: `${stand.color}20`, color: stand.color }}>
+                                            <div className="w-10 h-10 rounded-full mb-3 flex items-center justify-center" style={{ backgroundColor: `${stand.color || '#333333'}20`, color: stand.color || '#333333' }}>
                                                 <MapPin size={20} />
                                             </div>
                                             <h3 className="font-black text-[#333333] text-[16px] mb-1">{stand.name}</h3>
-                                            <p className="text-[11px] font-bold uppercase tracking-widest text-[#A3A3A3]">{stand.type}</p>
+                                            <p className="text-[11px] font-bold uppercase tracking-widest text-[#A3A3A3]">{stand.type || 'Standard'}</p>
                                         </button>
                                     ))}
                                 </div>
@@ -223,17 +230,20 @@ export default function SeatMap({
                                     <p className="text-[#626262] font-medium">Select a designated tier or block to view available seats.</p>
                                 </div>
                                 <div className="flex flex-wrap justify-center gap-4 w-full max-w-3xl">
-                                    {activeStand.blocks.map(block => (
-                                        <button 
-                                            key={block}
-                                            onClick={() => setActiveBlock(block)}
-                                            className="bg-[#FAFAFA] border border-[#A3A3A3]/30 px-8 py-6 rounded-[8px] hover:border-[#E7364D] hover:bg-[#FFFFFF] hover:shadow-md transition-all flex flex-col items-center min-w-[160px]"
-                                        >
-                                            <ZoomIn size={24} className="text-[#333333] mb-3 opacity-50" />
-                                            <span className="font-black text-[18px] text-[#333333]">{block.replace('-', ' ')}</span>
-                                            <span className="text-[12px] font-bold text-[#A3A3A3] mt-1">Tap to Expand Grid</span>
-                                        </button>
-                                    ))}
+                                    {activeStand.blocks && activeStand.blocks.map((blockObj, idx) => {
+                                        const blockId = typeof blockObj === 'string' ? blockObj : blockObj.id;
+                                        return (
+                                            <button 
+                                                key={blockId || idx}
+                                                onClick={() => setActiveBlock(blockId)}
+                                                className="bg-[#FAFAFA] border border-[#A3A3A3]/30 px-8 py-6 rounded-[8px] hover:border-[#E7364D] hover:bg-[#FFFFFF] hover:shadow-md transition-all flex flex-col items-center min-w-[160px]"
+                                            >
+                                                <ZoomIn size={24} className="text-[#333333] mb-3 opacity-50" />
+                                                <span className="font-black text-[18px] text-[#333333]">{blockId.replace('-', ' ')}</span>
+                                                <span className="text-[12px] font-bold text-[#A3A3A3] mt-1">Tap to Expand Grid</span>
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                             </motion.div>
                         )}
