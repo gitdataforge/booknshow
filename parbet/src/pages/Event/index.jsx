@@ -36,6 +36,7 @@ import AdminEditEventModal from '../../components/AdminEditEventModal';
  * FEATURE 11: Real-Time Admin Identity Verification
  * FEATURE 12: Native Auth Redirection (Fixes phantom openAuthModal dead clicks)
  * FEATURE 13: Failsafe Window Redirect Fallback (Forces checkout if navigate() is swallowed)
+ * FEATURE 14: Dynamic Live Seat Prop-Drilling to Interactive Map
  */
 
 // Utility to strictly label dates based on the real-time API
@@ -156,7 +157,8 @@ export default function Event() {
                     eventTimestamp: normalizedTimestamp,
                     stadium: normalizedStadium,
                     location: normalizedLocation,
-                    ticketTiers: synthesizedTiers
+                    ticketTiers: synthesizedTiers,
+                    bookedSeats: rawData.bookedSeats || [] // explicitly pull the live seat array
                 };
 
                 setEventData(mappedData);
@@ -198,7 +200,9 @@ export default function Event() {
             quantity: selectedTicketQuantity,
             tierName: tier.name,
             sellerId: eventData.sellerId || 'system',
-            imageUrl: eventData.imageUrl
+            imageUrl: eventData.imageUrl,
+            bookedSeats: eventData.bookedSeats || [], // Carry live seat data forward
+            commence_time: eventData.eventTimestamp
         };
 
         if (!isAuthenticated) {
@@ -380,10 +384,12 @@ export default function Event() {
                 
                 {/* Left Side: Interactive Stadium Map */}
                 <div className="hidden lg:flex flex-1 relative flex-col bg-[#F5F5F5] border-r border-[#A3A3A3]/20">
+                    {/* CRITICAL FIX: Pass down the live bookedSeats array from the firestore listener */}
                     <InteractiveStadiumMap 
                         activeSection={activeSection} 
                         onSectionSelect={setActiveSection} 
-                        category={eventData?.sportCategory} 
+                        category={eventData?.sportCategory}
+                        bookedSeats={eventData?.bookedSeats || []}
                     />
                 </div>
 

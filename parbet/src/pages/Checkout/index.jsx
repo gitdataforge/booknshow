@@ -28,7 +28,7 @@ import SeatMap from '../../components/Checkout/SeatMap';
  * FEATURE 6: Interactive Real-Time SeatMap Integration (Step 3)
  * FEATURE 7: Automatic Commence Time Payload Sync (Fixes Past Tab Bug)
  * FEATURE 8: Firestore ArrayUnion Seat Locking Engine
- * FEATURE 9: Selected Seat Summary Visualizer
+ * FEATURE 9: Selected Seat Summary Visualizer (Handles Complex Stadium Strings)
  * FEATURE 10: AES-256 Client-Side Representation
  */
 
