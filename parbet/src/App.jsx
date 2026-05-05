@@ -18,6 +18,9 @@ import Footer from './components/Footer';
 import ProfileLayout from './layouts/ProfileLayout'; 
 import InactivityTimeout from './components/InactivityTimeout'; 
 
+// FEATURE 19: Security Gatekeeper
+import ProtectedRoute from './components/ProtectedRoute';
+
 // Page Components
 import Home from './pages/Home';
 import Maintenance from './pages/Maintenance';
@@ -40,6 +43,10 @@ import AdminUsers from './pages/Admin/Users';
 import AdminFinancials from './pages/Admin/Financials';
 import AdminEvents from './pages/Admin/Events';
 
+// PHASE 20: SELLER NODES (Placeholder components pending creation)
+const SellerDashboard = () => <div className="p-10 font-black">Seller Dashboard (Pending)</div>;
+const SellerCreateEvent = () => <div className="p-10 font-black">Seller Configurator (Pending)</div>;
+
 // PHASE 10: CHECKOUT NODES
 import Checkout from './pages/Checkout';
 import CheckoutSuccess from './pages/Checkout/Success';
@@ -55,14 +62,14 @@ function MainLayout() {
     const location = useLocation();
     
     // FEATURE: Security Gatekeeper Props
-    const { isAuthenticated, isAdmin } = useMainStore();
+    const { isAuthenticated } = useMainStore();
     
     // Strict Route Identification
     const isProfilePath = location.pathname.toLowerCase().startsWith('/profile');
     const isAdminPath = location.pathname.toLowerCase().startsWith('/admin');
+    const isSellerPath = location.pathname.toLowerCase().startsWith('/seller');
     
     // FEATURE: Isolation Engine (Hides Header/Footer)
-    // ADDED: /checkout and /checkout/success for distraction-free transaction flow
     const isIsolatedPage = ['/event', '/login', '/signup', '/checkout', '/checkout/success'].some(path => 
         location.pathname.toLowerCase().startsWith(path)
     );
@@ -71,7 +78,7 @@ function MainLayout() {
     const isExplorePage = location.pathname.toLowerCase() === '/explore' || location.pathname.toLowerCase().startsWith('/explore/');
     
     // Header Separation Logic
-    const hideGlobalHeader = isIsolatedPage || isProfilePath || isAdminPath;
+    const hideGlobalHeader = isIsolatedPage || isProfilePath || isAdminPath || isSellerPath;
 
     return (
         <InactivityTimeout>
@@ -83,7 +90,7 @@ function MainLayout() {
                     isExplorePage ? <ExploreHeader /> : <Header />
                 )}
                 
-                <main className={`flex-1 w-full mx-auto ${(isIsolatedPage || isProfilePath || isAdminPath) ? '' : 'max-w-[1400px] p-0'}`}>
+                <main className={`flex-1 w-full mx-auto ${(isIsolatedPage || isProfilePath || isAdminPath || isSellerPath) ? '' : 'max-w-[1400px] p-0'}`}>
                     <Routes>
                         <Route path="/" element={<Home />} />
                         
@@ -93,13 +100,27 @@ function MainLayout() {
                         <Route path="/checkout" element={isAuthenticated ? <Checkout /> : <Navigate to="/login" replace />} />
                         <Route path="/checkout/success" element={isAuthenticated ? <CheckoutSuccess /> : <Navigate to="/login" replace />} />
                         
-                        {/* PHASE 9: STRICT ADMIN SECURITY PIPELINE */}
-                        <Route path="/admin">
-                            <Route index element={(isAuthenticated && isAdmin) ? <AdminDashboard /> : <Navigate to="/" replace />} />
-                            <Route path="users" element={(isAuthenticated && isAdmin) ? <AdminUsers /> : <Navigate to="/" replace />} />
-                            <Route path="financials" element={(isAuthenticated && isAdmin) ? <AdminFinancials /> : <Navigate to="/" replace />} />
-                            <Route path="events" element={(isAuthenticated && isAdmin) ? <AdminEvents /> : <Navigate to="/" replace />} />
-                        </Route>
+                        {/* PHASE 20: STRICT SELLER PIPELINE (Wrapped in Gatekeeper) */}
+                        <Route path="/seller/*" element={
+                            <ProtectedRoute allowedRoles={['seller', 'admin']}>
+                                <Routes>
+                                    <Route index element={<SellerDashboard />} />
+                                    <Route path="create" element={<SellerCreateEvent />} />
+                                </Routes>
+                            </ProtectedRoute>
+                        } />
+
+                        {/* PHASE 9: STRICT ADMIN SECURITY PIPELINE (Wrapped in Gatekeeper) */}
+                        <Route path="/admin/*" element={
+                            <ProtectedRoute allowedRoles={['admin']}>
+                                <Routes>
+                                    <Route index element={<AdminDashboard />} />
+                                    <Route path="users" element={<AdminUsers />} />
+                                    <Route path="financials" element={<AdminFinancials />} />
+                                    <Route path="events" element={<AdminEvents />} />
+                                </Routes>
+                            </ProtectedRoute>
+                        } />
                         
                         {/* PROFILE PIPELINE: Appended /* to explicitly permit nested routing */}
                         <Route path="/profile/*" element={isAuthenticated ? <ProfileLayout /> : <Navigate to="/login" replace />}>
@@ -116,7 +137,7 @@ function MainLayout() {
 
                         {dynamicRoutes.map(({ name, Component }) => {
                             // Skip pages already handled by static routes or excluded
-                            if (['Home', 'Maintenance', 'Profile', 'Dashboard', 'Performer', 'Admin', 'Checkout'].includes(name)) return null;
+                            if (['Home', 'Maintenance', 'Profile', 'Dashboard', 'Performer', 'Admin', 'Checkout', 'Seller'].includes(name)) return null;
 
                             // Protect Legacy Dashboard
                             if (name === 'Dashboard') {
@@ -131,7 +152,7 @@ function MainLayout() {
                     </Routes>
                 </main>
                 
-                {!isIsolatedPage && !isAdminPath && <Footer />}
+                {!isIsolatedPage && !isAdminPath && !isSellerPath && <Footer />}
                 <LocationToast />
             </div>
         </InactivityTimeout>
