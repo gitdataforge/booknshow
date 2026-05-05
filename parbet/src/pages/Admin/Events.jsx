@@ -28,7 +28,7 @@ import { useMainStore } from '../../store/useMainStore';
  * SECTION 8: Interactive Moderation Modal
  * SECTION 9: CSV Global Export Engine
  * FEATURE 10: Strict Route Gatekeeper
- * FEATURE 11: Seat Availability Override Engine (Admin Block/Release)
+ * FEATURE 11: Seat Availability Override Engine (Handles Complex Stadium Strings)
  */
 
 const formatDate = (timestamp) => {
@@ -194,8 +194,8 @@ export default function AdminEvents() {
     const handleOverrideSeat = async (action) => {
         if (!seatTarget || !selectedEvent) return;
         
-        // Normalize input: e.g., "a1", " A1 ", "A-1" to "A1"
-        const normalizedSeat = seatTarget.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+        // CRITICAL FIX: Allow complex strings like "NORTH-UPPER-A-R_F-S10"
+        const normalizedSeat = seatTarget.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
         
         if (!normalizedSeat) {
             setSeatMsg('Invalid seat format.');
@@ -434,28 +434,27 @@ export default function AdminEvents() {
                                 {/* FEATURE 11: Seat Override Engine */}
                                 <div className="bg-[#F5F5F5] border border-[#A3A3A3]/20 rounded-[8px] p-5 mb-8">
                                     <h4 className="flex items-center text-[14px] font-black text-[#333333] uppercase tracking-wider mb-2"><ShieldAlert size={16} className="mr-2 text-[#E7364D]"/> Seat Availability Override</h4>
-                                    <p className="text-[12px] text-[#626262] font-medium leading-relaxed mb-4">Manually block or release specific seat numbers (e.g., "A1", "B5"). This forces updates to the live map.</p>
+                                    <p className="text-[12px] text-[#626262] font-medium leading-relaxed mb-4">Manually block or release specific seat numbers (e.g., "NORTH-UPPER-A-R_F-S10"). This forces updates to the live map.</p>
                                     
                                     <div className="flex items-center gap-3 mb-4">
                                         <input 
                                             type="text" 
-                                            placeholder="Seat No. (e.g., A1)"
+                                            placeholder="Seat Format (e.g., NORTH-UPPER-A-R_F-S10)"
                                             value={seatTarget}
                                             onChange={(e) => setSeatTarget(e.target.value.toUpperCase())}
-                                            className="bg-[#FFFFFF] border border-[#A3A3A3]/40 focus:border-[#E7364D] rounded-[6px] px-3 py-2 text-[14px] font-black text-[#333333] outline-none w-32"
-                                            maxLength={4}
+                                            className="bg-[#FFFFFF] border border-[#A3A3A3]/40 focus:border-[#E7364D] rounded-[6px] px-3 py-2 text-[12px] font-mono font-black text-[#333333] outline-none flex-1"
                                         />
                                         <button 
                                             onClick={() => handleOverrideSeat('block')}
                                             disabled={!seatTarget || isUpdatingSeat}
-                                            className="bg-[#333333] text-[#FFFFFF] px-4 py-2 rounded-[6px] text-[12px] font-black uppercase tracking-widest disabled:opacity-50 hover:bg-[#E7364D] transition-colors"
+                                            className="bg-[#333333] text-[#FFFFFF] px-4 py-2 rounded-[6px] text-[12px] font-black uppercase tracking-widest disabled:opacity-50 hover:bg-[#E7364D] transition-colors shrink-0"
                                         >
                                             Force Block
                                         </button>
                                         <button 
                                             onClick={() => handleOverrideSeat('release')}
                                             disabled={!seatTarget || isUpdatingSeat}
-                                            className="bg-[#FFFFFF] border border-[#333333] text-[#333333] px-4 py-2 rounded-[6px] text-[12px] font-black uppercase tracking-widest disabled:opacity-50 hover:bg-[#F5F5F5] transition-colors"
+                                            className="bg-[#FFFFFF] border border-[#333333] text-[#333333] px-4 py-2 rounded-[6px] text-[12px] font-black uppercase tracking-widest disabled:opacity-50 hover:bg-[#F5F5F5] transition-colors shrink-0"
                                         >
                                             Release
                                         </button>
@@ -467,10 +466,10 @@ export default function AdminEvents() {
 
                                     <div className="mt-4 pt-4 border-t border-[#A3A3A3]/20">
                                         <p className="text-[11px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-2">Currently Blocked / Sold Seats</p>
-                                        <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto pr-2">
+                                        <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto pr-2">
                                             {selectedEvent.bookedSeats && selectedEvent.bookedSeats.length > 0 ? (
                                                 selectedEvent.bookedSeats.map(seat => (
-                                                    <span key={seat} className="bg-[#E5E5E5] text-[#626262] border border-[#A3A3A3]/20 px-2 py-1 rounded-[4px] text-[11px] font-black tracking-widest shadow-sm">
+                                                    <span key={seat} className="bg-[#E5E5E5] text-[#626262] border border-[#A3A3A3]/20 px-2 py-1 rounded-[4px] text-[10px] font-mono font-black tracking-widest shadow-sm">
                                                         {seat}
                                                     </span>
                                                 ))
