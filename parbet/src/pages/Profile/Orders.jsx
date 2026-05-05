@@ -28,6 +28,7 @@ import { QRCodeSVG } from 'qrcode.react';
  * FEATURE 11: Micro-Typography Flex Layout for Complex Seat Strings
  * FEATURE 12: Dual-Timestamp Architecture (Booking Date vs Event Date)
  * FEATURE 13: Interactive High-Brightness QR Zoom Modal for Scanner Gates
+ * FEATURE 14: Dynamic Stadium String Parser (Formats raw DB strings into human-readable ticket blocks)
  */
 
 const formatDate = (isoString) => {
@@ -42,6 +43,21 @@ const formatTime = (isoString) => {
     const d = new Date(isoString);
     if (isNaN(d)) return '';
     return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+};
+
+// FEATURE 14: Formats raw DB strings (e.g., NORTH-UPPER-A-R_A-S10) to human readable (NORTH UPPER A • Row A • Seat 10)
+const formatSeatLabel = (seatStr) => {
+    if (!seatStr || !seatStr.includes('-')) return seatStr;
+    try {
+        const parts = seatStr.split('-');
+        if (parts.length < 3) return seatStr.replace(/_/g, ' ');
+        const seatInfo = parts.pop(); 
+        const rowInfo = parts.pop(); 
+        const blockInfo = parts.join(' ');
+        return `${blockInfo.replace(/_/g, ' ')} • Row ${rowInfo.replace('R_', '')} • Seat ${seatInfo.replace('S', '')}`;
+    } catch (e) {
+        return seatStr; // Fallback to raw string if parsing fails
+    }
 };
 
 const AmbientBackground = () => (
@@ -483,10 +499,13 @@ export default function Orders() {
                                         
                                         <div className="bg-[#FAFAFA] p-3 rounded-[8px] border border-[#A3A3A3]/20 col-span-2">
                                             <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-1">Allocated Seats</p>
-                                            <div className="flex flex-wrap gap-1 mt-1">
+                                            <div className="flex flex-wrap gap-1.5 mt-1.5">
                                                 {selectedTicket.seatNumbers && selectedTicket.seatNumbers.length > 0 ? (
                                                     selectedTicket.seatNumbers.map(seat => (
-                                                        <span key={seat} className="bg-[#E7364D] text-[#FFFFFF] px-1.5 py-0.5 rounded-[3px] text-[9px] font-black tracking-widest shadow-sm break-all inline-block">{seat}</span>
+                                                        // FEATURE 14: Injection of the formatting utility for the PDF render
+                                                        <span key={seat} className="bg-[#E7364D] text-[#FFFFFF] px-2 py-1 rounded-[4px] text-[10px] font-black tracking-widest shadow-sm break-words inline-block text-center border border-[#E7364D]/50">
+                                                            {formatSeatLabel(seat)}
+                                                        </span>
                                                     ))
                                                 ) : (
                                                     <span className="text-[11px] font-bold text-[#626262]">General Admission / Unassigned</span>
