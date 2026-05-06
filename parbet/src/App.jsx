@@ -36,14 +36,16 @@ import Settings from './pages/Profile/Settings';
 import Wallet from './pages/Profile/Wallet';
 import Support from './pages/Profile/Support'; 
 import Faqs from './pages/Profile/Faqs';       
+import UserTickets from './pages/Profile/Tickets'; // NEW: User Ticket Ledger
 
 // PHASE 9: GOD-MODE ADMIN NODES
 import AdminDashboard from './pages/Admin/Dashboard';
 import AdminUsers from './pages/Admin/Users';
 import AdminFinancials from './pages/Admin/Financials';
 import AdminEvents from './pages/Admin/Events';
+import SupportDesk from './pages/Admin/SupportDesk'; // NEW: Admin Support Desk
 
-// PHASE 20: SELLER NODES (Actual Physical Imports)
+// PHASE 20: SELLER NODES
 import SellerDashboard from './pages/Seller/Dashboard';
 import SellerCreateEvent from './pages/Seller/CreateEvent';
 
@@ -62,7 +64,7 @@ function MainLayout() {
     const location = useLocation();
     
     // FEATURE: Security Gatekeeper Props
-    const { isAuthenticated } = useMainStore();
+    const { isAuthenticated, user } = useMainStore();
     
     // Strict Route Identification
     const isProfilePath = location.pathname.toLowerCase().startsWith('/profile');
@@ -118,6 +120,12 @@ function MainLayout() {
                                     <Route path="users" element={<AdminUsers />} />
                                     <Route path="financials" element={<AdminFinancials />} />
                                     <Route path="events" element={<AdminEvents />} />
+                                    <Route path="support" element={
+                                        // EXTRA LAYER: Verify specific email for Support Desk
+                                        user?.email === 'testcodecfg@gmail.com' || user?.email === 'krishnamehta.gm@gmail.com' || user?.email === 'jatinseth.op@gmail.com' || user?.email === 'jachinfotech@gmail.com' 
+                                            ? <SupportDesk /> 
+                                            : <Navigate to="/admin" replace />
+                                    } />
                                 </Routes>
                             </ProtectedRoute>
                         } />
@@ -133,6 +141,7 @@ function MainLayout() {
                             <Route path="wallet" element={<Wallet />} />
                             <Route path="support" element={<Support />} /> 
                             <Route path="faqs" element={<Faqs />} />       
+                            <Route path="tickets" element={<UserTickets />} /> {/* NEW TICKET LEDGER */}
                         </Route>
 
                         {dynamicRoutes.map(({ name, Component }) => {
