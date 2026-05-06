@@ -5,7 +5,7 @@ import {
     Send, Loader2, LifeBuoy, Zap, ChevronRight, User, AlertCircle, X,
     AlertTriangle, ShieldCheck
 } from 'lucide-react';
-import { collection, query, orderBy, onSnapshot, doc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc, updateDoc, addDoc, serverTimestamp, collectionGroup } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useMainStore } from '../../store/useMainStore';
 import { useNavigate } from 'react-router-dom';
@@ -14,7 +14,7 @@ import { useNavigate } from 'react-router-dom';
  * GLOBAL REBRAND: Booknshow Identity Application (Phase 10 Admin Support Desk)
  * Enforced Colors: #FFFFFF, #E7364D, #333333, #EB5B6E, #FAD8DC, #A3A3A3, #626262
  * FEATURE 1: Secure Admin Role Gatekeeper (Strict Redirect)
- * FEATURE 2: Real-Time Global Ticket Ledger Hydration
+ * FEATURE 2: Real-Time Global Ticket Ledger Hydration (collectionGroup fix)
  * FEATURE 3: Dynamic Search & Status Filtering Engine
  * FEATURE 4: Multi-Tier Priority Badging
  * FEATURE 5: Real-Time Notification Injection Engine
@@ -23,14 +23,15 @@ import { useNavigate } from 'react-router-dom';
  * FEATURE 8: 1:1 Booknshow Enterprise Form Components
  */
 
+// FIXED: Logo explicitly configured for Dark Background visibility
 const BooknshowLogo = ({ className = "h-8" }) => (
     <svg viewBox="0 0 400 100" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-        <text x="10" y="70" fontFamily="Inter, sans-serif" fontSize="64" fontWeight="800" fill="#333333" letterSpacing="-2">book</text>
+        <text x="10" y="70" fontFamily="Inter, sans-serif" fontSize="64" fontWeight="800" fill="#FFFFFF" letterSpacing="-2">book</text>
         <g transform="translate(170, 10) rotate(-12)">
             <path d="M0,0 L16,10 L32,0 L48,10 L64,0 L80,10 L80,95 L60,95 A20,20 0 0,0 20,95 L0,95 Z" fill="#E7364D" />
             <text x="21" y="72" fontFamily="Inter, sans-serif" fontSize="60" fontWeight="900" fill="#FFFFFF">n</text>
         </g>
-        <text x="250" y="70" fontFamily="Inter, sans-serif" fontSize="64" fontWeight="800" fill="#333333" letterSpacing="-2">show</text>
+        <text x="250" y="70" fontFamily="Inter, sans-serif" fontSize="64" fontWeight="800" fill="#FFFFFF" letterSpacing="-2">show</text>
     </svg>
 );
 
@@ -84,28 +85,29 @@ export default function SupportDesk() {
         }
     }, [user, navigate]);
 
-    // FEATURE 2: Real-Time Global Ticket Ledger Hydration
+    // FEATURE 2: Real-Time Global Ticket Ledger Hydration (FIXED QUERY)
     useEffect(() => {
         if (!user) return;
 
-        const ticketsRef = collection(db, 'artifacts', appId, 'support_tickets');
-        // We query all tickets and sort them by createdAt descending. The firestore rule protects this.
+        // FIXED: Using collectionGroup to globally scoop all support_tickets regardless of specific sub-path nesting depth
+        const ticketsRef = collectionGroup(db, 'support_tickets');
         const q = query(ticketsRef, orderBy('createdAt', 'desc'));
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const fetchedTickets = [];
             snapshot.forEach((doc) => {
-                fetchedTickets.push({ id: doc.id, ...doc.data() });
+                // Must explicitly map doc.ref.path so we know EXACTLY where to write the reply later
+                fetchedTickets.push({ id: doc.id, path: doc.ref.path, ...doc.data() });
             });
             setTickets(fetchedTickets);
             setIsLoading(false);
         }, (error) => {
-            console.error("Admin Ticket Sync Error:", error);
+            console.error("Admin Ticket Sync Error (Check collectionGroup index):", error);
             setIsLoading(false);
         });
 
         return () => unsubscribe();
-    }, [user, appId]);
+    }, [user]);
 
     const showToast = (message, type = 'success') => {
         setToast({ show: true, message, type });
@@ -152,8 +154,8 @@ export default function SupportDesk() {
 
         setIsSubmitting(true);
         try {
-            // 1. Update the original ticket status
-            const ticketRef = doc(db, 'artifacts', appId, 'support_tickets', selectedTicket.id);
+            // 1. Update the original ticket status using its exact absolute path from collectionGroup
+            const ticketRef = doc(db, selectedTicket.path);
             await updateDoc(ticketRef, {
                 status: 'Closed',
                 adminReply: replyText,
