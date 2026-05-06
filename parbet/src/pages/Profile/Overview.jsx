@@ -4,7 +4,8 @@ import { motion } from 'framer-motion';
 import { 
     Ticket, IndianRupee, ArrowRight, Clock, 
     Calendar, MapPin, ShieldCheck, User, TrendingUp, AlertCircle,
-    CheckCircle2, Activity, Share2, Smartphone, Timer, Zap, ChevronRight
+    CheckCircle2, Activity, Share2, Smartphone, Timer, Zap, ChevronRight,
+    LifeBuoy
 } from 'lucide-react';
 import { useMainStore } from '../../store/useMainStore';
 
@@ -23,6 +24,7 @@ import { useMainStore } from '../../store/useMainStore';
  * FEATURE 10: Real-Time IP Geolocation Connected Devices Tracker
  * FEATURE 11: One-Click Profile Sharing Hook
  * FEATURE 12: Strict Active Ticket & Next Event Calculation (Firestore Timestamp Safe)
+ * FEATURE 13: Added User Ticket Tracking Quick Action
  */
 
 const formatShortDate = (isoString) => {
@@ -288,18 +290,17 @@ export default function Overview() {
                     )}
                 </motion.div>
 
-                {/* SECTION 4 & 5: Top Statistics Grid (Tickets & Escrow) */}
-                <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* FEATURE 13: Updated Statistics Grid including Tickets */}
+                <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="bg-[#FFFFFF] border border-[#A3A3A3]/20 rounded-[16px] p-6 shadow-sm hover:shadow-[0_10px_30px_rgba(51,51,51,0.08)] transition-all flex flex-col justify-between relative overflow-hidden group">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-[#F5F5F5] rounded-full blur-[40px] -mr-10 -mt-10 opacity-60 group-hover:bg-[#FAD8DC]/40 transition-colors"></div>
                         <div className="relative z-10">
                             <div className="w-12 h-12 bg-[#F5F5F5] rounded-[10px] flex items-center justify-center mb-5 border border-[#A3A3A3]/20 group-hover:border-[#E7364D]/30 transition-colors">
                                 <Ticket size={24} className="text-[#333333] group-hover:text-[#E7364D] transition-colors" />
                             </div>
-                            <h3 className="text-[16px] font-bold text-[#626262] mb-1">Total Active Tickets</h3>
+                            <h3 className="text-[16px] font-bold text-[#626262] mb-1">Total Active Orders</h3>
                             <div className="flex items-end gap-3 mb-6">
                                 <p className="text-[36px] font-black text-[#333333] leading-none">{analytics.active}</p>
-                                <p className="text-[13px] font-medium text-[#A3A3A3] mb-1">reserved passes</p>
                             </div>
                         </div>
                         <button onClick={() => navigate('/profile/orders')} className="relative z-10 w-full py-3 bg-[#F5F5F5] text-[#333333] text-[14px] font-bold rounded-[8px] hover:bg-[#333333] hover:text-[#FFFFFF] transition-colors border border-[#A3A3A3]/20 flex items-center justify-center">
@@ -313,15 +314,32 @@ export default function Overview() {
                             <div className="w-12 h-12 bg-[#FAD8DC]/30 rounded-[10px] flex items-center justify-center mb-5 border border-[#E7364D]/20">
                                 <IndianRupee size={24} className="text-[#E7364D]" />
                             </div>
-                            <h3 className="text-[16px] font-bold text-[#626262] mb-1">Available Escrow Balance</h3>
+                            <h3 className="text-[16px] font-bold text-[#626262] mb-1">Escrow Balance</h3>
                             <div className="flex items-end gap-3 mb-6">
-                                <p className="text-[36px] font-black text-[#333333] leading-none">
+                                <p className="text-[28px] font-black text-[#333333] leading-none truncate">
                                     {wallet?.currency || '₹'} {escrowBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </p>
                             </div>
                         </div>
                         <button onClick={() => navigate('/profile/sales')} className="relative z-10 w-full py-3 bg-[#E7364D] text-[#FFFFFF] text-[14px] font-bold rounded-[8px] hover:bg-[#EB5B6E] transition-colors shadow-sm flex items-center justify-center">
                             Withdraw Funds <TrendingUp size={16} className="ml-2" />
+                        </button>
+                    </div>
+
+                    {/* NEW: Support Tickets Card */}
+                    <div className="bg-[#FFFFFF] border border-[#A3A3A3]/20 rounded-[16px] p-6 shadow-sm hover:shadow-[0_10px_30px_rgba(51,51,51,0.08)] transition-all flex flex-col justify-between relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-[#333333]/5 rounded-full blur-[40px] -mr-10 -mt-10 opacity-60 group-hover:bg-[#E7364D]/10 transition-colors"></div>
+                        <div className="relative z-10">
+                            <div className="w-12 h-12 bg-[#FAFAFA] rounded-[10px] flex items-center justify-center mb-5 border border-[#A3A3A3]/20 group-hover:border-[#333333]/30 transition-colors">
+                                <LifeBuoy size={24} className="text-[#333333]" />
+                            </div>
+                            <h3 className="text-[16px] font-bold text-[#626262] mb-1">Support Desk</h3>
+                            <div className="flex items-end gap-3 mb-6">
+                                <p className="text-[13px] font-bold text-[#333333] leading-tight">View inquiries and admin replies</p>
+                            </div>
+                        </div>
+                        <button onClick={() => navigate('/profile/tickets')} className="relative z-10 w-full py-3 bg-[#333333] text-[#FFFFFF] text-[14px] font-bold rounded-[8px] hover:bg-[#E7364D] transition-colors shadow-sm flex items-center justify-center">
+                            View Tickets <ArrowRight size={16} className="ml-2" />
                         </button>
                     </div>
                 </motion.div>
