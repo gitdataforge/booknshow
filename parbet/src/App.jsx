@@ -43,9 +43,9 @@ import AdminUsers from './pages/Admin/Users';
 import AdminFinancials from './pages/Admin/Financials';
 import AdminEvents from './pages/Admin/Events';
 
-// PHASE 20: SELLER NODES (Placeholder components pending creation)
-const SellerDashboard = () => <div className="p-10 font-black">Seller Dashboard (Pending)</div>;
-const SellerCreateEvent = () => <div className="p-10 font-black">Seller Configurator (Pending)</div>;
+// PHASE 20: SELLER NODES (Actual Physical Imports)
+import SellerDashboard from './pages/Seller/Dashboard';
+import SellerCreateEvent from './pages/Seller/CreateEvent';
 
 // PHASE 10: CHECKOUT NODES
 import Checkout from './pages/Checkout';
