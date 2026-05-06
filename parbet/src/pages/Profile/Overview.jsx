@@ -22,7 +22,7 @@ import { useMainStore } from '../../store/useMainStore';
  * FEATURE 9: Recent Activity Ledger Feed (Deduplicated)
  * FEATURE 10: Real-Time IP Geolocation Connected Devices Tracker
  * FEATURE 11: One-Click Profile Sharing Hook
- * FEATURE 12: Interactive Hardware-Accelerated Progress Bars
+ * FEATURE 12: Strict Active Ticket & Next Event Calculation (Firestore Timestamp Safe)
  */
 
 const formatShortDate = (isoString) => {
@@ -34,11 +34,11 @@ const formatShortDate = (isoString) => {
 
 export default function Overview() {
     const navigate = useNavigate();
-    const { user, orders, wallet } = useMainStore();
+    const { user, profile, orders, wallet, withdrawals } = useMainStore();
     const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, mins: 0 });
     const [sessionLocation, setSessionLocation] = useState('Detecting location...');
 
-    // deduplicate orders globally for accurate analytics and display
+    // Deduplicate orders globally for accurate analytics and display
     const uniqueOrders = useMemo(() => {
         if (!orders) return [];
         const seen = new Set();
@@ -56,29 +56,48 @@ export default function Overview() {
         return 'Good evening';
     }, []);
 
+    // FEATURE 12: Strict Upcoming Event Parsing isolating event date from purchase date
     const upcomingEvent = useMemo(() => {
         if (uniqueOrders.length === 0) return null;
         const now = new Date().getTime();
+
         const futureOrders = uniqueOrders.filter(o => {
-            const eventTime = new Date(o.commence_time?.seconds ? o.commence_time.seconds * 1000 : o.commence_time || o.eventTimestamp || o.createdAt?.seconds ? o.createdAt.seconds * 1000 : o.createdAt).getTime();
-            return isNaN(eventTime) || eventTime >= now;
+            let eventTime;
+            if (o.commence_time?.seconds) eventTime = o.commence_time.seconds * 1000;
+            else if (o.commence_time) eventTime = new Date(o.commence_time).getTime();
+            else if (o.eventTimestamp) eventTime = new Date(o.eventTimestamp).getTime();
+
+            // Strict fallback logic isolation: 
+            // If the event lacks a commence_time, we MUST NOT use createdAt to verify if it's active. 
+            // If eventTime is unparseable or missing, we err on the side of caution and keep it Active.
+            return !eventTime || isNaN(eventTime) || eventTime >= now;
         });
         
         if (futureOrders.length === 0) return null;
 
         futureOrders.sort((a, b) => {
-            const timeA = new Date(a.commence_time?.seconds ? a.commence_time.seconds * 1000 : a.commence_time || a.eventTimestamp || a.createdAt?.seconds ? a.createdAt.seconds * 1000 : a.createdAt).getTime();
-            const timeB = new Date(b.commence_time?.seconds ? b.commence_time.seconds * 1000 : b.commence_time || b.eventTimestamp || b.createdAt?.seconds ? b.createdAt.seconds * 1000 : b.createdAt).getTime();
+            let timeA = a.commence_time?.seconds ? a.commence_time.seconds * 1000 : (a.commence_time ? new Date(a.commence_time).getTime() : Number.MAX_SAFE_INTEGER);
+            let timeB = b.commence_time?.seconds ? b.commence_time.seconds * 1000 : (b.commence_time ? new Date(b.commence_time).getTime() : Number.MAX_SAFE_INTEGER);
             return timeA - timeB;
         });
 
-        return futureOrders[0];
+        const nextEvt = futureOrders[0];
+        
+        // Safely parse time for the UI display, falling back to createdAt solely for rendering text, NOT logic
+        let parsedTime;
+        if (nextEvt.commence_time?.seconds) parsedTime = nextEvt.commence_time.seconds * 1000;
+        else if (nextEvt.commence_time) parsedTime = new Date(nextEvt.commence_time).getTime();
+        else if (nextEvt.eventTimestamp) parsedTime = new Date(nextEvt.eventTimestamp).getTime();
+        else if (nextEvt.createdAt?.seconds) parsedTime = nextEvt.createdAt.seconds * 1000;
+        else parsedTime = new Date(nextEvt.createdAt).getTime();
+
+        return { ...nextEvt, parsedTime };
     }, [uniqueOrders]);
 
     // Live Event Countdown Timer
     useEffect(() => {
         if (!upcomingEvent) return;
-        const targetTime = new Date(upcomingEvent.commence_time?.seconds ? upcomingEvent.commence_time.seconds * 1000 : upcomingEvent.commence_time || upcomingEvent.eventTimestamp).getTime();
+        const targetTime = upcomingEvent.parsedTime;
         if (isNaN(targetTime)) return;
 
         const interval = setInterval(() => {
@@ -129,7 +148,7 @@ export default function Overview() {
         fetchLocation();
     }, []);
 
-    // Analytics Calculation Logic using deduplicated orders
+    // FEATURE 12: Analytics Calculation Logic strictly separated from createdAt bug
     const analytics = useMemo(() => {
         let active = 0;
         let totalSpent = 0;
@@ -137,8 +156,13 @@ export default function Overview() {
         
         uniqueOrders.forEach(order => {
             totalSpent += Number(order.totalAmount || order.amountPaid || 0);
-            const eventTime = new Date(order.commence_time?.seconds ? order.commence_time.seconds * 1000 : order.commence_time || order.eventTimestamp || order.createdAt?.seconds ? order.createdAt.seconds * 1000 : order.createdAt).getTime();
-            if (!isNaN(eventTime) && eventTime >= now) {
+            
+            let eventTime;
+            if (order.commence_time?.seconds) eventTime = order.commence_time.seconds * 1000;
+            else if (order.commence_time) eventTime = new Date(order.commence_time).getTime();
+            else if (order.eventTimestamp) eventTime = new Date(order.eventTimestamp).getTime();
+            
+            if (!eventTime || isNaN(eventTime) || eventTime >= now) {
                 active += Number(order.quantity || 1);
             }
         });
@@ -146,14 +170,27 @@ export default function Overview() {
         return { active, totalSpent };
     }, [uniqueOrders]);
 
+    const escrowBalance = useMemo(() => {
+        if (!profile?.escrowWallet) return 0;
+        let available = Number(profile.escrowWallet) || 0;
+        if (withdrawals) {
+            withdrawals.forEach(w => {
+                if (w.status === 'pending' || w.status === 'processing') {
+                    available -= (Number(w.amount) || 0);
+                }
+            });
+        }
+        return available > 0 ? available : 0;
+    }, [profile, withdrawals]);
+
     // Profile Strength Calculator
     const profileStrength = useMemo(() => {
         let score = 25; 
         if (user?.emailVerified) score += 25;
-        if (wallet?.bankAdded) score += 25; 
+        if (wallet?.bankAdded || profile?.bankDetails?.accountNumber) score += 25; 
         if (uniqueOrders?.length > 0) score += 25;
         return score;
-    }, [user, wallet, uniqueOrders]);
+    }, [user, wallet, profile, uniqueOrders]);
 
     // Share Profile Hook
     const handleShareProfile = async () => {
@@ -201,6 +238,7 @@ export default function Overview() {
     return (
         <div className="w-full relative bg-transparent font-sans">
             <AmbientBackground />
+
             <motion.div 
                 variants={containerVariants} 
                 initial="hidden" 
@@ -214,7 +252,7 @@ export default function Overview() {
                     <div className="relative z-10">
                         <p className="text-[14px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-1">{greeting},</p>
                         <h1 className="text-[28px] md:text-[32px] font-black text-[#333333] tracking-tight leading-none">
-                            {user?.displayName || user?.email ? user.email.split('@')[0] : 'Booknshow User'}
+                            {profile?.fullName?.split(' ')[0] || user?.displayName?.split(' ')[0] || (user?.email ? user.email.split('@')[0] : 'Booknshow User')}
                         </h1>
                     </div>
                     <div className="flex items-center gap-3 relative z-10">
@@ -278,7 +316,7 @@ export default function Overview() {
                             <h3 className="text-[16px] font-bold text-[#626262] mb-1">Available Escrow Balance</h3>
                             <div className="flex items-end gap-3 mb-6">
                                 <p className="text-[36px] font-black text-[#333333] leading-none">
-                                    {wallet?.currency || '₹'} {(wallet?.balance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    {wallet?.currency || '₹'} {escrowBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </p>
                             </div>
                         </div>
@@ -314,7 +352,7 @@ export default function Overview() {
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2 mb-1">
                                             <span className="bg-[#333333] text-[#FFFFFF] text-[10px] font-black uppercase px-2 py-0.5 rounded-[4px]">Upcoming</span>
-                                            <span className="text-[13px] font-bold text-[#626262]">{formatShortDate(upcomingEvent.commence_time?.seconds ? upcomingEvent.commence_time.seconds * 1000 : upcomingEvent.commence_time || upcomingEvent.eventTimestamp || upcomingEvent.createdAt)}</span>
+                                            <span className="text-[13px] font-bold text-[#626262]">{formatShortDate(upcomingEvent.parsedTime)}</span>
                                         </div>
                                         <h4 className="text-[16px] font-black text-[#333333] truncate mb-2">{upcomingEvent.eventName || 'Booknshow Event'}</h4>
                                         <div className="flex items-center text-[13px] text-[#A3A3A3] font-bold">
@@ -378,13 +416,21 @@ export default function Overview() {
                                     </div>
                                 </div>
                                 <div className="flex items-start gap-3">
-                                    <div className="mt-0.5"><AlertCircle size={16} className="text-[#E7364D]" /></div>
+                                    <div className="mt-0.5">
+                                        {profile?.bankDetails?.accountNumber ? <CheckCircle2 size={16} className="text-[#333333]" /> : <AlertCircle size={16} className="text-[#E7364D]" />}
+                                    </div>
                                     <div>
                                         <p className="text-[14px] font-bold text-[#333333]">Payout Details</p>
-                                        <p className="text-[12px] font-medium text-[#626262] mb-1.5">Add bank details to receive funds from sales.</p>
-                                        <button onClick={() => navigate('/profile/settings')} className="text-[11px] font-black uppercase tracking-widest text-[#E7364D] hover:underline">
-                                            Configure Now
-                                        </button>
+                                        <p className="text-[12px] font-medium text-[#626262] mb-1.5">
+                                            {profile?.bankDetails?.accountNumber 
+                                                ? `Ending in ••••${profile.bankDetails.accountNumber.slice(-4)}` 
+                                                : 'Add bank details to receive funds from sales.'}
+                                        </p>
+                                        {!profile?.bankDetails?.accountNumber && (
+                                            <button onClick={() => navigate('/profile/settings')} className="text-[11px] font-black uppercase tracking-widest text-[#E7364D] hover:underline">
+                                                Configure Now
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="flex items-start gap-3">
