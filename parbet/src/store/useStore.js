@@ -50,6 +50,7 @@ const getCurrencyFromCountry = (countryCode) => {
  * FEATURE 17: Expanded Viagogo Checkout Schema (Billing, Gifts, Timer States)
  * FEATURE 18: Real-Time Seat Allocation Sync (Firestore onSnapshot Listener)
  * FEATURE 19: Strict Role-Based Access Control (RBAC) Architecture
+ * FEATURE 20: Global Full-Screen Search & Strict Performer Filters
  */
 
 export const useAppStore = create((set, get) => ({
@@ -92,13 +93,13 @@ export const useAppStore = create((set, get) => ({
         lon: null
     },
 
-    // Performer Page Deep Filters
+    // FEATURE 20: Strict Performer Page Deep Filters (Stripped out unneeded filters)
     performerFilters: {
         dateRange: { from: null, to: null },
+        customDateRange: { from: null, to: null },
         activeOpponent: null,
-        priceBuckets: [],
-        homeAway: 'All games',
-        searchQuery: ''
+        searchQuery: '',
+        hideSoldOut: false
     },
 
     // Persisted User Data
@@ -159,6 +160,7 @@ export const useAppStore = create((set, get) => ({
     selectedTicketQuantity: 2, 
 
     // UI & Interactive States
+    isFullScreenSearchOpen: false, // FEATURE 20: Global Full-Screen Search Trigger
     isLocationDropdownOpen: false,
     isSearchExpanded: false,
     locationError: null,
@@ -326,6 +328,7 @@ export const useAppStore = create((set, get) => ({
     closeAuthModal: () => set({ isAuthModalOpen: false }),
     
     // Interactive Setters
+    setFullScreenSearchOpen: (isOpen) => set({ isFullScreenSearchOpen: isOpen }), // FEATURE 20: Global Search Setter
     setLocationDropdownOpen: (isOpen) => set({ isLocationDropdownOpen: isOpen }),
     setSearchExpanded: (isExpanded) => set({ isSearchExpanded: isExpanded }),
     setLocationError: (errorMsg) => set({ locationError: errorMsg }),
@@ -389,13 +392,14 @@ export const useAppStore = create((set, get) => ({
         }
     })),
 
+    // FEATURE 20: Strict reset matching the new streamlined object
     resetPerformerFilters: () => set({
         performerFilters: {
             dateRange: { from: null, to: null },
+            customDateRange: { from: null, to: null },
             activeOpponent: null,
-            priceBuckets: [],
-            homeAway: 'All games',
-            searchQuery: ''
+            searchQuery: '',
+            hideSoldOut: false
         }
     }),
 
