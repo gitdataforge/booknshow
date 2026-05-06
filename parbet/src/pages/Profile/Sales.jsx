@@ -14,7 +14,7 @@ import { useMainStore } from '../../store/useMainStore';
  * GLOBAL REBRAND: Booknshow Identity Application (Phase 7 Profile Sales)
  * Enforced Colors: #FFFFFF, #E7364D, #333333, #EB5B6E, #FAD8DC, #A3A3A3, #626262
  * FEATURE 1: Illustrative Ambient Backgrounds
- * FEATURE 2: Real-Time Firestore Sales Ledger Sync
+ * FEATURE 2: Real-Time Firestore Seller Ledger Sync (sellerId strict isolation)
  * FEATURE 3: Dynamic Escrow & Payout Auto-Calculator
  * FEATURE 4: Missing Bank Details Warning Banner (Hooked to Real Store)
  * FEATURE 5: 1:1 Booknshow Enterprise Empty State & Typography
@@ -68,15 +68,14 @@ export default function Sales() {
     // FEATURE 4: Payout Validation Logic (Hooked to Real Bank Details State)
     const hasPayoutMethod = !!bankDetails;
 
-    // FEATURE 2: Real-Time Live Sales Query
+    // FEATURE 2: Real-Time Live Sales Query (Strict Seller isolation)
     useEffect(() => {
         if (!user || !user.uid) {
             setIsLoading(false);
             return;
         }
 
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'parbet-44902';
-        const ordersRef = collection(db, 'artifacts', appId, 'public', 'data', 'orders');
+        const ordersRef = collection(db, 'orders');
         
         // Query orders where the current user is the seller
         const q = query(ordersRef, where('sellerId', '==', user.uid));
@@ -104,10 +103,10 @@ export default function Sales() {
 
         // Base filter by tab & calculate global metrics
         let filtered = sales.filter(sale => {
-            const amount = Number(sale.totalAmount || sale.price * sale.quantity || 0);
+            const amount = Number(sale.totalAmount || sale.amountPaid || sale.price * sale.quantity || 0);
             totalRevenue += amount;
             
-            const isCompleted = sale.status === 'completed' || sale.payoutStatus === 'paid' || sale.status === 'Paid';
+            const isCompleted = sale.status === 'completed' || sale.payoutStatus === 'paid';
 
             if (isCompleted) {
                 completedPayouts += amount;
@@ -131,14 +130,14 @@ export default function Sales() {
 
         // Sort Engine
         filtered.sort((a, b) => {
-            const dateA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : (new Date(a.createdAt || 0).getTime());
-            const dateB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : (new Date(b.createdAt || 0).getTime());
+            const dateA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : a.timestamp?.toDate ? a.timestamp.toDate().getTime() : (new Date(a.createdAt || a.timestamp || 0).getTime());
+            const dateB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : b.timestamp?.toDate ? b.timestamp.toDate().getTime() : (new Date(b.createdAt || b.timestamp || 0).getTime());
             
             if (sortBy === 'newest') return dateB - dateA;
             if (sortBy === 'oldest') return dateA - dateB;
             
-            const valA = Number(a.totalAmount || a.price * a.quantity || 0);
-            const valB = Number(b.totalAmount || b.price * b.quantity || 0);
+            const valA = Number(a.totalAmount || a.amountPaid || a.price * a.quantity || 0);
+            const valB = Number(b.totalAmount || b.amountPaid || b.price * b.quantity || 0);
             if (sortBy === 'highest') return valB - valA;
             
             return 0;
@@ -292,8 +291,8 @@ export default function Sales() {
                             >
                                 <AnimatePresence>
                                     {processedSales.map((sale) => {
-                                        const isPaidOut = sale.status === 'completed' || sale.payoutStatus === 'paid' || sale.status === 'Paid';
-                                        const amount = Number(sale.totalAmount || sale.price * sale.quantity || 0);
+                                        const isPaidOut = sale.status === 'completed' || sale.payoutStatus === 'paid';
+                                        const amount = Number(sale.totalAmount || sale.amountPaid || sale.price * sale.quantity || 0);
 
                                         return (
                                             <motion.div 
@@ -314,7 +313,7 @@ export default function Sales() {
                                                                     ID: {generateShortHash(sale.paymentId || sale.id)}
                                                                 </span>
                                                                 <span className="text-[12px] font-bold text-[#A3A3A3] uppercase tracking-widest flex items-center">
-                                                                    <Calendar size={14} className="mr-1.5" /> {formatDate(sale.createdAt || sale.eventTimestamp)}
+                                                                    <Calendar size={14} className="mr-1.5" /> {formatDate(sale.createdAt || sale.timestamp || sale.eventTimestamp)}
                                                                 </span>
                                                             </div>
                                                             <h3 className="text-[20px] font-black text-[#333333] leading-tight mb-2 truncate group-hover:text-[#E7364D] transition-colors">
