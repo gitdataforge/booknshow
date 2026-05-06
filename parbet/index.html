@@ -16,6 +16,7 @@
     <!-- FEATURE 3: Network Optimization & Warning Resolution -->
     <link rel="dns-prefetch" href="https://checkout.razorpay.com" />
     <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+    <link rel="dns-prefetch" href="https://otpless.com" />
     
     <!-- FEATURE 4: Database Preconnection for Rapid TTFB (Time to First Byte) -->
     <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin />
@@ -59,8 +60,13 @@
     
     <!-- FEATURE 11: Secure Razorpay Checkout SDK Integration -->
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+    <!-- FEATURE 12: 100% FREE OTPless Mobile Verification SDK (WhatsApp/Truecaller) -->
+    <script type="text/javascript" src="https://otpless.com/v2/auth.js" data-appid="BPU9M86U8F5O3N1D9A7C"></script>
   </head>
   <body>
+    <!-- OTPless App Root Injection Point -->
+    <div id="otpless-login-page"></div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
