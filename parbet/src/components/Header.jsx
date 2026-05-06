@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Search, User, X, Menu, ChevronRight, ChevronLeft, Bell, MapPin } from 'lucide-react';
+import { Search, User, X, Menu, ChevronRight, ChevronLeft, Bell, MapPin, MessageSquare, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '../store/useStore';
 import { useMainStore } from '../store/useMainStore';
 import SearchDropdown from './SearchDropdown';
+import { collection, query, where, orderBy, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 /**
  * GLOBAL REBRAND: Booknshow Identity Application
  * Enforced Colors: #FFFFFF, #E7364D, #333333, #EB5B6E, #FAD8DC, #A3A3A3, #626262
- * * FEATURE 1: 1:1 Enterprise Desktop Layout Replication
+ * FEATURE 1: 1:1 Enterprise Desktop Layout Replication
  * FEATURE 2: Strict Keyword Enforcement Engine
  * FEATURE 3: Dynamic Auto-Correction & Route-Aware UI Isolation
  * FEATURE 4: Hardware-Accelerated Mobile Drawer with Nested Navigation
@@ -19,6 +21,7 @@ import SearchDropdown from './SearchDropdown';
  * FEATURE 8: Top Disclaimer Banner (#333333 Variant)
  * FEATURE 9: Strict 7-Color DOM Palette Enforcement
  * FEATURE 10: Scroll-Lock Mobile Interaction Physics
+ * FEATURE 11: Real-Time Support Notifications Engine
  */
 
 export const BooknshowLogo = ({ className = "h-8" }) => (
@@ -32,6 +35,13 @@ export const BooknshowLogo = ({ className = "h-8" }) => (
     </svg>
 );
 
+const formatNotificationTime = (timestamp) => {
+    if (!timestamp) return 'Just now';
+    const d = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    if (isNaN(d)) return 'Just now';
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+};
+
 export default function Header() {
     const navigate = useNavigate();
     const location = useLocation(); 
@@ -43,7 +53,7 @@ export default function Header() {
         setExploreCategory
     } = useAppStore();
     
-    const { isAuthenticated } = useMainStore();
+    const { isAuthenticated, user } = useMainStore();
 
     // UI ISOLATION LOGIC
     const isProfilePage = location.pathname.startsWith('/profile');
@@ -55,6 +65,11 @@ export default function Header() {
     // Dropdown States for 1:1 UI
     const [activeDropdown, setActiveDropdown] = useState(null);
     const dropdownRef = useRef(null);
+
+    // FEATURE 11: Real-Time Notifications State
+    const [notifications, setNotifications] = useState([]);
+    const [unreadCount, setUnreadCount] = useState(0);
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'parbet-44902';
 
     // Click outside handler for dropdowns
     useEffect(() => {
@@ -79,11 +94,55 @@ export default function Header() {
         if (!mobileMenuOpen) setTimeout(() => setMenuView('main'), 300);
     }, [mobileMenuOpen]);
 
+    // FEATURE 11: Notification Listener
+    useEffect(() => {
+        if (!isAuthenticated || !user?.uid) return;
+
+        const notificationsRef = collection(db, 'artifacts', appId, 'notifications');
+        const q = query(
+            notificationsRef, 
+            where('userId', '==', user.uid),
+            orderBy('timestamp', 'desc')
+        );
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const fetched = [];
+            let unread = 0;
+            snapshot.forEach((doc) => {
+                const data = { id: doc.id, ...doc.data() };
+                fetched.push(data);
+                if (!data.isRead) unread++;
+            });
+            setNotifications(fetched);
+            setUnreadCount(unread);
+        }, (error) => {
+            console.error("Notification Sync Error:", error);
+        });
+
+        return () => unsubscribe();
+    }, [isAuthenticated, user, appId]);
+
     const handleNavigation = (path) => {
         setMobileMenuOpen(false); 
         setActiveDropdown(null);
         if (isAuthenticated) navigate(path);
         else navigate('/login');
+    };
+
+    const handleNotificationClick = async (notif) => {
+        // Mark as read in Firestore
+        if (!notif.isRead) {
+            try {
+                const notifRef = doc(db, 'artifacts', appId, 'notifications', notif.id);
+                await updateDoc(notifRef, { isRead: true });
+            } catch (err) {
+                console.error("Failed to mark notification as read:", err);
+            }
+        }
+        
+        // Navigate to tickets page and close dropdown
+        setActiveDropdown(null);
+        navigate('/profile/tickets');
     };
 
     const handleStrictSearchSubmit = (e) => {
@@ -197,18 +256,57 @@ export default function Header() {
                             <div onClick={() => isAuthenticated ? handleNavigation('/profile') : navigate('/login')} className="w-10 h-10 rounded-full bg-[#FFFFFF] border border-[#A3A3A3]/50 flex items-center justify-center cursor-pointer hover:border-[#E7364D] hover:text-[#E7364D] transition-colors text-[#333333]">
                                 <User size={18} className="fill-current" />
                             </div>
+                            
+                            {/* FEATURE 11: Real-Time Notification Bell Dropdown */}
                             <div className="relative">
-                                <div onClick={() => activeDropdown === 'notifications' ? setActiveDropdown(null) : setActiveDropdown('notifications')} className={`w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-colors border ${activeDropdown === 'notifications' ? 'border-[#E7364D] text-[#E7364D] bg-[#FAD8DC]/30' : 'border-[#A3A3A3]/50 text-[#333333] hover:border-[#E7364D] hover:text-[#E7364D]'}`}>
+                                <div 
+                                    onClick={() => isAuthenticated ? (activeDropdown === 'notifications' ? setActiveDropdown(null) : setActiveDropdown('notifications')) : navigate('/login')} 
+                                    className={`w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-colors border relative ${activeDropdown === 'notifications' ? 'border-[#E7364D] text-[#E7364D] bg-[#FAD8DC]/30' : 'border-[#A3A3A3]/50 text-[#333333] hover:border-[#E7364D] hover:text-[#E7364D]'}`}
+                                >
                                     <Bell size={18} />
+                                    {unreadCount > 0 && (
+                                        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#E7364D] text-[9px] font-black text-[#FFFFFF] shadow-sm">
+                                            {unreadCount > 9 ? '9+' : unreadCount}
+                                        </span>
+                                    )}
                                 </div>
                                 <AnimatePresence>
                                     {activeDropdown === 'notifications' && (
-                                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute top-[calc(100%+12px)] right-0 w-80 bg-[#FFFFFF] rounded-[12px] shadow-[0_4px_20px_rgba(51,51,51,0.15)] border border-[#A3A3A3]/20 flex flex-col z-[100] overflow-hidden cursor-default">
-                                            <div className="px-5 py-4 border-b border-[#A3A3A3]/20 font-bold text-[18px] text-[#333333]">Notifications</div>
-                                            <div className="py-16 flex flex-col items-center justify-center text-[#626262] gap-3">
-                                                <Bell size={36} className="text-[#A3A3A3]" />
-                                                <span className="text-[16px] font-medium text-[#626262]">No notifications</span>
+                                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute top-[calc(100%+12px)] right-0 w-[350px] bg-[#FFFFFF] rounded-[12px] shadow-[0_8px_30px_rgba(51,51,51,0.15)] border border-[#A3A3A3]/20 flex flex-col z-[100] overflow-hidden">
+                                            <div className="px-5 py-4 border-b border-[#A3A3A3]/20 flex items-center justify-between bg-[#FAFAFA]">
+                                                <span className="font-black text-[16px] text-[#333333]">Notifications</span>
+                                                <span className="text-[12px] font-bold text-[#A3A3A3]">{unreadCount} unread</span>
                                             </div>
+                                            <div className="flex flex-col max-h-[400px] overflow-y-auto custom-scrollbar">
+                                                {notifications.length > 0 ? (
+                                                    notifications.map(notif => (
+                                                        <button 
+                                                            key={notif.id}
+                                                            onClick={() => handleNotificationClick(notif)}
+                                                            className={`text-left px-5 py-4 border-b border-[#A3A3A3]/10 last:border-0 transition-colors hover:bg-[#FAFAFA] flex items-start gap-4 ${!notif.isRead ? 'bg-[#FAD8DC]/10' : ''}`}
+                                                        >
+                                                            <div className={`mt-1 rounded-full p-2 shrink-0 ${!notif.isRead ? 'bg-[#E7364D] text-[#FFFFFF]' : 'bg-[#F5F5F5] text-[#A3A3A3]'}`}>
+                                                                <MessageSquare size={14} />
+                                                            </div>
+                                                            <div className="flex-1">
+                                                                <p className={`text-[14px] leading-tight mb-1 ${!notif.isRead ? 'font-black text-[#333333]' : 'font-bold text-[#626262]'}`}>{notif.title}</p>
+                                                                <p className={`text-[13px] leading-relaxed mb-2 ${!notif.isRead ? 'font-medium text-[#333333]' : 'font-medium text-[#A3A3A3]'}`}>{notif.message}</p>
+                                                                <p className="text-[11px] font-bold text-[#A3A3A3] flex items-center"><Clock size={10} className="mr-1"/> {formatNotificationTime(notif.timestamp)}</p>
+                                                            </div>
+                                                        </button>
+                                                    ))
+                                                ) : (
+                                                    <div className="py-16 flex flex-col items-center justify-center text-[#626262] gap-3">
+                                                        <Bell size={36} className="text-[#A3A3A3] opacity-50" />
+                                                        <span className="text-[14px] font-bold text-[#A3A3A3]">You're all caught up!</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            {notifications.length > 0 && (
+                                                <button onClick={() => handleNavigation('/profile/tickets')} className="py-3 bg-[#F5F5F5] text-[13px] font-black text-[#E7364D] hover:bg-[#FAD8DC]/30 transition-colors border-t border-[#A3A3A3]/20">
+                                                    View Support Dashboard
+                                                </button>
+                                            )}
                                         </motion.div>
                                     )}
                                 </AnimatePresence>
@@ -227,7 +325,39 @@ export default function Header() {
                         <BooknshowLogo className="h-[28px]" />
                     </div>
                     
-                    <div className="w-10 flex justify-end">
+                    <div className="flex items-center gap-3">
+                        <div className="relative">
+                            <div onClick={() => isAuthenticated ? (activeDropdown === 'mobileNotifications' ? setActiveDropdown(null) : setActiveDropdown('mobileNotifications')) : navigate('/login')} className="w-9 h-9 rounded-full flex items-center justify-center cursor-pointer text-[#333333] border border-[#A3A3A3]/50">
+                                <Bell size={18} />
+                                {unreadCount > 0 && (
+                                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#E7364D] text-[9px] font-black text-[#FFFFFF] shadow-sm">
+                                        {unreadCount > 9 ? '9+' : unreadCount}
+                                    </span>
+                                )}
+                            </div>
+                            <AnimatePresence>
+                                {activeDropdown === 'mobileNotifications' && (
+                                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute top-[calc(100%+12px)] right-0 w-[300px] bg-[#FFFFFF] rounded-[12px] shadow-[0_8px_30px_rgba(51,51,51,0.15)] border border-[#A3A3A3]/20 flex flex-col z-[100] overflow-hidden">
+                                        <div className="px-4 py-3 border-b border-[#A3A3A3]/20 bg-[#FAFAFA]"><span className="font-black text-[15px] text-[#333333]">Notifications</span></div>
+                                        <div className="flex flex-col max-h-[300px] overflow-y-auto">
+                                            {notifications.length > 0 ? (
+                                                notifications.map(notif => (
+                                                    <button key={notif.id} onClick={() => handleNotificationClick(notif)} className={`text-left px-4 py-3 border-b border-[#A3A3A3]/10 flex gap-3 ${!notif.isRead ? 'bg-[#FAD8DC]/10' : ''}`}>
+                                                        <MessageSquare size={14} className={`mt-1 ${!notif.isRead ? 'text-[#E7364D]' : 'text-[#A3A3A3]'}`} />
+                                                        <div>
+                                                            <p className={`text-[13px] leading-tight mb-1 ${!notif.isRead ? 'font-black text-[#333333]' : 'font-bold text-[#626262]'}`}>{notif.title}</p>
+                                                            <p className="text-[10px] font-bold text-[#A3A3A3]"><Clock size={10} className="inline mr-1"/>{formatNotificationTime(notif.timestamp)}</p>
+                                                        </div>
+                                                    </button>
+                                                ))
+                                            ) : (
+                                                <div className="py-10 text-center text-[#A3A3A3] text-[13px] font-bold">No notifications</div>
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
                         <div onClick={() => isAuthenticated ? navigate('/profile') : navigate('/login')} className="w-9 h-9 rounded-full bg-[#FFFFFF] border border-[#A3A3A3]/50 flex items-center justify-center cursor-pointer text-[#333333]">
                             <User size={18} className="fill-current" />
                         </div>
@@ -330,6 +460,10 @@ export default function Header() {
                                 </li>
                                 <li onClick={() => handleNavigation('/profile/payments')} className="px-6 py-[16px] text-[16px] text-[#333333] font-bold cursor-pointer hover:bg-[#FAD8DC]/20 hover:text-[#E7364D] transition-colors">
                                     Payments
+                                </li>
+                                {/* NEW: Route to the Support Tickets page from Mobile nested menu */}
+                                <li onClick={() => handleNavigation('/profile/tickets')} className="px-6 py-[16px] text-[16px] text-[#333333] font-bold cursor-pointer hover:bg-[#FAD8DC]/20 hover:text-[#E7364D] transition-colors">
+                                    Support History
                                 </li>
                             </ul>
                         )}
