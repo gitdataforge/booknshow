@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Heart, MapPin, Calendar, ChevronDown, 
     Download, QrCode, ShieldCheck, Flame, Users,
     Clock, ChevronLeft, ChevronRight, Navigation, Loader2,
-    Pencil, ShieldAlert, PlusCircle, Info, Sparkles
+    Pencil, ShieldAlert, PlusCircle, Info, Sparkles, X, Filter
 } from 'lucide-react';
 import { onAuthStateChanged } from 'firebase/auth';
 
@@ -19,21 +19,16 @@ import LocationDropdown from '../../components/LocationDropdown';
 import AdminEditEventModal from '../../components/AdminEditEventModal';
 
 /**
- * GLOBAL REBRAND: Booknshow Identity Application (Phase 5 Performer Routing)
+ * GLOBAL REBRAND: Booknshow Identity Application (Phase 24 Exclusive Filters)
  * Enforced Colors: #FFFFFF, #E7364D, #333333, #EB5B6E, #FAD8DC, #A3A3A3, #626262
- * FEATURE 1: Real-Time Shared Database Integration (Linked to useMarketStore)
- * FEATURE 2: Strict IPL/Category Aggregation Engine (Catches Admin & Seller inventory)
- * FEATURE 3: PocketBase Image Failsafe Scrubber (Fixes Cloudinary 404s)
- * FEATURE 4: Admin God-Mode Injector (Direct feed mutation & creation)
- * FEATURE 5: Dynamic Performer/Team Filtering Engine
- * FEATURE 6: Strict ISO Timestamp Parsing
- * FEATURE 7: Algorithmic "Trending" & "Fans Also Love" Derivation
- * FEATURE 8: Hardware-Accelerated Layout & Ambience
- * FEATURE 9: Live Inventory Validation (See Tickets vs Sold Out)
- * FEATURE 10: Absolute Global IPL Override
+ * FEATURE 1: Exclusive IPL Aggregation Interceptor
+ * FEATURE 2: Strict UI Filter Strip-down (Location, Dates, Sold Out only)
+ * FEATURE 3: Custom Date Range Prompt Modal
+ * FEATURE 4: Real-time Combined Filter Logic Execution
+ * FEATURE 5: Hardware-Accelerated Layout & Ambience
  */
 
-// Strict Date Formatters mimicking the enterprise UI
+// Strict Date Formatters
 const getMonthStr = (d) => {
     const date = new Date(d);
     return isNaN(date) ? 'TBA' : date.toLocaleDateString('en-US', { month: 'short' });
@@ -68,14 +63,14 @@ const getRelativeDateLabel = (dateStr) => {
     return '';
 };
 
-// FEATURE 3: Cloudinary Legacy Scrubber for Fans Also Love images
+// Legacy Scrubber
 const getSafeImage = (url) => {
     if (!url) return 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=400';
     if (url.includes('res.cloudinary.com/dtz0urit6')) return 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?q=80&w=400';
     return url;
 };
 
-// Illustrative ambient background for performer page
+// Ambient background
 const PerformerAmbientBackground = () => (
     <div className="absolute inset-0 overflow-hidden pointer-events-none z-0 bg-[#FFFFFF]">
         <motion.div
@@ -91,12 +86,79 @@ const PerformerAmbientBackground = () => (
     </div>
 );
 
+// FEATURE 3: Custom Date Selection Modal
+const CustomDateModal = ({ isOpen, onClose, onApply }) => {
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-[#333333]/80 backdrop-blur-sm p-4">
+            <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }} 
+                animate={{ opacity: 1, scale: 1 }} 
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="bg-[#FFFFFF] rounded-[16px] p-6 md:p-8 w-full max-w-md shadow-2xl relative"
+            >
+                <button onClick={onClose} className="absolute top-4 right-4 text-[#A3A3A3] hover:text-[#333333] transition-colors"><X size={20}/></button>
+                <div className="flex items-center mb-6">
+                    <Calendar className="text-[#E7364D] mr-3" size={24} />
+                    <h2 className="text-[20px] font-black text-[#333333]">Select Date Range</h2>
+                </div>
+                
+                <div className="space-y-4 mb-8">
+                    <div>
+                        <label className="block text-[11px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-1">Start Date</label>
+                        <input 
+                            type="date" 
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                            className="w-full px-4 py-3 bg-[#FAFAFA] border border-[#A3A3A3]/30 rounded-[8px] text-[14px] font-bold text-[#333333] focus:border-[#E7364D] outline-none"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-[11px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-1">End Date</label>
+                        <input 
+                            type="date" 
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
+                            className="w-full px-4 py-3 bg-[#FAFAFA] border border-[#A3A3A3]/30 rounded-[8px] text-[14px] font-bold text-[#333333] focus:border-[#E7364D] outline-none"
+                        />
+                    </div>
+                </div>
+
+                <div className="flex gap-3">
+                    <button onClick={onClose} className="flex-1 py-3 text-[14px] font-bold text-[#626262] bg-[#F5F5F5] rounded-[8px] hover:bg-[#E5E5E5] transition-colors">Cancel</button>
+                    <button 
+                        onClick={() => onApply(startDate, endDate)} 
+                        disabled={!startDate || !endDate}
+                        className="flex-1 py-3 text-[14px] font-black text-[#FFFFFF] bg-[#E7364D] rounded-[8px] hover:bg-[#333333] transition-colors disabled:opacity-50"
+                    >
+                        Apply Filter
+                    </button>
+                </div>
+            </motion.div>
+        </div>
+    );
+};
+
 export default function Performer() {
     const { id } = useParams();
     const navigate = useNavigate();
-    const performerName = decodeURIComponent(id || 'Indian Premier League');
+    
+    // FEATURE 1: Exclusive Interceptor
+    const isExclusiveMode = id?.toLowerCase() === 'exclusive';
+    const rawPerformerName = decodeURIComponent(id || 'Indian Premier League');
+    const performerName = isExclusiveMode ? 'Indian Premier League' : rawPerformerName;
 
-    const { userCity, isLocationDropdownOpen, setLocationDropdownOpen, isAuthenticated } = useAppStore();
+    const { 
+        userCity, 
+        isLocationDropdownOpen, 
+        setLocationDropdownOpen, 
+        performerFilters,
+        setPerformerFilter
+    } = useAppStore();
     
     // Shared Market State
     const { activeListings, isLoading, initMarketListener } = useMarketStore();
@@ -104,7 +166,9 @@ export default function Performer() {
     // Local UI States
     const [activeDropdown, setActiveDropdown] = useState(null);
     const [currentPage, setCurrentPage] = useState(1);
+    const [isCustomDateModalOpen, setIsCustomDateModalOpen] = useState(false);
     const itemsPerPage = 12;
+    const filterRef = useRef(null);
 
     // Admin States
     const [isAdmin, setIsAdmin] = useState(false);
@@ -112,11 +176,22 @@ export default function Performer() {
     const [selectedAdminEvent, setSelectedAdminEvent] = useState(null);
     const [showLoader, setShowLoader] = useState(true);
 
+    // Click outside handler for dropdowns
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (filterRef.current && !filterRef.current.contains(event.target)) {
+                setActiveDropdown(null);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
     // Verify Admin Identity
     useEffect(() => {
         const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
             if (user && user.email) {
-                const validAdmins = ['testcodecfg@gmail.com', 'krishnamehta.gm@gmail.com', 'jatinseth.op@gmail.com'];
+                const validAdmins = ['testcodecfg@gmail.com', 'krishnamehta.gm@gmail.com', 'jatinseth.op@gmail.com', 'jachinfotech@gmail.com'];
                 setIsAdmin(validAdmins.includes(user.email.toLowerCase()));
             } else {
                 setIsAdmin(false);
@@ -143,13 +218,13 @@ export default function Performer() {
         return () => clearTimeout(failsafe);
     }, [activeListings]);
 
-    // FEATURE 2, 5 & 10: Strict Real-Time API Filtering & Context Aggregation (Admin + Seller Sync)
+    // FEATURE 4: Strict Real-Time API Combined Filtering Engine
     const { filteredEvents, fansAlsoLove } = useMemo(() => {
-        
-        // Check if current performer is IPL to trigger global override
-        const isIPLContext = performerName.toLowerCase() === 'ipl' || performerName.toLowerCase() === 'indian premier league';
+        const isIPLContext = performerName.toLowerCase().includes('ipl') || performerName.toLowerCase().includes('premier league');
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
 
-        // 1. Filter globally by performer/category strict overrides
+        // BASE FILTER: Entity Match
         const base = activeListings.filter(m => {
             const title = m.title || m.eventName || '';
             const t1 = m.t1 || m.team1 || '';
@@ -157,11 +232,9 @@ export default function Performer() {
             const league = m.league || '';
             const cat = m.sportCategory || m.category || '';
             
-            // Build a massive concatenation string of all possible identifiers
             const searchString = `${title} ${t1} ${t2} ${league} ${cat}`.toLowerCase();
             const query = performerName.toLowerCase();
             
-            // Strict Aggregation Hooks - if it's IPL, catch EVERYTHING remotely related
             if (isIPLContext) {
                 return searchString.includes('ipl') || 
                        searchString.includes('premier league') || 
@@ -179,11 +252,9 @@ export default function Performer() {
             return searchString.includes(query);
         });
 
-        // 2. Filter locally by user's city drop-down (UNLESS it's an IPL context)
-        const filtered = base.filter(m => {
-            // FEATURE 10: If IPL context, ignore city filters entirely to show global inventory
+        // LAYER 1: Location Filter (Ignored for IPL)
+        let filtered = base.filter(m => {
             if (isIPLContext) return true;
-
             if (userCity && userCity !== 'All Cities' && userCity !== 'Global' && userCity !== 'Current Location' && userCity !== 'Detecting...') {
                 const locStr = `${m.loc} ${m.city} ${m.location} ${m.stadium}`.toLowerCase();
                 if (!locStr.includes(userCity.toLowerCase())) return false;
@@ -191,14 +262,53 @@ export default function Performer() {
             return true;
         });
 
-        // Sort by date chronologically
+        // LAYER 2: Date Filter Logic
+        if (performerFilters.dateRange?.from) {
+            filtered = filtered.filter(m => {
+                const eDateStr = (m.commence_time || m.eventTimestamp || '').split('T')[0];
+                if (!eDateStr) return false;
+
+                const filterType = performerFilters.dateRange.from; // We use 'from' as the identifier for standard filters
+
+                if (filterType === 'today') {
+                    return eDateStr === todayStr;
+                }
+                if (filterType === 'tomorrow') {
+                    const tmrw = new Date();
+                    tmrw.setDate(now.getDate() + 1);
+                    return eDateStr === tmrw.toISOString().split('T')[0];
+                }
+                if (filterType === 'weekend') {
+                    const d = new Date(eDateStr);
+                    return d.getDay() === 0 || d.getDay() === 6;
+                }
+                if (filterType === 'custom' && performerFilters.customDateRange.from && performerFilters.customDateRange.to) {
+                    const eTime = new Date(eDateStr).getTime();
+                    const fromTime = new Date(performerFilters.customDateRange.from).getTime();
+                    const toTime = new Date(performerFilters.customDateRange.to).getTime();
+                    return eTime >= fromTime && eTime <= toTime;
+                }
+
+                return true;
+            });
+        }
+
+        // LAYER 3: Sold Out Filter
+        if (performerFilters.hideSoldOut) {
+            filtered = filtered.filter(m => {
+                const displayPrice = m.startingPrice !== null && m.startingPrice !== undefined ? m.startingPrice : m.price || m.minPrice;
+                return displayPrice !== null && displayPrice !== undefined;
+            });
+        }
+
+        // Sort Chronologically
         filtered.sort((a, b) => {
             const dateA = new Date(a.commence_time || a.eventTimestamp).getTime();
             const dateB = new Date(b.commence_time || b.eventTimestamp).getTime();
             return dateA - dateB;
         });
 
-        // 3. Derive "Fans Also Love" dynamically
+        // Derive "Fans Also Love" dynamically
         const tGroups = {};
         activeListings.forEach(e => {
             const key = e.sportCategory || e.team1 || e.title;
@@ -215,13 +325,14 @@ export default function Performer() {
             filteredEvents: filtered, 
             fansAlsoLove: fansArr 
         };
-    }, [activeListings, performerName, userCity]);
+    }, [activeListings, performerName, userCity, performerFilters]);
 
     const viewerCount = useMemo(() => Math.floor((filteredEvents.length * 451.08) || 5413), [filteredEvents.length]);
     const totalPages = Math.ceil(filteredEvents.length / itemsPerPage);
     const paginatedEvents = filteredEvents.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
     const getDisplayName = () => {
+        if (isExclusiveMode) return 'Exclusive IPL';
         if (performerName.toUpperCase() === 'IPL') return 'Indian Premier League';
         if (performerName.toUpperCase() === 'ICC') return 'ICC World Cup';
         return performerName;
@@ -242,6 +353,38 @@ export default function Performer() {
         navigate(`/event?id=${mId}`);
     };
 
+    const handleDateSelection = (type) => {
+        if (type === 'custom') {
+            setIsCustomDateModalOpen(true);
+            setActiveDropdown(null);
+        } else {
+            setPerformerFilter('dateRange', { from: type });
+            setActiveDropdown(null);
+        }
+    };
+
+    const applyCustomDates = (start, end) => {
+        setPerformerFilter('dateRange', { from: 'custom' });
+        setPerformerFilter('customDateRange', { from: start, to: end });
+        setIsCustomDateModalOpen(false);
+    };
+
+    const clearDateFilter = () => {
+        setPerformerFilter('dateRange', { from: null });
+        setPerformerFilter('customDateRange', { from: null, to: null });
+    };
+
+    // Filter UI Resolvers
+    const getDateDisplayLabel = () => {
+        const filter = performerFilters.dateRange?.from;
+        if (!filter) return 'All dates';
+        if (filter === 'today') return 'Today';
+        if (filter === 'tomorrow') return 'Tomorrow';
+        if (filter === 'weekend') return 'This Weekend';
+        if (filter === 'custom') return `${performerFilters.customDateRange.from.slice(5)} to ${performerFilters.customDateRange.to.slice(5)}`;
+        return 'All dates';
+    };
+
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }} className="w-full pb-20 bg-[#FFFFFF] font-sans text-[#333333] relative overflow-hidden">
             
@@ -251,6 +394,12 @@ export default function Performer() {
                 isOpen={adminModalOpen} 
                 onClose={() => { setAdminModalOpen(false); setSelectedAdminEvent(null); }} 
                 eventData={selectedAdminEvent} 
+            />
+
+            <CustomDateModal 
+                isOpen={isCustomDateModalOpen} 
+                onClose={() => setIsCustomDateModalOpen(false)} 
+                onApply={applyCustomDates} 
             />
             
             {/* SECTION 1: EXACT BOOKNSHOW HERO BANNER */}
@@ -294,8 +443,10 @@ export default function Performer() {
                     </span>
                 </div>
 
-                {/* SECTION 3: FILTER ROW */}
-                <div className="flex flex-wrap items-center gap-3 overflow-visible pb-6 border-b border-[#A3A3A3]/20 mb-6">
+                {/* FEATURE 2: STRICT FILTER ROW (Location, Dates, Sold Out ONLY) */}
+                <div className="flex flex-wrap items-center gap-3 overflow-visible pb-6 border-b border-[#A3A3A3]/20 mb-6" ref={filterRef}>
+                    
+                    {/* Location Dropdown */}
                     <div className="relative">
                         <button 
                             onClick={() => { setLocationDropdownOpen(!isLocationDropdownOpen); setActiveDropdown(null); }}
@@ -308,19 +459,52 @@ export default function Performer() {
                         {isLocationDropdownOpen && <div className="absolute left-0 mt-2 z-50"><LocationDropdown /></div>}
                     </div>
 
-                    <button className="bg-[#FFFFFF] border border-[#A3A3A3]/50 text-[#333333] px-5 py-2.5 rounded-full text-[14px] font-bold flex items-center whitespace-nowrap shadow-sm hover:border-[#E7364D] hover:text-[#E7364D] hover:bg-[#FAD8DC]/20 transition-colors">
-                        All dates <ChevronDown size={16} className="ml-2 text-[#A3A3A3]"/>
-                    </button>
+                    {/* Date Dropdown */}
+                    <div className="relative">
+                        <button 
+                            onClick={() => { setActiveDropdown(activeDropdown === 'dates' ? null : 'dates'); setLocationDropdownOpen(false); }}
+                            className={`px-5 py-2.5 rounded-full text-[14px] font-bold flex items-center whitespace-nowrap shadow-sm transition-all border ${performerFilters.dateRange?.from ? 'bg-[#FAD8DC]/30 border-[#E7364D] text-[#E7364D]' : 'bg-[#FFFFFF] border-[#A3A3A3]/50 text-[#333333] hover:border-[#E7364D] hover:text-[#E7364D]'}`}
+                        >
+                            <Calendar size={14} className="mr-2 shrink-0" />
+                            {getDateDisplayLabel()}
+                            <ChevronDown size={16} className={`ml-2 transition-transform ${activeDropdown === 'dates' ? 'rotate-180' : ''}`}/>
+                        </button>
+                        <AnimatePresence>
+                            {activeDropdown === 'dates' && (
+                                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute left-0 mt-2 w-56 bg-[#FFFFFF] rounded-[12px] shadow-[0_10px_30px_rgba(51,51,51,0.15)] border border-[#A3A3A3]/20 py-2 z-50 overflow-hidden">
+                                    <button onClick={() => clearDateFilter()} className="w-full text-left px-5 py-3 text-[14px] font-bold text-[#626262] hover:bg-[#FAD8DC]/20 hover:text-[#E7364D] transition-colors border-b border-[#A3A3A3]/10">All dates</button>
+                                    <button onClick={() => handleDateSelection('today')} className="w-full text-left px-5 py-3 text-[14px] font-bold text-[#626262] hover:bg-[#FAD8DC]/20 hover:text-[#E7364D] transition-colors">Today</button>
+                                    <button onClick={() => handleDateSelection('tomorrow')} className="w-full text-left px-5 py-3 text-[14px] font-bold text-[#626262] hover:bg-[#FAD8DC]/20 hover:text-[#E7364D] transition-colors">Tomorrow</button>
+                                    <button onClick={() => handleDateSelection('weekend')} className="w-full text-left px-5 py-3 text-[14px] font-bold text-[#626262] hover:bg-[#FAD8DC]/20 hover:text-[#E7364D] transition-colors border-b border-[#A3A3A3]/10">This weekend</button>
+                                    <button onClick={() => handleDateSelection('custom')} className="w-full text-left px-5 py-3 text-[14px] font-bold text-[#333333] hover:bg-[#FAD8DC]/20 hover:text-[#E7364D] transition-colors flex items-center"><Filter size={14} className="mr-2"/> Custom dates</button>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
 
-                    <button className="bg-[#FFFFFF] border border-[#A3A3A3]/50 text-[#333333] px-5 py-2.5 rounded-full text-[14px] font-bold flex items-center whitespace-nowrap shadow-sm hover:border-[#E7364D] hover:text-[#E7364D] hover:bg-[#FAD8DC]/20 transition-colors">
+                    {/* Hide Sold Out Toggle */}
+                    <button 
+                        onClick={() => setPerformerFilter('hideSoldOut', !performerFilters.hideSoldOut)}
+                        className={`px-5 py-2.5 rounded-full text-[14px] font-bold flex items-center whitespace-nowrap shadow-sm transition-all border ${performerFilters.hideSoldOut ? 'bg-[#333333] border-[#333333] text-[#FFFFFF]' : 'bg-[#FFFFFF] border-[#A3A3A3]/50 text-[#333333] hover:border-[#E7364D] hover:text-[#E7364D]'}`}
+                    >
                         Hide sold out
                     </button>
+                    
+                    {/* Active Filter Clear Button */}
+                    {(performerFilters.dateRange?.from || performerFilters.hideSoldOut) && (
+                        <button 
+                            onClick={() => { clearDateFilter(); setPerformerFilter('hideSoldOut', false); }}
+                            className="ml-auto text-[12px] font-bold text-[#A3A3A3] hover:text-[#E7364D] transition-colors flex items-center"
+                        >
+                            <X size={14} className="mr-1"/> Clear Filters
+                        </button>
+                    )}
                 </div>
 
                 {/* SECTION 4: EVENT LIST HEADER */}
                 <div className="flex items-center justify-between mb-5">
                     <h2 className="text-[18px] md:text-[20px] font-black text-[#333333] tracking-tight flex items-center gap-3">
-                        {filteredEvents.length} events in {userCity && !['Loading...', 'Detecting...', 'All Cities', 'Global'].includes(userCity) ? <span className="text-[#E7364D]">{userCity}</span> : 'all locations'}
+                        {filteredEvents.length} events matching filters
                         {isAdmin && (
                             <span className="hidden md:inline-flex items-center gap-1 bg-[#FAD8DC]/30 text-[#E7364D] border border-[#E7364D]/50 px-2 py-0.5 rounded-[4px] text-[10px] font-black uppercase tracking-widest">
                                 <ShieldAlert size={12} /> Admin
@@ -340,7 +524,7 @@ export default function Performer() {
                         <div className="w-full py-16 flex flex-col items-center justify-center bg-[#FFFFFF]/80 backdrop-blur-sm border border-[#A3A3A3]/20 rounded-[16px] shadow-sm">
                             <ShieldCheck size={48} className="text-[#A3A3A3] mb-4" />
                             <h3 className="text-[18px] font-black text-[#333333]">No Active Events Found</h3>
-                            <p className="text-[14px] text-[#626262] mt-2 text-center max-w-sm">Sellers are currently updating inventory for {getDisplayName()}.</p>
+                            <p className="text-[14px] text-[#626262] mt-2 text-center max-w-sm">Try adjusting your location, dates, or sold-out filters.</p>
                         </div>
                     ) : (
                         paginatedEvents.map((m, index) => {
@@ -349,8 +533,8 @@ export default function Performer() {
                             const formattedPrice = hasTickets ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(displayPrice) : null;
                             const relativeLabel = getRelativeDateLabel(m.commence_time || m.eventTimestamp);
                             
-                            const isHottest = index === 0;
-                            const isSellingOut = index === 1 || index === 2;
+                            const isHottest = index === 0 && !performerFilters.hideSoldOut; // Only show hottest on default sort
+                            const isSellingOut = (index === 1 || index === 2) && hasTickets;
                             
                             const dObj = new Date(m.commence_time || m.eventTimestamp);
                             const isWeekend = !isNaN(dObj) && (dObj.getDay() === 0 || dObj.getDay() === 6);
@@ -404,7 +588,7 @@ export default function Performer() {
                                                         <Flame size={12} className="mr-1.5"/> Hottest event
                                                     </div>
                                                 )}
-                                                {isSellingOut && hasTickets && (
+                                                {isSellingOut && (
                                                     <div className="flex items-center bg-[#333333] text-[#FFFFFF] px-2 py-0.5 rounded-[6px] text-[11px] font-bold shadow-sm">
                                                         <Clock size={12} className="mr-1.5"/> Few tickets left
                                                     </div>
