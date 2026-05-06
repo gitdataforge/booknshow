@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Lock, User, Bell, CreditCard, CheckCircle2, 
     Loader2, ShieldCheck, AlertTriangle, Smartphone, 
-    Mail, Key, Landmark, Save, Globe, Laptop, ShieldAlert, BadgeIndianRupee
+    Mail, Key, Landmark, Save, Globe, Laptop, ShieldAlert, BadgeIndianRupee, Timer
 } from 'lucide-react';
 import { useMainStore } from '../../store/useMainStore';
 import { auth, db } from '../../lib/firebase';
@@ -27,6 +27,7 @@ import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 
  * FEATURE 12: Active Sessions / Device Management UI
  * FEATURE 13: Ambient Illustrative Backgrounds
  * FEATURE 14: Unified UPI & Bank Transfer Form
+ * FEATURE 15: Configurable Session Auto-Logout Timer (1, 3, 5, 10, 15 Mins)
  */
 
 // SECTION 1: Ambient Illustrative Background
@@ -60,6 +61,12 @@ export default function Settings() {
     const [securityData, setSecurityData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
     const [payoutData, setPayoutData] = useState({ accountName: '', accountNumber: '', ifscCode: '', bankName: '', upiId: '' });
     const [preferences, setPreferences] = useState({ emailAlerts: true, smsAlerts: false, currency: 'INR', language: 'English' });
+    
+    // FEATURE 15: Session Timeout State (Reads from LocalStorage, defaults to 5)
+    const [sessionTimeout, setSessionTimeout] = useState(() => {
+        const stored = localStorage.getItem('parbet_session_timeout');
+        return stored ? parseInt(stored, 10) : 5;
+    });
 
     // Automatic Data Hydration on Mount
     useEffect(() => {
@@ -172,6 +179,16 @@ export default function Settings() {
         } finally {
             setIsSaving(false);
         }
+    };
+
+    // FEATURE 15: Handle Session Timeout Change
+    const handleSessionTimeoutChange = (e) => {
+        const newValue = parseInt(e.target.value, 10);
+        setSessionTimeout(newValue);
+        localStorage.setItem('parbet_session_timeout', newValue.toString());
+        // Dispatch storage event manually so InactivityTimeout.jsx catches it immediately within the same window
+        window.dispatchEvent(new StorageEvent('storage', { key: 'parbet_session_timeout', newValue: newValue.toString() }));
+        showToast(`Auto-logout timer set to ${newValue} minutes.`);
     };
 
     // Calculate Password Strength
@@ -315,6 +332,33 @@ export default function Settings() {
                                     <div className="mb-10">
                                         <h3 className="text-[24px] font-black text-[#333333] mb-2">Security Center</h3>
                                         <p className="text-[14px] text-[#626262] font-medium">Manage your cryptography, active sessions, and multi-factor auth.</p>
+                                    </div>
+
+                                    {/* Security & Session Configurator */}
+                                    <div className="border border-[#A3A3A3]/30 rounded-[12px] p-6 md:p-8 mb-8 bg-[#FAFAFA]">
+                                        <div className="flex items-start gap-4 mb-6">
+                                            <div className="w-12 h-12 bg-[#FAD8DC]/30 rounded-full flex items-center justify-center shrink-0 border border-[#E7364D]/20">
+                                                <Timer size={24} className="text-[#E7364D]" />
+                                            </div>
+                                            <div>
+                                                <h4 className="font-black text-[16px] text-[#333333] mb-1">Session Auto-Logout Timer</h4>
+                                                <p className="text-[13px] text-[#626262] font-medium leading-relaxed">For your protection, Booknshow automatically logs you out after a period of inactivity. Select your preferred duration.</p>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2.5 pl-0 md:pl-16">
+                                            <label className="text-[12px] font-bold text-[#A3A3A3] uppercase tracking-widest">Inactivity Limit</label>
+                                            <select 
+                                                value={sessionTimeout} 
+                                                onChange={handleSessionTimeoutChange} 
+                                                className="w-full md:w-64 bg-[#FFFFFF] border border-[#A3A3A3]/40 rounded-[8px] px-4 py-3 text-[14px] text-[#333333] font-bold focus:border-[#E7364D] outline-none appearance-none transition-colors cursor-pointer shadow-sm"
+                                            >
+                                                <option value={1}>1 Minute (Maximum Security)</option>
+                                                <option value={3}>3 Minutes</option>
+                                                <option value={5}>5 Minutes (Default)</option>
+                                                <option value={10}>10 Minutes</option>
+                                                <option value={15}>15 Minutes (Relaxed)</option>
+                                            </select>
+                                        </div>
                                     </div>
 
                                     <form onSubmit={handleUpdatePassword} className="bg-[#FFFFFF] border border-[#A3A3A3]/30 rounded-[12px] p-6 md:p-8 mb-8 shadow-sm">
