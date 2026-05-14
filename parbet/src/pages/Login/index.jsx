@@ -1,26 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, X, MessageSquare, Send, Loader2, AlertCircle } from 'lucide-react';
+import { Check, X, MessageSquare, Send, Loader2, AlertCircle, ShieldCheck } from 'lucide-react';
 import { useAppStore } from '../../store/useStore';
+import { useMainStore } from '../../store/useMainStore'; // INJECTED: Native Reset Store
 import { auth, db } from '../../lib/firebase';
 import { signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, getDoc, updateDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { sendCustomPasswordResetEmail } from '../../utils/resendEmailHelper';
-import { BooknshowLogo } from '../../components/Header'; // Reusing global vector logo
+import { BooknshowLogo } from '../../components/Header'; 
 
 /**
- * GLOBAL REBRAND: Booknshow Identity Application (Phase 2 Login)
+ * GLOBAL REBRAND: Booknshow Identity Application (Phase 3 Native Reset)
  * Enforced Colors: #FFFFFF, #E7364D, #333333, #EB5B6E, #FAD8DC, #A3A3A3, #626262
- * FEATURE 1: Custom Resend Password Reset Interceptor
- * FEATURE 2: Fully Functional Animated Feedback Engine (Rebranded)
+ * FEATURE 1: Native Firebase Password Reset Engine (Zero External Dependencies)
+ * FEATURE 2: Strict Dual-Email Verification UI Protocol
  * FEATURE 3: Intelligent Error Boundaries & Fallbacks
- * FEATURE 4: Email Sanitization Pipeline
+ * FEATURE 4: Fully Functional Animated Feedback Engine
  * FEATURE 5: Firestore Identity Sync
- * FEATURE 6: Seamless Pre-Auth Intent Routing
  */
 
-// Helper Component for exact input styling (Rebranded)
 const CustomInput = ({ label, required, type = "text", value, onChange, disabled, ...props }) => (
     <div className="relative w-full mb-4">
         <input 
@@ -39,12 +37,14 @@ export default function Login() {
     const navigate = useNavigate();
     const location = useLocation(); 
     const { isAuthenticated, setUser, setOnboarded } = useAppStore();
+    const { triggerNativePasswordReset } = useMainStore(); // Fetch native reset function
     
     // Exact View States: 'email' -> 'password' -> 'forgot' -> 'forgot-success'
     const [step, setStep] = useState('email');
     
     // Form States
     const [email, setEmail] = useState('');
+    const [confirmEmail, setConfirmEmail] = useState(''); // NEW: Dual Verification State
     const [password, setPassword] = useState('');
     const [stayLoggedIn, setStayLoggedIn] = useState(true);
 
@@ -59,7 +59,7 @@ export default function Login() {
 
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'parbet-44902';
 
-    // FEATURE 6: Auto-redirect if already logged in (Honors returnTo payload)
+    // Auto-redirect if already logged in
     useEffect(() => {
         if (isAuthenticated) {
             const returnTo = location.state?.returnTo || '/profile';
@@ -68,7 +68,7 @@ export default function Login() {
         }
     }, [isAuthenticated, navigate, location.state]);
 
-    // Secure Firestore 6-Segment Path Sync
+    // Secure Firestore Sync
     const syncUserToFirestore = async (user, additionalData = {}) => {
         const userRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data');
         const docSnap = await getDoc(userRef);
@@ -94,7 +94,6 @@ export default function Login() {
         setLoading(true);
         setError(null);
         const provider = new GoogleAuthProvider();
-        
         provider.addScope('profile');
         provider.addScope('email');
 
@@ -121,7 +120,7 @@ export default function Login() {
         }
     };
 
-    // Step 1: Email Check (With Sanitization Engine)
+    // Step 1: Email Check
     const handleContinueClick = (e) => {
         e.preventDefault();
         const sanitizedEmail = email.trim().toLowerCase();
@@ -132,7 +131,7 @@ export default function Login() {
         setStep('password');
     };
 
-    // Step 2: Finalize Login (With Sanitization & OAuth Collision Detection)
+    // Step 2: Finalize Login
     const handleLoginSubmit = async (e) => {
         e.preventDefault();
         const sanitizedEmail = email.trim().toLowerCase();
@@ -158,13 +157,11 @@ export default function Login() {
             
         } catch (err) {
             console.error("Login Error Intercepted:", err.code, err.message);
-            
             if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
                 setError('Invalid credentials. Check your password, or if you registered via Google, click "Log In with Google" below.');
             } else {
                 setError('Authentication failed. Please verify your details and try again.');
             }
-            
             setStep('email');
             setPassword(''); 
         } finally {
@@ -172,12 +169,19 @@ export default function Login() {
         }
     };
 
-    // FEATURE 1: Custom Resend Password Reset Engine
+    // FEATURE 1 & 2: Native Reset Trigger & Dual-Validation Check
     const handleForgotPasswordSubmit = async (e) => {
         e.preventDefault();
         const sanitizedEmail = email.trim().toLowerCase();
-        if (!sanitizedEmail) {
-            setError("Please enter your email address.");
+        const sanitizedConfirm = confirmEmail.trim().toLowerCase();
+        
+        if (!sanitizedEmail || !sanitizedConfirm) {
+            setError("Please fill out both email fields.");
+            return;
+        }
+
+        if (sanitizedEmail !== sanitizedConfirm) {
+            setError("Email addresses do not match. Please ensure there are no typos.");
             return;
         }
 
@@ -185,22 +189,22 @@ export default function Login() {
         setError(null);
 
         try {
-            const resetLink = `${window.location.origin}/update-password?email=${encodeURIComponent(sanitizedEmail)}&ref=resend_auth`;
-            await sendCustomPasswordResetEmail(sanitizedEmail, resetLink);
+            // Trigger Firebase Native Reset Action
+            await triggerNativePasswordReset(sanitizedEmail);
             setStep('forgot-success');
         } catch (err) {
-            console.error("Custom Reset Failed:", err);
-            setError(err.message || "Failed to dispatch the secure reset link. Please try again.");
+            console.error("Native Reset Failed:", err);
+            // Graceful error masking for security (preventing email enumeration)
+            setError("If this email is registered, a reset link will be sent. Please check your network and try again.");
+            setStep('forgot-success'); // Push to success anyway to prevent data probing
         } finally {
             setLoading(false);
         }
     };
 
-    // FEATURE 2: Unauthenticated Feedback Submission Engine (Rebranded)
     const submitFeedback = async () => {
         if (!feedbackText.trim()) return;
         setFeedbackLoading(true);
-        
         try {
             const feedbackRef = collection(db, 'platform_feedbacks');
             await addDoc(feedbackRef, {
@@ -232,7 +236,7 @@ export default function Login() {
     return (
         <div className="min-h-screen bg-[#F5F5F5] flex items-center justify-center py-12 px-4 relative font-sans overflow-hidden">
             
-            {/* FEATURE 2: Fully Functional Animated Feedback Engine */}
+            {/* Feedback Engine Drawer */}
             <div 
                 onClick={() => setIsFeedbackOpen(true)}
                 className="fixed right-0 top-[30%] bg-[#333333] text-[#FFFFFF] text-[13px] font-bold py-3 px-1.5 rounded-l-[4px] cursor-pointer shadow-md hover:bg-[#E7364D] transition-colors z-40 flex items-center justify-center"
@@ -322,12 +326,12 @@ export default function Login() {
                     {/* DYNAMIC FORM ROUTING */}
                     {step === 'forgot-success' ? (
                         <div className="w-full flex flex-col items-center text-center pb-4">
-                            <div className="w-14 h-14 bg-[#FAD8DC] rounded-full flex items-center justify-center mb-4 border border-[#E7364D]/30">
-                                <Check size={28} className="text-[#E7364D]" strokeWidth={3} />
+                            <div className="w-14 h-14 bg-[#e8f5e9] rounded-full flex items-center justify-center mb-4 border border-[#458731]/30">
+                                <ShieldCheck size={28} className="text-[#458731]" strokeWidth={2.5} />
                             </div>
                             <h3 className="text-[18px] font-black text-[#333333] mb-2">Check your inbox</h3>
                             <p className="text-[14px] text-[#626262] mb-8">
-                                A highly secure password reset link has been dispatched to <strong className="text-[#333333]">{email}</strong> via the Resend API.
+                                A highly secure password reset link has been dispatched to <strong className="text-[#333333]">{email}</strong> directly from Google's authentication servers.
                             </p>
                             <button 
                                 onClick={() => setStep('password')}
@@ -338,8 +342,9 @@ export default function Login() {
                         </div>
                     ) : (
                         <form className="w-full" onSubmit={step === 'email' ? handleContinueClick : step === 'forgot' ? handleForgotPasswordSubmit : handleLoginSubmit}>
+                            
                             <CustomInput 
-                                label="Email" 
+                                label={step === 'forgot' ? "Primary Email Address" : "Email"} 
                                 type="email" 
                                 value={email} 
                                 onChange={(e) => setEmail(e.target.value)} 
@@ -347,6 +352,29 @@ export default function Login() {
                             />
                             
                             <AnimatePresence>
+                                {/* DUAL EMAIL VERIFICATION UI */}
+                                {step === 'forgot' && (
+                                    <motion.div 
+                                        initial={{ opacity: 0, height: 0 }} 
+                                        animate={{ opacity: 1, height: 'auto' }}
+                                        exit={{ opacity: 0, height: 0 }}
+                                        className="overflow-hidden"
+                                    >
+                                        <div className="text-[12px] text-[#626262] mb-3 font-medium flex items-center">
+                                            <ShieldCheck size={14} className="mr-1.5 text-[#E7364D]"/>
+                                            Verification Required: Please type your email again.
+                                        </div>
+                                        <CustomInput 
+                                            label="Confirm Email Address" 
+                                            type="email" 
+                                            value={confirmEmail} 
+                                            onChange={(e) => setConfirmEmail(e.target.value)} 
+                                            disabled={loading}
+                                        />
+                                    </motion.div>
+                                )}
+
+                                {/* PASSWORD UI */}
                                 {step === 'password' && (
                                     <motion.div 
                                         initial={{ opacity: 0, height: 0 }} 
@@ -376,7 +404,7 @@ export default function Login() {
                                     </div>
 
                                     {step === 'password' && (
-                                        <button type="button" onClick={() => { setStep('forgot'); setError(null); }} className="text-[13px] text-[#EB5B6E] font-bold hover:underline">
+                                        <button type="button" onClick={() => { setStep('forgot'); setConfirmEmail(''); setError(null); }} className="text-[13px] text-[#EB5B6E] font-bold hover:underline">
                                             Forgot password?
                                         </button>
                                     )}
@@ -385,7 +413,7 @@ export default function Login() {
 
                             {step === 'forgot' && (
                                 <div className="flex justify-end mb-6">
-                                    <button type="button" onClick={() => { setStep('password'); setError(null); }} className="text-[13px] text-[#626262] font-bold hover:text-[#E7364D] hover:underline transition-colors">
+                                    <button type="button" onClick={() => { setStep('password'); setConfirmEmail(''); setError(null); }} className="text-[13px] text-[#626262] font-bold hover:text-[#E7364D] hover:underline transition-colors">
                                         Back to password entry
                                     </button>
                                 </div>
@@ -393,8 +421,13 @@ export default function Login() {
 
                             <button 
                                 type="submit" 
-                                disabled={loading || (step === 'email' && !email) || (step === 'password' && !password) || (step === 'forgot' && !email)}
-                                className={`w-full py-3.5 rounded-[6px] font-bold text-[15px] transition-all mb-6 flex justify-center items-center ${((step === 'email' && email) || (step === 'password' && password) || (step === 'forgot' && email)) ? 'bg-[#E7364D] text-[#FFFFFF] hover:bg-[#EB5B6E] shadow-sm' : 'bg-[#F5F5F5] text-[#A3A3A3] border border-[#A3A3A3]/20'}`}
+                                disabled={
+                                    loading || 
+                                    (step === 'email' && !email) || 
+                                    (step === 'password' && !password) || 
+                                    (step === 'forgot' && (!email || !confirmEmail || email.toLowerCase() !== confirmEmail.toLowerCase()))
+                                }
+                                className={`w-full py-3.5 rounded-[6px] font-bold text-[15px] transition-all mb-6 flex justify-center items-center ${((step === 'email' && email) || (step === 'password' && password) || (step === 'forgot' && email && confirmEmail && email.toLowerCase() === confirmEmail.toLowerCase())) ? 'bg-[#E7364D] text-[#FFFFFF] hover:bg-[#EB5B6E] shadow-sm' : 'bg-[#F5F5F5] text-[#A3A3A3] border border-[#A3A3A3]/20'}`}
                             >
                                 {loading ? (
                                     <div className="w-5 h-5 border-2 border-[#FFFFFF]/30 border-t-[#FFFFFF] rounded-full animate-spin"></div>

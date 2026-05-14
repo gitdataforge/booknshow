@@ -15,7 +15,8 @@ import {
 import { 
     signInAnonymously, 
     onAuthStateChanged, 
-    signInWithCustomToken
+    signInWithCustomToken,
+    sendPasswordResetEmail // INJECTED: Native Firebase Auth reset method
 } from 'firebase/auth';
 
 // INJECTED: We must import the UI store to synchronize the auth state globally.
@@ -246,20 +247,18 @@ export const useMainStore = create((set, get) => ({
         }
     },
 
-    resetPassword: async (email) => {
+    /**
+     * FEATURE 5: Native Firebase Secure Password Reset (Serverless & Zero-Cost)
+     */
+    triggerNativePasswordReset: async (email) => {
         try {
-            const VERCEL_API_URL = 'https://parbet-api.vercel.app/api/resetPassword';
-            const response = await fetch(VERCEL_API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email })
-            });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error || 'Failed to dispatch secure password reset email.');
+            // Utilizes Firebase Native Auth, bypassing Vercel and Resend completely.
+            // Securely dispatches email from Google's servers directly.
+            await sendPasswordResetEmail(auth, email);
             return { success: true };
         } catch (error) {
-            console.error("Password recovery failed:", error);
-            throw error;
+            console.error("Native Password recovery failed:", error);
+            throw error; // UI layer will catch and display error messages (e.g. auth/user-not-found)
         }
     },
 
