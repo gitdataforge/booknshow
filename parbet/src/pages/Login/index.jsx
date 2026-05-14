@@ -1,35 +1,50 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, X, MessageSquare, Send, Loader2, AlertCircle, ShieldCheck } from 'lucide-react';
+import { Check, X, MessageSquare, Send, Loader2, AlertCircle, ShieldCheck, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { useAppStore } from '../../store/useStore';
-import { useMainStore } from '../../store/useMainStore'; // INJECTED: Native Reset Store
+import { useMainStore } from '../../store/useMainStore'; 
 import { auth, db } from '../../lib/firebase';
 import { signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, getDoc, updateDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { BooknshowLogo } from '../../components/Header'; 
 
 /**
- * GLOBAL REBRAND: Booknshow Identity Application (Phase 3 Native Reset)
+ * GLOBAL REBRAND: Booknshow Identity Application (Phase 4 Direct Reset)
  * Enforced Colors: #FFFFFF, #E7364D, #333333, #EB5B6E, #FAD8DC, #A3A3A3, #626262
- * FEATURE 1: Native Firebase Password Reset Engine (Zero External Dependencies)
- * FEATURE 2: Strict Dual-Email Verification UI Protocol
- * FEATURE 3: Intelligent Error Boundaries & Fallbacks
- * FEATURE 4: Fully Functional Animated Feedback Engine
- * FEATURE 5: Firestore Identity Sync
+ * FEATURE 1: Direct In-App Password Override (No Emails/OTP)
+ * FEATURE 2: Strict Current-Password Verification Protocol
+ * FEATURE 3: High-End Hardware Accelerated UI Feedback
  */
 
-const CustomInput = ({ label, required, type = "text", value, onChange, disabled, ...props }) => (
+const CustomInput = ({ label, icon: Icon, required, type = "text", value, onChange, disabled, showToggle, onToggle, ...props }) => (
     <div className="relative w-full mb-4">
-        <input 
-            type={type} 
-            value={value} 
-            onChange={onChange} 
-            disabled={disabled}
-            placeholder={label}
-            className="w-full border border-[#A3A3A3] rounded-[6px] px-3 py-3.5 text-[15px] text-[#333333] outline-none focus:border-[#E7364D] focus:ring-1 focus:ring-[#E7364D] transition-all bg-[#FFFFFF] disabled:bg-[#F5F5F5] disabled:text-[#A3A3A3] placeholder-[#A3A3A3]"
-            {...props}
-        />
+        <label className="block text-[13px] font-bold text-[#333333] mb-1.5">{label}</label>
+        <div className="relative">
+            {Icon && (
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Icon size={18} className="text-[#A3A3A3]" />
+                </div>
+            )}
+            <input 
+                type={type} 
+                value={value} 
+                onChange={onChange} 
+                disabled={disabled}
+                placeholder={`Enter ${label.toLowerCase()}`}
+                className={`w-full border border-[#A3A3A3] rounded-[6px] ${Icon ? 'pl-10' : 'pl-3'} ${showToggle ? 'pr-10' : 'pr-3'} py-3.5 text-[15px] text-[#333333] outline-none focus:border-[#E7364D] focus:ring-1 focus:ring-[#E7364D] transition-all bg-[#FFFFFF] disabled:bg-[#F5F5F5] disabled:text-[#A3A3A3] placeholder-[#A3A3A3]`}
+                {...props}
+            />
+            {showToggle && (
+                <button 
+                    type="button"
+                    onClick={onToggle}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#A3A3A3] hover:text-[#E7364D] transition-colors"
+                >
+                    {type === 'password' ? <Eye size={18} /> : <EyeOff size={18} />}
+                </button>
+            )}
+        </div>
     </div>
 );
 
@@ -37,16 +52,22 @@ export default function Login() {
     const navigate = useNavigate();
     const location = useLocation(); 
     const { isAuthenticated, setUser, setOnboarded } = useAppStore();
-    const { triggerNativePasswordReset } = useMainStore(); // Fetch native reset function
     
-    // Exact View States: 'email' -> 'password' -> 'forgot' -> 'forgot-success'
+    // INJECTED: New Store Action for Direct Change
+    const { executeDirectPasswordChange } = useMainStore(); 
+    
+    // View States: 'email' -> 'password' -> 'forgot' -> 'forgot-success'
     const [step, setStep] = useState('email');
     
-    // Form States
+    // Core Form States
     const [email, setEmail] = useState('');
-    const [confirmEmail, setConfirmEmail] = useState(''); // NEW: Dual Verification State
     const [password, setPassword] = useState('');
     const [stayLoggedIn, setStayLoggedIn] = useState(true);
+
+    // Direct Reset States
+    const [currentPassword, setCurrentPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [showNewPassword, setShowNewPassword] = useState(false);
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -59,7 +80,6 @@ export default function Login() {
 
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'parbet-44902';
 
-    // Auto-redirect if already logged in
     useEffect(() => {
         if (isAuthenticated) {
             const returnTo = location.state?.returnTo || '/profile';
@@ -68,7 +88,6 @@ export default function Login() {
         }
     }, [isAuthenticated, navigate, location.state]);
 
-    // Secure Firestore Sync
     const syncUserToFirestore = async (user, additionalData = {}) => {
         const userRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data');
         const docSnap = await getDoc(userRef);
@@ -89,7 +108,6 @@ export default function Login() {
         }
     };
 
-    // Google OAuth Integration
     const handleGoogleAuth = async () => {
         setLoading(true);
         setError(null);
@@ -111,16 +129,14 @@ export default function Login() {
             const returnTo = location.state?.returnTo || '/profile';
             const reservedListing = location.state?.reservedListing;
             navigate(returnTo, { state: { reservedListing } });
-            
         } catch (err) {
-            console.error("Google Auth Error Intercepted:", err);
+            console.error("Google Auth Error:", err);
             setError('Failed to securely authenticate with Google.');
         } finally {
             setLoading(false);
         }
     };
 
-    // Step 1: Email Check
     const handleContinueClick = (e) => {
         e.preventDefault();
         const sanitizedEmail = email.trim().toLowerCase();
@@ -131,7 +147,6 @@ export default function Login() {
         setStep('password');
     };
 
-    // Step 2: Finalize Login
     const handleLoginSubmit = async (e) => {
         e.preventDefault();
         const sanitizedEmail = email.trim().toLowerCase();
@@ -154,11 +169,9 @@ export default function Login() {
             const returnTo = location.state?.returnTo || '/profile';
             const reservedListing = location.state?.reservedListing;
             navigate(returnTo, { state: { reservedListing } });
-            
         } catch (err) {
-            console.error("Login Error Intercepted:", err.code, err.message);
             if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
-                setError('Invalid credentials. Check your password, or if you registered via Google, click "Log In with Google" below.');
+                setError('Invalid credentials. Check your password, or if you registered via Google, log in with Google.');
             } else {
                 setError('Authentication failed. Please verify your details and try again.');
             }
@@ -169,19 +182,18 @@ export default function Login() {
         }
     };
 
-    // FEATURE 1 & 2: Native Reset Trigger & Dual-Validation Check
-    const handleForgotPasswordSubmit = async (e) => {
+    // FEATURE 1 & 2: Direct Client-Side Password Override Engine
+    const handleDirectResetSubmit = async (e) => {
         e.preventDefault();
         const sanitizedEmail = email.trim().toLowerCase();
-        const sanitizedConfirm = confirmEmail.trim().toLowerCase();
         
-        if (!sanitizedEmail || !sanitizedConfirm) {
-            setError("Please fill out both email fields.");
+        if (!sanitizedEmail || !currentPassword || !newPassword) {
+            setError("All three security fields are strictly required.");
             return;
         }
 
-        if (sanitizedEmail !== sanitizedConfirm) {
-            setError("Email addresses do not match. Please ensure there are no typos.");
+        if (newPassword.length < 8) {
+            setError("New password must be at least 8 characters long.");
             return;
         }
 
@@ -189,14 +201,16 @@ export default function Login() {
         setError(null);
 
         try {
-            // Trigger Firebase Native Reset Action
-            await triggerNativePasswordReset(sanitizedEmail);
+            // Trigger Store Action: Authenticates old password -> Sets new password
+            await executeDirectPasswordChange(sanitizedEmail, currentPassword, newPassword);
             setStep('forgot-success');
         } catch (err) {
-            console.error("Native Reset Failed:", err);
-            // Graceful error masking for security (preventing email enumeration)
-            setError("If this email is registered, a reset link will be sent. Please check your network and try again.");
-            setStep('forgot-success'); // Push to success anyway to prevent data probing
+            console.error("Direct Reset Failed:", err);
+            if (err.code === 'auth/invalid-credential') {
+                setError("Verification Failed: The current password you entered is incorrect.");
+            } else {
+                setError("Failed to update password. Ensure your details are correct.");
+            }
         } finally {
             setLoading(false);
         }
@@ -206,8 +220,7 @@ export default function Login() {
         if (!feedbackText.trim()) return;
         setFeedbackLoading(true);
         try {
-            const feedbackRef = collection(db, 'platform_feedbacks');
-            await addDoc(feedbackRef, {
+            await addDoc(collection(db, 'platform_feedbacks'), {
                 text: feedbackText,
                 email: email || 'anonymous',
                 context: 'Login Page',
@@ -221,7 +234,6 @@ export default function Login() {
                 setFeedbackSuccess(false);
             }, 3000);
         } catch (err) {
-            console.error("Feedback dispatch failed:", err);
             setFeedbackSuccess(true);
             setTimeout(() => {
                 setIsFeedbackOpen(false);
@@ -271,12 +283,12 @@ export default function Login() {
                                         <Check size={32} className="text-[#E7364D]" strokeWidth={3} />
                                     </div>
                                     <h4 className="text-[18px] font-black text-[#333333] mb-2">Thank You!</h4>
-                                    <p className="text-[14px] text-[#626262]">Your feedback has been securely transmitted to our engineering team.</p>
+                                    <p className="text-[14px] text-[#626262]">Your feedback has been securely transmitted.</p>
                                 </motion.div>
                             ) : (
                                 <>
                                     <p className="text-[14px] text-[#626262] mb-6 leading-relaxed">
-                                        Experiencing an issue or have a suggestion to improve Booknshow? Let us know below.
+                                        Experiencing an issue or have a suggestion? Let us know.
                                     </p>
                                     <textarea 
                                         value={feedbackText}
@@ -299,7 +311,6 @@ export default function Login() {
                 )}
             </AnimatePresence>
 
-            {/* Main Centered Login Card */}
             <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -312,10 +323,9 @@ export default function Login() {
                     </div>
                     
                     <h2 className="text-[22px] font-bold text-[#333333] mb-8 text-center">
-                        {step === 'forgot' ? 'Reset Password' : 'Sign in to Booknshow'}
+                        {step === 'forgot' ? 'Update Security Key' : 'Sign in to Booknshow'}
                     </h2>
 
-                    {/* Intelligent Error Render Box */}
                     {error && (
                         <div className="mb-6 w-full p-3 bg-[#FAD8DC]/30 text-[#E7364D] text-[13px] border border-[#E7364D]/50 rounded-[6px] font-bold text-center leading-relaxed flex items-start justify-center gap-2">
                             <AlertCircle size={16} className="shrink-0 mt-0.5" />
@@ -323,76 +333,90 @@ export default function Login() {
                         </div>
                     )}
 
-                    {/* DYNAMIC FORM ROUTING */}
                     {step === 'forgot-success' ? (
                         <div className="w-full flex flex-col items-center text-center pb-4">
                             <div className="w-14 h-14 bg-[#e8f5e9] rounded-full flex items-center justify-center mb-4 border border-[#458731]/30">
                                 <ShieldCheck size={28} className="text-[#458731]" strokeWidth={2.5} />
                             </div>
-                            <h3 className="text-[18px] font-black text-[#333333] mb-2">Check your inbox</h3>
+                            <h3 className="text-[18px] font-black text-[#333333] mb-2">Password Updated</h3>
                             <p className="text-[14px] text-[#626262] mb-8">
-                                A highly secure password reset link has been dispatched to <strong className="text-[#333333]">{email}</strong> directly from Google's authentication servers.
+                                Your account credentials have been successfully overwritten. You can now log in securely.
                             </p>
                             <button 
-                                onClick={() => setStep('password')}
-                                className="w-full border border-[#A3A3A3]/50 text-[#333333] font-bold py-3 rounded-[6px] hover:bg-[#FAD8DC]/20 hover:border-[#E7364D] hover:text-[#E7364D] transition-colors"
+                                onClick={() => { setStep('password'); setCurrentPassword(''); setNewPassword(''); }}
+                                className="w-full bg-[#333333] text-[#FFFFFF] font-bold py-3 rounded-[6px] hover:bg-[#E7364D] transition-colors"
                             >
                                 Return to Login
                             </button>
                         </div>
                     ) : (
-                        <form className="w-full" onSubmit={step === 'email' ? handleContinueClick : step === 'forgot' ? handleForgotPasswordSubmit : handleLoginSubmit}>
+                        <form className="w-full" onSubmit={step === 'email' ? handleContinueClick : step === 'forgot' ? handleDirectResetSubmit : handleLoginSubmit}>
                             
-                            <CustomInput 
-                                label={step === 'forgot' ? "Primary Email Address" : "Email"} 
-                                type="email" 
-                                value={email} 
-                                onChange={(e) => setEmail(e.target.value)} 
-                                disabled={step === 'password' || loading} 
-                            />
-                            
-                            <AnimatePresence>
-                                {/* DUAL EMAIL VERIFICATION UI */}
-                                {step === 'forgot' && (
-                                    <motion.div 
-                                        initial={{ opacity: 0, height: 0 }} 
-                                        animate={{ opacity: 1, height: 'auto' }}
-                                        exit={{ opacity: 0, height: 0 }}
-                                        className="overflow-hidden"
-                                    >
-                                        <div className="text-[12px] text-[#626262] mb-3 font-medium flex items-center">
-                                            <ShieldCheck size={14} className="mr-1.5 text-[#E7364D]"/>
-                                            Verification Required: Please type your email again.
-                                        </div>
-                                        <CustomInput 
-                                            label="Confirm Email Address" 
-                                            type="email" 
-                                            value={confirmEmail} 
-                                            onChange={(e) => setConfirmEmail(e.target.value)} 
-                                            disabled={loading}
-                                        />
-                                    </motion.div>
-                                )}
+                            {/* Standard Email/Password Login Flow */}
+                            {step !== 'forgot' && (
+                                <>
+                                    <CustomInput 
+                                        label="Email Address" 
+                                        type="email" 
+                                        value={email} 
+                                        onChange={(e) => setEmail(e.target.value)} 
+                                        disabled={step === 'password' || loading} 
+                                    />
+                                    <AnimatePresence>
+                                        {step === 'password' && (
+                                            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                                                <CustomInput 
+                                                    label="Password" 
+                                                    type="password" 
+                                                    value={password} 
+                                                    onChange={(e) => setPassword(e.target.value)} 
+                                                    autoFocus
+                                                    disabled={loading}
+                                                />
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </>
+                            )}
 
-                                {/* PASSWORD UI */}
-                                {step === 'password' && (
-                                    <motion.div 
-                                        initial={{ opacity: 0, height: 0 }} 
-                                        animate={{ opacity: 1, height: 'auto' }}
-                                        exit={{ opacity: 0, height: 0 }}
-                                        className="overflow-hidden"
-                                    >
-                                        <CustomInput 
-                                            label="Password" 
-                                            type="password" 
-                                            value={password} 
-                                            onChange={(e) => setPassword(e.target.value)} 
-                                            autoFocus
-                                            disabled={loading}
-                                        />
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
+                            {/* DIRECT OVERRIDE FORM (3-Fields) */}
+                            {step === 'forgot' && (
+                                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full">
+                                    <div className="mb-6 flex items-start gap-3 bg-[#F5F5F5] p-3.5 rounded-[8px] border border-[#A3A3A3]/30">
+                                        <ShieldCheck className="text-[#E7364D] shrink-0 mt-0.5" size={20} />
+                                        <div>
+                                            <p className="text-[12px] font-bold text-[#333333] mb-0.5">Strict Verification Required</p>
+                                            <p className="text-[11px] text-[#626262]">You must enter your current password to authorize a direct credential update.</p>
+                                        </div>
+                                    </div>
+
+                                    <CustomInput 
+                                        label="Registered Email" 
+                                        type="email" 
+                                        value={email} 
+                                        onChange={(e) => setEmail(e.target.value)} 
+                                        disabled={loading} 
+                                    />
+                                    <CustomInput 
+                                        label="Current Password" 
+                                        icon={KeyRound}
+                                        type="password" 
+                                        value={currentPassword} 
+                                        onChange={(e) => setCurrentPassword(e.target.value)} 
+                                        disabled={loading} 
+                                    />
+                                    <CustomInput 
+                                        label="New Secure Password" 
+                                        icon={KeyRound}
+                                        type={showNewPassword ? "text" : "password"} 
+                                        value={newPassword} 
+                                        onChange={(e) => setNewPassword(e.target.value)} 
+                                        disabled={loading}
+                                        showToggle={true}
+                                        onToggle={() => setShowNewPassword(!showNewPassword)}
+                                    />
+                                </motion.div>
+                            )}
 
                             {step !== 'forgot' && (
                                 <div className="flex items-center justify-between mb-6 mt-2">
@@ -402,10 +426,9 @@ export default function Login() {
                                         </div>
                                         <span className="text-[14px] text-[#333333] font-medium group-hover:text-[#E7364D] transition-colors">Stay logged in</span>
                                     </div>
-
                                     {step === 'password' && (
-                                        <button type="button" onClick={() => { setStep('forgot'); setConfirmEmail(''); setError(null); }} className="text-[13px] text-[#EB5B6E] font-bold hover:underline">
-                                            Forgot password?
+                                        <button type="button" onClick={() => { setStep('forgot'); setError(null); }} className="text-[13px] text-[#EB5B6E] font-bold hover:underline">
+                                            Change password?
                                         </button>
                                     )}
                                 </div>
@@ -413,8 +436,8 @@ export default function Login() {
 
                             {step === 'forgot' && (
                                 <div className="flex justify-end mb-6">
-                                    <button type="button" onClick={() => { setStep('password'); setConfirmEmail(''); setError(null); }} className="text-[13px] text-[#626262] font-bold hover:text-[#E7364D] hover:underline transition-colors">
-                                        Back to password entry
+                                    <button type="button" onClick={() => { setStep('password'); setCurrentPassword(''); setNewPassword(''); setError(null); }} className="text-[13px] text-[#626262] font-bold hover:text-[#E7364D] hover:underline transition-colors">
+                                        Cancel change
                                     </button>
                                 </div>
                             )}
@@ -425,14 +448,14 @@ export default function Login() {
                                     loading || 
                                     (step === 'email' && !email) || 
                                     (step === 'password' && !password) || 
-                                    (step === 'forgot' && (!email || !confirmEmail || email.toLowerCase() !== confirmEmail.toLowerCase()))
+                                    (step === 'forgot' && (!email || !currentPassword || !newPassword))
                                 }
-                                className={`w-full py-3.5 rounded-[6px] font-bold text-[15px] transition-all mb-6 flex justify-center items-center ${((step === 'email' && email) || (step === 'password' && password) || (step === 'forgot' && email && confirmEmail && email.toLowerCase() === confirmEmail.toLowerCase())) ? 'bg-[#E7364D] text-[#FFFFFF] hover:bg-[#EB5B6E] shadow-sm' : 'bg-[#F5F5F5] text-[#A3A3A3] border border-[#A3A3A3]/20'}`}
+                                className={`w-full py-3.5 rounded-[6px] font-bold text-[15px] transition-all mb-6 flex justify-center items-center ${((step === 'email' && email) || (step === 'password' && password) || (step === 'forgot' && email && currentPassword && newPassword)) ? 'bg-[#E7364D] text-[#FFFFFF] hover:bg-[#EB5B6E] shadow-sm' : 'bg-[#F5F5F5] text-[#A3A3A3] border border-[#A3A3A3]/20'}`}
                             >
                                 {loading ? (
                                     <div className="w-5 h-5 border-2 border-[#FFFFFF]/30 border-t-[#FFFFFF] rounded-full animate-spin"></div>
                                 ) : (
-                                    step === 'forgot' ? 'Send Secure Reset Link' : 'Continue'
+                                    step === 'forgot' ? 'Force Password Update' : 'Continue'
                                 )}
                             </button>
                         </form>
@@ -448,7 +471,6 @@ export default function Login() {
                                 Guest purchase? Find your order
                             </button>
 
-                            {/* Official Google Login Button */}
                             <button 
                                 onClick={handleGoogleAuth} 
                                 disabled={loading}
@@ -470,7 +492,6 @@ export default function Login() {
                     )}
                 </div>
 
-                {/* Bottom Localization Selectors */}
                 <div className="border-t border-[#A3A3A3]/20 bg-[#F5F5F5] px-10 py-5 space-y-3 mt-auto">
                     <div className="flex items-center text-[13px] font-medium text-[#626262] cursor-pointer pb-3 border-b border-[#A3A3A3]/20 hover:text-[#E7364D] transition-colors">
                         <span className="mr-3 font-serif">A文</span> English (US)

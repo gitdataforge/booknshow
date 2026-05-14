@@ -16,7 +16,8 @@ import {
     signInAnonymously, 
     onAuthStateChanged, 
     signInWithCustomToken,
-    sendPasswordResetEmail // INJECTED: Native Firebase Auth reset method
+    signInWithEmailAndPassword, // INJECTED: Used for background verification
+    updatePassword              // INJECTED: Used for direct credential override
 } from 'firebase/auth';
 
 // INJECTED: We must import the UI store to synchronize the auth state globally.
@@ -248,17 +249,22 @@ export const useMainStore = create((set, get) => ({
     },
 
     /**
-     * FEATURE 5: Native Firebase Secure Password Reset (Serverless & Zero-Cost)
+     * FEATURE 5: Direct Client-Side Password Override Engine
+     * Authenticates the user silently with their current password and applies the new password directly.
      */
-    triggerNativePasswordReset: async (email) => {
+    executeDirectPasswordChange: async (email, currentPassword, newPassword) => {
         try {
-            // Utilizes Firebase Native Auth, bypassing Vercel and Resend completely.
-            // Securely dispatches email from Google's servers directly.
-            await sendPasswordResetEmail(auth, email);
+            // 1. Cryptographically verify identity against Google Identity servers
+            const userCredential = await signInWithEmailAndPassword(auth, email, currentPassword);
+            
+            // 2. Force apply the new password to the verified user profile
+            await updatePassword(userCredential.user, newPassword);
+            
+            // 3. The Firebase Auth session remains active with the new credentials automatically.
             return { success: true };
         } catch (error) {
-            console.error("Native Password recovery failed:", error);
-            throw error; // UI layer will catch and display error messages (e.g. auth/user-not-found)
+            console.error("Direct Password recovery failed:", error);
+            throw error; // UI layer will catch and map specific error codes (e.g., auth/invalid-credential)
         }
     },
 
