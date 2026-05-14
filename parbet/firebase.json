@@ -9,6 +9,8 @@
     {
       "target": "buyer-main",
       "public": "dist",
+      "cleanUrls": true,
+      "trailingSlash": false,
       "ignore": [
         "firebase.json",
         "**/.*",
@@ -35,6 +37,8 @@
     {
       "target": "buyer-custom",
       "public": "dist",
+      "cleanUrls": true,
+      "trailingSlash": false,
       "ignore": [
         "firebase.json",
         "**/.*",
@@ -63,7 +67,7 @@
     "providers": {
       "emailPassword": true,
       "googleSignIn": {
-        "oAuthBrandDisplayName": "Booknshow",
+        "oAuthBrandDisplayName": "booknshow",
         "supportEmail": "support.booknshow@tuta.io"
       }
     }
