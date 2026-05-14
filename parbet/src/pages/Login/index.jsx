@@ -455,7 +455,7 @@ export default function Login() {
                                 {loading ? (
                                     <div className="w-5 h-5 border-2 border-[#FFFFFF]/30 border-t-[#FFFFFF] rounded-full animate-spin"></div>
                                 ) : (
-                                    step === 'forgot' ? 'Force Password Update' : 'Continue'
+                                    step === 'forgot' ? 'Update Password' : 'Continue'
                                 )}
                             </button>
                         </form>
