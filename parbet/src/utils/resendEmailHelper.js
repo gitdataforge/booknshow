@@ -1,18 +1,18 @@
 /**
  * FEATURE 1: Secure API Integration via Vercel Backend (100% Free Tier)
- * FEATURE 2: Dynamic HTML Template Generation
+ * FEATURE 2: Dynamic HTML Template Generation for Verification Only
  * FEATURE 3: Graceful Error Handling & Network Retries
  * FEATURE 4: Viagogo 1:1 Brand Theming (CSS-in-JS Injection)
  * FEATURE 5: CORS Bypass via Dedicated Serverless Endpoint
  */
 
-export const sendCustomPasswordResetEmail = async (email, resetLink) => {
-    if (!email || !resetLink) {
-        console.error("[Auth Protocol] Critical Error: Missing email or reset link.");
-        throw new Error("Invalid reset parameters provided.");
+export const sendCustomVerificationEmail = async (email, verificationLink) => {
+    if (!email || !verificationLink) {
+        console.error("[Auth Protocol] Critical Error: Missing email or verification link.");
+        throw new Error("Invalid verification parameters provided.");
     }
 
-    // FEATURE 2: Premium Custom HTML Email Template (Parbet Branding)
+    // FEATURE 2: Premium Custom HTML Email Template (Parbet Branding - Verification)
     const htmlContent = `
         <!DOCTYPE html>
         <html>
@@ -33,8 +33,8 @@ export const sendCustomPasswordResetEmail = async (email, resetLink) => {
                 .btn:hover { background-color: #366a26; }
                 .footer { background-color: #f8f9fa; padding: 20px; text-align: center; border-top: 1px solid #e2e2e2; }
                 .footer p { color: #9ca3af; font-size: 12px; margin: 0; font-weight: 500; }
-                .warning { background-color: #fff4e5; border-left: 4px solid #f57c00; padding: 12px 16px; margin-bottom: 24px; }
-                .warning p { margin: 0; color: #b75c00; font-size: 13px; font-weight: 600; }
+                .security-badge { background-color: #e8f5e9; border-left: 4px solid #458731; padding: 12px 16px; margin-bottom: 24px; }
+                .security-badge p { margin: 0; color: #2e5a21; font-size: 13px; font-weight: 600; }
             </style>
         </head>
         <body>
@@ -43,20 +43,20 @@ export const sendCustomPasswordResetEmail = async (email, resetLink) => {
                     <h1>parbet <span>tickets</span></h1>
                 </div>
                 <div class="content">
-                    <h2>Reset your password</h2>
-                    <p>We received a secure request to reset the password for your Parbet account associated with <strong>${email}</strong>.</p>
+                    <h2>Verify your identity</h2>
+                    <p>Welcome to Parbet. To ensure the highest level of security for our marketplace, we require all users to verify their email address before buying or selling tickets.</p>
                     
-                    <div class="warning">
-                        <p>If you did not request a password reset, you can safely ignore this email. Your account remains completely secure.</p>
+                    <div class="security-badge">
+                        <p>This verification link is uniquely tied to <strong>${email}</strong> and is heavily encrypted.</p>
                     </div>
 
-                    <p>Click the button below to securely authenticate and set a new password for your account.</p>
+                    <p>Click the secure button below to instantly verify your account and gain full access to the platform.</p>
                     
                     <div class="btn-container">
-                        <a href="${resetLink}" class="btn">Reset Password Securely</a>
+                        <a href="${verificationLink}" class="btn">Verify Email Address</a>
                     </div>
                     
-                    <p style="font-size: 13px; color: #9ca3af;">For your security, this highly encrypted link will expire automatically in exactly 1 hour.</p>
+                    <p style="font-size: 13px; color: #9ca3af;">If you did not create a Parbet account, you can safely delete this email.</p>
                 </div>
                 <div class="footer">
                     <p>&copy; ${new Date().getFullYear()} Parbet Entertainment Inc. All rights reserved.</p>
@@ -70,14 +70,14 @@ export const sendCustomPasswordResetEmail = async (email, resetLink) => {
     // FEATURE 3: Strict Network Payload Construction for Custom Vercel API
     const payload = {
         email: email,
-        resetLink: resetLink,
+        verificationLink: verificationLink,
         htmlContent: htmlContent
     };
 
     try {
         // FEATURE 5: Synchronous HTTP Dispatch to 100% Free Vercel Backend
-        // This inherently bypasses the Resend browser CORS block by acting as a secure proxy
-        const response = await fetch("https://parbet-api.vercel.app/api/resetPassword", {
+        // Ensures we hit the verification endpoint strictly
+        const response = await fetch("https://parbet-api.vercel.app/api/verifyEmail", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
@@ -89,10 +89,10 @@ export const sendCustomPasswordResetEmail = async (email, resetLink) => {
 
         if (!response.ok) {
             console.error("[Vercel Proxy Protocol] Dispatch Failed:", data);
-            throw new Error(data.message || "The email gateway rejected the dispatch request.");
+            throw new Error(data.message || "The email gateway rejected the verification dispatch request.");
         }
 
-        console.log(`[Vercel Proxy Protocol] Successfully dispatched reset link to ${email}.`);
+        console.log(`[Vercel Proxy Protocol] Successfully dispatched verification link to ${email}.`);
         return { success: true };
 
     } catch (error) {
