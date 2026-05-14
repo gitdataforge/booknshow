@@ -26,6 +26,9 @@ import Home from './pages/Home';
 import Maintenance from './pages/Maintenance';
 import Performer from './pages/Performer'; 
 
+// NEW: Native Auth Action Page
+import ResetAction from './pages/Auth/ResetAction';
+
 // Profile Standalone Nodes
 import Profile from './pages/Profile';
 import Orders from './pages/Profile/Orders';
@@ -71,8 +74,8 @@ function MainLayout() {
     const isAdminPath = location.pathname.toLowerCase().startsWith('/admin');
     const isSellerPath = location.pathname.toLowerCase().startsWith('/seller');
     
-    // FEATURE: Isolation Engine (Hides Header/Footer)
-    const isIsolatedPage = ['/event', '/login', '/signup', '/checkout', '/checkout/success'].some(path => 
+    // FEATURE: Isolation Engine (Hides Header/Footer for immersive auth/checkout pages)
+    const isIsolatedPage = ['/event', '/login', '/signup', '/checkout', '/checkout/success', '/reset-password'].some(path => 
         location.pathname.toLowerCase().startsWith(path)
     );
 
@@ -97,6 +100,9 @@ function MainLayout() {
                         <Route path="/" element={<Home />} />
                         
                         <Route path="/performer/:id" element={<Performer />} />
+                        
+                        {/* FEATURE: Native Password Reset Landing Node */}
+                        <Route path="/reset-password" element={<ResetAction />} />
 
                         {/* PHASE 10: CHECKOUT PIPELINE */}
                         <Route path="/checkout" element={isAuthenticated ? <Checkout /> : <Navigate to="/login" replace />} />
