@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
     IndianRupee, TrendingUp, Calendar, Search, 
     CheckCircle2, Clock, AlertCircle, ArrowUpRight, 
-    FileText, Landmark, ChevronDown, DollarSign, X, Download, Loader2
+    FileText, Landmark, ChevronDown, DollarSign, X, Download, Loader2, ShieldCheck
 } from 'lucide-react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
