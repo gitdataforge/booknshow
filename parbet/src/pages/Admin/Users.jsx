@@ -19,8 +19,7 @@ import { useMainStore } from '../../store/useMainStore';
 /**
  * GLOBAL REBRAND: Booknshow Identity Application (Phase 9 Admin Users Directory)
  * Enforced Colors: #FFFFFF, #E7364D, #333333, #EB5B6E, #FAD8DC, #A3A3A3, #626262
- * 
- * --- 14 REAL FEATURES & SECTIONS ---
+ * * --- 14 REAL FEATURES & SECTIONS ---
  * SECTION 1: Ambient Illustrative Backgrounds
  * SECTION 2: Master Directory Header
  * SECTION 3: User Base KPI Summary
@@ -30,10 +29,10 @@ import { useMainStore } from '../../store/useMainStore';
  * SECTION 7: Cryptographic UID Hash Masking
  * SECTION 8: Status & Role Badging System
  * SECTION 9: CSV Global Export Engine
- * FEATURE 10: Strict Route Gatekeeper (Kicks non-admins instantly)
- * FEATURE 11: Conditional Super Admin Ghosting Protocol (Hides master from standard admins)
- * FEATURE 12: Role Elevation Engine (Buyer -> Seller -> Admin)
- * FEATURE 13: Granular Permission Matrix (canCreateEvents, canEditSeatingConfig)
+ * FEATURE 10: Strict Route Gatekeeper
+ * FEATURE 11: Strict Super Admin UI Ghosting (Isolates super admin from standard admins)
+ * FEATURE 12: Role Elevation Engine
+ * FEATURE 13: Granular Permission Matrix
  * FEATURE 14: Account Suspension & Ban Execution
  */
 
@@ -121,13 +120,15 @@ export default function AdminUsers() {
 
         // Check if the currently logged-in user is the ultimate super admin
         const isCurrentSuperAdmin = user.email && user.email.toLowerCase() === 'testcodecfg@gmail.com';
+        
+        // FEATURE 11: Check if current user is the restricted standard admin
+        const isRestrictedAdmin = user.email && user.email.toLowerCase() === 'r71819119@gmail.com';
 
         const mapped = allUsers.filter(u => {
-            // FEATURE 11: CONDITIONAL SUPER ADMIN GHOSTING PROTOCOL
-            // If the user being iterated is the super admin, ONLY allow them into the array IF the person viewing the screen is ALSO the super admin.
-            // This means standard admins will NEVER see testcodecfg@gmail.com in their lists.
+            // FEATURE 11: STRICT SUPER ADMIN GHOSTING PROTOCOL
+            // If the user being iterated is the super admin, completely hide them if the person viewing is the restricted standard admin.
             if (u.email && u.email.toLowerCase() === 'testcodecfg@gmail.com') {
-                return isCurrentSuperAdmin;
+                if (isRestrictedAdmin) return false;
             }
             return true;
         }).map(u => {

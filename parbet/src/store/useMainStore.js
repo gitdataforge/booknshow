@@ -27,10 +27,13 @@ import { useAppStore } from './useStore';
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'parbet-44902';
 
 // Booknshow God-Mode Admins (Synchronized with Firestore Rules)
+// INJECTED: Added restricted admin r71819119@gmail.com to grant UI pipeline access
 const ADMIN_EMAILS = [
     'testcodecfg@gmail.com', 
     'krishnamehta.gm@gmail.com', 
-    'jatinseth.op@gmail.com'
+    'jatinseth.op@gmail.com',
+    'jachinfotech@gmail.com',
+    'r71819119@gmail.com' 
 ];
 
 // Safe Date Parser to prevent sorting crashes on varying Timestamp formats
