@@ -19,8 +19,20 @@ service cloud.firestore {
         request.auth.token.email == 'testcodecfg@gmail.com' ||
         request.auth.token.email == 'krishnamehta.gm@gmail.com' ||
         request.auth.token.email == 'jatinseth.op@gmail.com' ||
-        request.auth.token.email == 'jachinfotech@gmail.com'
+        request.auth.token.email == 'jachinfotech@gmail.com' ||
+        request.auth.token.email == 'r71819119@gmail.com' // INJECTED: New standard admin added to master root
       );
+    }
+
+    // FEATURE 3.2: Strict Admin Masking Protocol (Isolates Super Admin from Standard Admin)
+    function isMaskedAdminTargetingSuperAdmin() {
+      // Prevents the restricted admin from executing ANY read/write/delete operations on documents containing the super admin's email
+      return isAuthenticated() && 
+             request.auth.token.email == 'r71819119@gmail.com' && 
+             (
+               (resource != null && 'email' in resource.data && resource.data.email == 'testcodecfg@gmail.com') ||
+               (request.resource != null && 'email' in request.resource.data && request.resource.data.email == 'testcodecfg@gmail.com')
+             );
     }
 
     // FEATURE 3.1: Strict Seller RBAC Verification
@@ -89,16 +101,18 @@ service cloud.firestore {
 
     // FEATURE 9: Encrypted User Data Vaults (Buyer/Seller Profiles)
     match /users/{userId} {
-      allow read: if isAdmin() || isOwner(userId);
-      // CRITICAL FIX: Admins must be able to write to user documents to update roles/permissions
-      allow write: if isAdmin() || isOwner(userId);
+      // CRITICAL FIX: Applies strict masking preventing the new admin from accessing the super admin's record
+      allow read: if (isAdmin() || isOwner(userId)) && !isMaskedAdminTargetingSuperAdmin();
+      allow write: if (isAdmin() || isOwner(userId)) && !isMaskedAdminTargetingSuperAdmin();
+      allow delete: if (isAdmin() || isOwner(userId)) && !isMaskedAdminTargetingSuperAdmin();
     }
     
     // FEATURE 10: Deep Wildcard Sub-collection Protection
     match /users/{userId}/{document=**} {
-      allow read: if isAdmin() || isOwner(userId);
-      // CRITICAL FIX: Admins must be able to write to user subcollections
-      allow write: if isAdmin() || isOwner(userId);
+      // CRITICAL FIX: Applies strict masking down to all subcollections
+      allow read: if (isAdmin() || isOwner(userId)) && !isMaskedAdminTargetingSuperAdmin();
+      allow write: if (isAdmin() || isOwner(userId)) && !isMaskedAdminTargetingSuperAdmin();
+      allow delete: if (isAdmin() || isOwner(userId)) && !isMaskedAdminTargetingSuperAdmin();
     }
 
     // FEATURE 11: Platform Config Security (Dynamic Banners & Promotions)
@@ -196,9 +210,10 @@ service cloud.firestore {
       }
       
       match /users/{userId}/{document=**} {
-        allow read: if isAdmin() || isOwner(userId);
-        // CRITICAL FIX: Admins must be able to write to user subcollections in the artifact path
-        allow write: if isAdmin() || isOwner(userId);
+        // CRITICAL FIX: Applies strict masking preventing the new admin from accessing the super admin's artifact records
+        allow read: if (isAdmin() || isOwner(userId)) && !isMaskedAdminTargetingSuperAdmin();
+        allow write: if (isAdmin() || isOwner(userId)) && !isMaskedAdminTargetingSuperAdmin();
+        allow delete: if (isAdmin() || isOwner(userId)) && !isMaskedAdminTargetingSuperAdmin();
       }
 
       match /public/data/payment_methods/{methodId} {
@@ -217,7 +232,6 @@ service cloud.firestore {
         allow write: if isAdmin();
       }
 
-      // CRITICAL FIX: Moved strictly OUT of /public/data to match the React frontend queries directly
       match /support_tickets/{ticketId} {
         allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
         allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
@@ -225,7 +239,6 @@ service cloud.firestore {
         allow delete: if isAdmin();
       }
 
-      // CRITICAL FIX: Moved strictly OUT of /public/data to match the React frontend queries directly
       match /notifications/{notificationId} {
         allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
         allow write: if isAdmin();
