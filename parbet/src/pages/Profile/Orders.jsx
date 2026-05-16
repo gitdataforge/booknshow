@@ -18,17 +18,18 @@ import { QRCodeSVG } from 'qrcode.react';
  * FEATURE 1: Illustrative Ambient Backgrounds
  * FEATURE 2: Real-Time Order Hydration from Global Store
  * FEATURE 3: Analytics Dashboard (Total Spent, Active Tickets)
- * FEATURE 4: Hardware-Accelerated Tab Switching (Upcoming vs Past)
+ * FEATURE 4: Hardware-Accelerated Tab Switching
  * FEATURE 5: Real-time Local Search Engine
  * FEATURE 6: Dynamic E-Ticket Action Cards
- * FEATURE 7: Transaction Status Trackers (Pending vs Confirmed)
+ * FEATURE 7: Transaction Status Trackers
  * FEATURE 8: 1:1 Rebranded Troubleshooting Empty State
  * FEATURE 9: Resale Portal Triggers
  * FEATURE 10: Strict Array Deduplication, Expanded PDF Layout & Exact SVG Logo
  * FEATURE 11: Micro-Typography Flex Layout for Complex Seat Strings
- * FEATURE 12: Dual-Timestamp Architecture (Booking Date vs Event Date)
- * FEATURE 13: Interactive High-Brightness QR Zoom Modal for Scanner Gates
- * FEATURE 14: Dynamic Stadium String Parser (Formats raw DB strings into human-readable ticket blocks)
+ * FEATURE 12: Dual-Timestamp Architecture
+ * FEATURE 13: Interactive High-Brightness QR Zoom Modal
+ * FEATURE 14: Dynamic Stadium String Parser
+ * FEATURE 15: Fully Scrollable Responsive E-Ticket Modal (Fix for cutoff issue)
  */
 
 const formatDate = (isoString) => {
@@ -45,7 +46,6 @@ const formatTime = (isoString) => {
     return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 };
 
-// FEATURE 14: Formats raw DB strings (e.g., NORTH-UPPER-A-R_A-S10) to human readable (NORTH UPPER A • Row A • Seat 10)
 const formatSeatLabel = (seatStr) => {
     if (!seatStr || !seatStr.includes('-')) return seatStr;
     try {
@@ -56,7 +56,7 @@ const formatSeatLabel = (seatStr) => {
         const blockInfo = parts.join(' ');
         return `${blockInfo.replace(/_/g, ' ')} • Row ${rowInfo.replace('R_', '')} • Seat ${seatInfo.replace('S', '')}`;
     } catch (e) {
-        return seatStr; // Fallback to raw string if parsing fails
+        return seatStr;
     }
 };
 
@@ -100,8 +100,6 @@ export default function Orders() {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedTicket, setSelectedTicket] = useState(null);
     const [isDownloading, setIsDownloading] = useState(false);
-    
-    // FEATURE 13: Zoomed QR State
     const [zoomedQR, setZoomedQR] = useState(null);
     const ticketRef = useRef(null);
 
@@ -274,17 +272,15 @@ export default function Orders() {
                                     const isPending = order.status === 'pending_approval' || order.paymentMethod === 'bank_transfer' || order.status === 'Pending';
                                     
                                     // FEATURE 12: Dual Timestamp Resolution
-                                    // 1. Transaction Date
                                     let transactionDate;
                                     if (order.createdAt?.seconds) transactionDate = order.createdAt.seconds * 1000;
                                     else transactionDate = order.createdAt;
 
-                                    // 2. Scheduled Event Date
                                     let eventDate;
                                     if (order.commence_time?.seconds) eventDate = order.commence_time.seconds * 1000;
                                     else if (order.commence_time) eventDate = order.commence_time;
                                     else if (order.eventTimestamp) eventDate = order.eventTimestamp;
-                                    else eventDate = transactionDate; // Fallback only if totally missing
+                                    else eventDate = transactionDate;
                                     
                                     return (
                                         <motion.div 
@@ -427,146 +423,145 @@ export default function Orders() {
                 </div>
             </motion.div>
 
-            {/* Ticket Modal */}
+            {/* FEATURE 15: Fully Scrollable Responsive E-Ticket Modal */}
             <AnimatePresence>
                 {selectedTicket && (
-                    <div className="fixed inset-0 z-[990] flex items-center justify-center bg-[#333333]/80 backdrop-blur-sm p-4 overflow-y-auto">
-                        <motion.div 
-                            initial={{ scale: 0.95, opacity: 0 }} 
-                            animate={{ scale: 1, opacity: 1 }} 
-                            exit={{ opacity: 0 }} 
-                            className="bg-transparent w-full max-w-md relative my-auto"
-                        >
-                            <button onClick={() => setSelectedTicket(null)} className="absolute -top-12 right-0 text-[#FFFFFF] hover:text-[#E7364D] transition-colors bg-[#333333] p-2 rounded-full z-50 shadow-xl">
-                                <X size={24} />
-                            </button>
-
-                            <div ref={ticketRef} className="bg-[#FFFFFF] rounded-[16px] overflow-hidden shadow-2xl relative flex flex-col">
-                                
-                                <div className="bg-[#333333] w-full pt-6 pb-5 flex flex-col justify-center items-center border-b-4 border-[#E7364D] relative overflow-hidden shrink-0">
-                                    <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
-                                    <BooknshowLogo textColor="#FFFFFF" className="scale-75 origin-center -mb-2" />
-                                    <p className="text-[10px] text-[#A3A3A3] uppercase tracking-[0.2em] relative z-10 font-bold">Official Access Pass</p>
-                                </div>
-
-                                <div className="p-6 md:p-8 bg-[#FFFFFF] relative flex-1 flex flex-col">
-                                    <div className="mb-6 pb-6 border-b border-dashed border-[#A3A3A3]/40">
-                                        <h2 className="text-[22px] font-black text-[#333333] leading-tight mb-4">{selectedTicket.eventName}</h2>
-                                        
-                                        <div className="space-y-3">
-                                            {/* FEATURE 12: Dual Timestamp Ticket Injection */}
-                                            <div className="flex items-start gap-3">
-                                                <Calendar size={16} className="text-[#E7364D] mt-0.5 shrink-0" />
-                                                <div>
-                                                    <p className="text-[10px] font-bold text-[#E7364D] uppercase tracking-widest mb-0.5">Event Date</p>
-                                                    <p className="text-[14px] font-black text-[#333333]">
-                                                        {selectedTicket.commence_time?.seconds ? new Date(selectedTicket.commence_time.seconds * 1000).toLocaleString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 
-                                                         selectedTicket.commence_time ? new Date(selectedTicket.commence_time).toLocaleString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) :
-                                                         selectedTicket.eventTimestamp ? new Date(selectedTicket.eventTimestamp).toLocaleString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Date TBA'}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <div className="flex items-start gap-3">
-                                                <Clock size={16} className="text-[#A3A3A3] mt-0.5 shrink-0" />
-                                                <div>
-                                                    <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-0.5">Order Placed</p>
-                                                    <p className="text-[14px] font-black text-[#626262]">
-                                                        {selectedTicket.createdAt?.seconds ? new Date(selectedTicket.createdAt.seconds * 1000).toLocaleString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }) : 
-                                                         selectedTicket.createdAt ? new Date(selectedTicket.createdAt).toLocaleString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }) : 'Unknown'}
-                                                    </p>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex items-start gap-3">
-                                                <MapPin size={16} className="text-[#A3A3A3] mt-0.5 shrink-0" />
-                                                <div>
-                                                    <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-0.5">Venue</p>
-                                                    <p className="text-[14px] font-black text-[#333333]">{selectedTicket.eventLoc || 'Venue TBA'}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-4 mb-6">
-                                        <div className="bg-[#FAFAFA] p-3 rounded-[8px] border border-[#A3A3A3]/20">
-                                            <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-1">Tier / Section</p>
-                                            <p className="text-[15px] font-black text-[#E7364D] truncate">{selectedTicket.tierName}</p>
-                                        </div>
-                                        <div className="bg-[#FAFAFA] p-3 rounded-[8px] border border-[#A3A3A3]/20">
-                                            <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-1">Admit</p>
-                                            <p className="text-[15px] font-black text-[#333333]">{selectedTicket.quantity} Person(s)</p>
-                                        </div>
-                                        
-                                        <div className="bg-[#FAFAFA] p-3 rounded-[8px] border border-[#A3A3A3]/20 col-span-2">
-                                            <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-1">Allocated Seats</p>
-                                            <div className="flex flex-wrap gap-1.5 mt-1.5">
-                                                {selectedTicket.seatNumbers && selectedTicket.seatNumbers.length > 0 ? (
-                                                    selectedTicket.seatNumbers.map(seat => (
-                                                        // FEATURE 14: Injection of the formatting utility for the PDF render
-                                                        <span key={seat} className="bg-[#E7364D] text-[#FFFFFF] px-2 py-1 rounded-[4px] text-[10px] font-black tracking-widest shadow-sm break-words inline-block text-center border border-[#E7364D]/50">
-                                                            {formatSeatLabel(seat)}
-                                                        </span>
-                                                    ))
-                                                ) : (
-                                                    <span className="text-[11px] font-bold text-[#626262]">General Admission / Unassigned</span>
-                                                )}
-                                            </div>
-                                        </div>
-                                        
-                                        <div className="bg-[#FAFAFA] p-3 rounded-[8px] border border-[#A3A3A3]/20 col-span-2">
-                                            <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-1">Buyer Details</p>
-                                            <p className="text-[14px] font-black text-[#333333] truncate">{selectedTicket.buyerName || selectedTicket.buyerEmail || user?.email}</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="bg-[#FAFAFA] p-4 rounded-[8px] border border-[#A3A3A3]/20 mb-6">
-                                        <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-3 border-b border-[#A3A3A3]/20 pb-2">Payment Summary</p>
-                                        <div className="flex justify-between items-center mb-1">
-                                            <span className="text-[13px] font-bold text-[#626262]">Subtotal & Fees</span>
-                                            <span className="text-[13px] font-bold text-[#333333]">INR {Math.round((Number(selectedTicket.totalAmount || selectedTicket.amountPaid) || 0) * 0.85).toLocaleString()}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center mb-3">
-                                            <span className="text-[13px] font-bold text-[#626262]">Taxes (18%)</span>
-                                            <span className="text-[13px] font-bold text-[#333333]">INR {Math.round((Number(selectedTicket.totalAmount || selectedTicket.amountPaid) || 0) * 0.15).toLocaleString()}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center pt-2 border-t border-[#A3A3A3]/20">
-                                            <span className="text-[14px] font-black text-[#333333]">Total Paid</span>
-                                            <span className="text-[16px] font-black text-[#E7364D]">INR {(Number(selectedTicket.totalAmount || selectedTicket.amountPaid) || 0).toLocaleString()}</span>
-                                        </div>
-                                    </div>
-
-                                    {/* FEATURE 13: Interactive Tap-to-Zoom QR Trigger */}
-                                    <div className="flex flex-col items-center justify-center p-4 bg-[#F5F5F5] rounded-[12px] border border-[#A3A3A3]/20 mt-auto group">
-                                        <button 
-                                            onClick={() => setZoomedQR(`BOOKNSHOW_SECURE_${selectedTicket.id}`)}
-                                            className="bg-[#FFFFFF] p-2 rounded-[8px] shadow-sm mb-3 relative cursor-pointer hover:border-[#E7364D] border border-transparent transition-all"
-                                            title="Tap to enlarge for gate scanner"
-                                        >
-                                            <QRCodeSVG value={`BOOKNSHOW_SECURE_${selectedTicket.id}`} size={120} fgColor="#333333" level="H" />
-                                            <div className="absolute inset-0 bg-[#FFFFFF]/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-[8px] backdrop-blur-[1px]">
-                                                <Maximize2 size={24} className="text-[#E7364D]" />
-                                            </div>
-                                        </button>
-                                        <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-0.5">Ticket ID</p>
-                                        <p className="text-[14px] font-mono font-black text-[#333333] tracking-widest">{selectedTicket.id.substring(0, 12).toUpperCase()}</p>
-                                        <p className="text-[10px] font-bold text-[#E7364D] uppercase tracking-widest mt-3 flex items-center"><Maximize2 size={10} className="mr-1"/> Tap QR code to zoom for scanner</p>
-                                    </div>
-                                </div>
-                                
-                                <div className="h-4 w-full bg-[radial-gradient(circle,transparent_4px,#FFFFFF_4px)] bg-[length:16px_16px] -mt-2 shrink-0"></div>
-                            </div>
-
-                            <div className="mt-6">
-                                <button 
-                                    onClick={handleDownloadTicket} 
-                                    disabled={isDownloading}
-                                    className="w-full bg-[#E7364D] text-[#FFFFFF] font-black py-4 rounded-[8px] hover:bg-[#333333] transition-colors shadow-[0_4px_15px_rgba(231,54,77,0.4)] flex items-center justify-center disabled:opacity-50"
-                                >
-                                    {isDownloading ? <Loader2 className="animate-spin mr-2" size={20} /> : <Download size={20} className="mr-2" />}
-                                    {isDownloading ? 'Generating PDF...' : 'Download E-Ticket'}
+                    <div className="fixed inset-0 z-[990] overflow-y-auto bg-[#333333]/80 backdrop-blur-sm">
+                        <div className="min-h-full flex items-center justify-center p-4 py-16 md:py-20">
+                            <motion.div 
+                                initial={{ scale: 0.95, opacity: 0 }} 
+                                animate={{ scale: 1, opacity: 1 }} 
+                                exit={{ opacity: 0, scale: 0.95 }} 
+                                className="bg-transparent w-full max-w-md relative"
+                            >
+                                <button onClick={() => setSelectedTicket(null)} className="absolute -top-12 right-0 text-[#FFFFFF] hover:text-[#E7364D] transition-colors bg-[#333333] p-2 rounded-full z-50 shadow-xl">
+                                    <X size={24} />
                                 </button>
-                            </div>
-                        </motion.div>
+
+                                <div ref={ticketRef} className="bg-[#FFFFFF] rounded-[16px] overflow-hidden shadow-2xl relative flex flex-col">
+                                    
+                                    <div className="bg-[#333333] w-full pt-6 pb-5 flex flex-col justify-center items-center border-b-4 border-[#E7364D] relative overflow-hidden shrink-0">
+                                        <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+                                        <BooknshowLogo textColor="#FFFFFF" className="scale-75 origin-center -mb-2" />
+                                        <p className="text-[10px] text-[#A3A3A3] uppercase tracking-[0.2em] relative z-10 font-bold">Official Access Pass</p>
+                                    </div>
+
+                                    <div className="p-6 md:p-8 bg-[#FFFFFF] relative flex-1 flex flex-col">
+                                        <div className="mb-6 pb-6 border-b border-dashed border-[#A3A3A3]/40">
+                                            <h2 className="text-[22px] font-black text-[#333333] leading-tight mb-4">{selectedTicket.eventName}</h2>
+                                            
+                                            <div className="space-y-3">
+                                                <div className="flex items-start gap-3">
+                                                    <Calendar size={16} className="text-[#E7364D] mt-0.5 shrink-0" />
+                                                    <div>
+                                                        <p className="text-[10px] font-bold text-[#E7364D] uppercase tracking-widest mb-0.5">Event Date</p>
+                                                        <p className="text-[14px] font-black text-[#333333]">
+                                                            {selectedTicket.commence_time?.seconds ? new Date(selectedTicket.commence_time.seconds * 1000).toLocaleString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 
+                                                             selectedTicket.commence_time ? new Date(selectedTicket.commence_time).toLocaleString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) :
+                                                             selectedTicket.eventTimestamp ? new Date(selectedTicket.eventTimestamp).toLocaleString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Date TBA'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-start gap-3">
+                                                    <Clock size={16} className="text-[#A3A3A3] mt-0.5 shrink-0" />
+                                                    <div>
+                                                        <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-0.5">Order Placed</p>
+                                                        <p className="text-[14px] font-black text-[#626262]">
+                                                            {selectedTicket.createdAt?.seconds ? new Date(selectedTicket.createdAt.seconds * 1000).toLocaleString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }) : 
+                                                             selectedTicket.createdAt ? new Date(selectedTicket.createdAt).toLocaleString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }) : 'Unknown'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex items-start gap-3">
+                                                    <MapPin size={16} className="text-[#A3A3A3] mt-0.5 shrink-0" />
+                                                    <div>
+                                                        <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-0.5">Venue</p>
+                                                        <p className="text-[14px] font-black text-[#333333]">{selectedTicket.eventLoc || 'Venue TBA'}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4 mb-6">
+                                            <div className="bg-[#FAFAFA] p-3 rounded-[8px] border border-[#A3A3A3]/20">
+                                                <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-1">Tier / Section</p>
+                                                <p className="text-[15px] font-black text-[#E7364D] truncate">{selectedTicket.tierName}</p>
+                                            </div>
+                                            <div className="bg-[#FAFAFA] p-3 rounded-[8px] border border-[#A3A3A3]/20">
+                                                <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-1">Admit</p>
+                                                <p className="text-[15px] font-black text-[#333333]">{selectedTicket.quantity} Person(s)</p>
+                                            </div>
+                                            
+                                            <div className="bg-[#FAFAFA] p-3 rounded-[8px] border border-[#A3A3A3]/20 col-span-2">
+                                                <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-1">Allocated Seats</p>
+                                                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                                    {selectedTicket.seatNumbers && selectedTicket.seatNumbers.length > 0 ? (
+                                                        selectedTicket.seatNumbers.map(seat => (
+                                                            <span key={seat} className="bg-[#E7364D] text-[#FFFFFF] px-2 py-1 rounded-[4px] text-[10px] font-black tracking-widest shadow-sm break-words inline-block text-center border border-[#E7364D]/50">
+                                                                {formatSeatLabel(seat)}
+                                                            </span>
+                                                        ))
+                                                    ) : (
+                                                        <span className="text-[11px] font-bold text-[#626262]">General Admission / Unassigned</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="bg-[#FAFAFA] p-3 rounded-[8px] border border-[#A3A3A3]/20 col-span-2">
+                                                <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-1">Buyer Details</p>
+                                                <p className="text-[14px] font-black text-[#333333] truncate">{selectedTicket.buyerName || selectedTicket.buyerEmail || user?.email}</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-[#FAFAFA] p-4 rounded-[8px] border border-[#A3A3A3]/20 mb-6">
+                                            <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-3 border-b border-[#A3A3A3]/20 pb-2">Payment Summary</p>
+                                            <div className="flex justify-between items-center mb-1">
+                                                <span className="text-[13px] font-bold text-[#626262]">Subtotal & Fees</span>
+                                                <span className="text-[13px] font-bold text-[#333333]">INR {Math.round((Number(selectedTicket.totalAmount || selectedTicket.amountPaid) || 0) * 0.85).toLocaleString()}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center mb-3">
+                                                <span className="text-[13px] font-bold text-[#626262]">Taxes (18%)</span>
+                                                <span className="text-[13px] font-bold text-[#333333]">INR {Math.round((Number(selectedTicket.totalAmount || selectedTicket.amountPaid) || 0) * 0.15).toLocaleString()}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center pt-2 border-t border-[#A3A3A3]/20">
+                                                <span className="text-[14px] font-black text-[#333333]">Total Paid</span>
+                                                <span className="text-[16px] font-black text-[#E7364D]">INR {(Number(selectedTicket.totalAmount || selectedTicket.amountPaid) || 0).toLocaleString()}</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex flex-col items-center justify-center p-4 bg-[#F5F5F5] rounded-[12px] border border-[#A3A3A3]/20 mt-auto group">
+                                            <button 
+                                                onClick={() => setZoomedQR(`BOOKNSHOW_SECURE_${selectedTicket.id}`)}
+                                                className="bg-[#FFFFFF] p-2 rounded-[8px] shadow-sm mb-3 relative cursor-pointer hover:border-[#E7364D] border border-transparent transition-all"
+                                                title="Tap to enlarge for gate scanner"
+                                            >
+                                                <QRCodeSVG value={`BOOKNSHOW_SECURE_${selectedTicket.id}`} size={120} fgColor="#333333" level="H" />
+                                                <div className="absolute inset-0 bg-[#FFFFFF]/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-[8px] backdrop-blur-[1px]">
+                                                    <Maximize2 size={24} className="text-[#E7364D]" />
+                                                </div>
+                                            </button>
+                                            <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-0.5">Ticket ID</p>
+                                            <p className="text-[14px] font-mono font-black text-[#333333] tracking-widest">{selectedTicket.id.substring(0, 12).toUpperCase()}</p>
+                                            <p className="text-[10px] font-bold text-[#E7364D] uppercase tracking-widest mt-3 flex items-center"><Maximize2 size={10} className="mr-1"/> Tap QR code to zoom for scanner</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="h-4 w-full bg-[radial-gradient(circle,transparent_4px,#FFFFFF_4px)] bg-[length:16px_16px] -mt-2 shrink-0"></div>
+                                </div>
+
+                                <div className="mt-6">
+                                    <button 
+                                        onClick={handleDownloadTicket} 
+                                        disabled={isDownloading}
+                                        className="w-full bg-[#E7364D] text-[#FFFFFF] font-black py-4 rounded-[8px] hover:bg-[#333333] transition-colors shadow-[0_4px_15px_rgba(231,54,77,0.4)] flex items-center justify-center disabled:opacity-50"
+                                    >
+                                        {isDownloading ? <Loader2 className="animate-spin mr-2" size={20} /> : <Download size={20} className="mr-2" />}
+                                        {isDownloading ? 'Generating PDF...' : 'Download E-Ticket'}
+                                    </button>
+                                </div>
+                            </motion.div>
+                        </div>
                     </div>
                 )}
             </AnimatePresence>
