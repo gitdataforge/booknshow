@@ -35,15 +35,15 @@ import Payments from './pages/Profile/Payments';
 import Settings from './pages/Profile/Settings';
 import Wallet from './pages/Profile/Wallet';
 import Support from './pages/Profile/Support'; 
-import Faqs from './pages/Profile/Faqs';       
-import UserTickets from './pages/Profile/Tickets'; // NEW: User Ticket Ledger
+import Faqs from './pages/Profile/Faqs';        
+import UserTickets from './pages/Profile/Tickets'; 
 
 // PHASE 9: GOD-MODE ADMIN NODES
 import AdminDashboard from './pages/Admin/Dashboard';
 import AdminUsers from './pages/Admin/Users';
 import AdminFinancials from './pages/Admin/Financials';
 import AdminEvents from './pages/Admin/Events';
-import SupportDesk from './pages/Admin/SupportDesk'; // NEW: Admin Support Desk
+import SupportDesk from './pages/Admin/SupportDesk'; 
 
 // PHASE 20: SELLER NODES
 import SellerDashboard from './pages/Seller/Dashboard';
@@ -63,8 +63,8 @@ const dynamicRoutes = Object.keys(pages).map((path) => {
 function MainLayout() {
     const location = useLocation();
     
-    // FEATURE: Security Gatekeeper Props
-    const { isAuthenticated, user } = useMainStore();
+    // FEATURE: Security Gatekeeper Props & Fullscreen State
+    const { isAuthenticated, user, isFullscreenModalOpen } = useMainStore();
     
     // Strict Route Identification
     const isProfilePath = location.pathname.toLowerCase().startsWith('/profile');
@@ -72,7 +72,6 @@ function MainLayout() {
     const isSellerPath = location.pathname.toLowerCase().startsWith('/seller');
     
     // FEATURE: Isolation Engine (Hides Header/Footer for immersive auth/checkout pages)
-    // NOTE: Removed /reset-password as the app now utilizes direct in-app recovery
     const isIsolatedPage = ['/event', '/login', '/signup', '/checkout', '/checkout/success'].some(path => 
         location.pathname.toLowerCase().startsWith(path)
     );
@@ -80,8 +79,9 @@ function MainLayout() {
     // Route-Based Header Injection
     const isExplorePage = location.pathname.toLowerCase() === '/explore' || location.pathname.toLowerCase().startsWith('/explore/');
     
-    // Header Separation Logic
-    const hideGlobalHeader = isIsolatedPage || isProfilePath || isAdminPath || isSellerPath;
+    // Header Separation Logic: Hide header if isolated, in dashboard, OR if a fullscreen modal is actively open
+    const hideGlobalHeader = isIsolatedPage || isProfilePath || isAdminPath || isSellerPath || isFullscreenModalOpen;
+    const hideGlobalFooter = isIsolatedPage || isAdminPath || isSellerPath || isFullscreenModalOpen;
 
     return (
         <InactivityTimeout>
@@ -93,7 +93,7 @@ function MainLayout() {
                     isExplorePage ? <ExploreHeader /> : <Header />
                 )}
                 
-                <main className={`flex-1 w-full mx-auto ${(isIsolatedPage || isProfilePath || isAdminPath || isSellerPath) ? '' : 'max-w-[1400px] p-0'}`}>
+                <main className={`flex-1 w-full mx-auto ${(isIsolatedPage || isProfilePath || isAdminPath || isSellerPath || isFullscreenModalOpen) ? '' : 'max-w-[1400px] p-0'}`}>
                     <Routes>
                         <Route path="/" element={<Home />} />
                         
@@ -142,14 +142,12 @@ function MainLayout() {
                             <Route path="wallet" element={<Wallet />} />
                             <Route path="support" element={<Support />} /> 
                             <Route path="faqs" element={<Faqs />} />       
-                            <Route path="tickets" element={<UserTickets />} /> {/* NEW TICKET LEDGER */}
+                            <Route path="tickets" element={<UserTickets />} />
                         </Route>
 
                         {dynamicRoutes.map(({ name, Component }) => {
-                            // Skip pages already handled by static routes or excluded
                             if (['Home', 'Maintenance', 'Profile', 'Dashboard', 'Performer', 'Admin', 'Checkout', 'Seller', 'Auth'].includes(name)) return null;
 
-                            // Protect Legacy Dashboard
                             if (name === 'Dashboard') {
                                 return <Route key={name} path={`/dashboard`} element={isAuthenticated ? <Component /> : <Navigate to="/login" replace />} />;
                             }
@@ -162,8 +160,10 @@ function MainLayout() {
                     </Routes>
                 </main>
                 
-                {!isIsolatedPage && !isAdminPath && !isSellerPath && <Footer />}
-                <LocationToast />
+                {!hideGlobalFooter && <Footer />}
+                
+                {/* Suppress Toast alerts if a fullscreen receipt/ticket is open */}
+                {!isFullscreenModalOpen && <LocationToast />}
             </div>
         </InactivityTimeout>
     );

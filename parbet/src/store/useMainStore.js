@@ -48,6 +48,9 @@ export const useMainStore = create((set, get) => ({
     isAdmin: false,
     authLoading: true, // Gatekeeper starts in locked mode
 
+    // FEATURE: Global UI State for Fullscreen Modals (E-Tickets & Receipts)
+    isFullscreenModalOpen: false,
+
     // Real-time Ledger Data
     orders: [], // Purchases
     sales: [],  // Seller Revenue
@@ -63,6 +66,11 @@ export const useMainStore = create((set, get) => ({
     activeListeners: [],
 
     // --- ACTIONS ---
+
+    /**
+     * FEATURE: Controls global navigation visibility
+     */
+    setFullscreenModal: (isOpen) => set({ isFullscreenModalOpen: isOpen }),
 
     /**
      * FEATURE 1: Secure Authentication Initialization (Gatekeeper)
@@ -279,6 +287,7 @@ export const useMainStore = create((set, get) => ({
             user: null, 
             isAuthenticated: false, 
             isAdmin: false,
+            isFullscreenModalOpen: false, // Reset modal state on logout
             orders: [], 
             sales: [],
             bankDetails: null,
