@@ -30,6 +30,7 @@ import { QRCodeSVG } from 'qrcode.react';
  * FEATURE 13: Interactive High-Brightness QR Zoom Modal
  * FEATURE 14: Dynamic Stadium String Parser
  * FEATURE 15: Fully Scrollable Responsive E-Ticket Modal (Fix for cutoff issue)
+ * FEATURE 16: Global Fullscreen Modal Trigger Integration
  */
 
 const formatDate = (isoString) => {
@@ -94,7 +95,8 @@ const BooknshowLogo = ({ className = "", textColor = "#FFFFFF" }) => {
 
 export default function Orders() {
     const navigate = useNavigate();
-    const { user, orders, isLoadingOrders } = useMainStore();
+    // FEATURE 16: Inject setFullscreenModal action from the global store
+    const { user, orders, isLoadingOrders, setFullscreenModal } = useMainStore();
     
     const [activeTab, setActiveTab] = useState('Upcoming');
     const [searchQuery, setSearchQuery] = useState('');
@@ -165,6 +167,18 @@ export default function Orders() {
             return dateB - dateA;
         });
     }, [uniqueOrders, activeTab, searchQuery]);
+
+    // Handle opening the ticket modal and triggering global fullscreen
+    const handleOpenTicket = (order) => {
+        setSelectedTicket(order);
+        setFullscreenModal(true);
+    };
+
+    // Handle closing the ticket modal and releasing global fullscreen
+    const handleCloseTicket = () => {
+        setSelectedTicket(null);
+        setFullscreenModal(false);
+    };
 
     const handleDownloadTicket = async () => {
         if (!ticketRef.current || isDownloading) return;
@@ -333,7 +347,7 @@ export default function Orders() {
                                                     <div className="flex flex-wrap items-center gap-3 pt-5 border-t border-[#A3A3A3]/10">
                                                         <button 
                                                             disabled={isPending} 
-                                                            onClick={() => setSelectedTicket(order)}
+                                                            onClick={() => handleOpenTicket(order)} // Wiring the new function
                                                             className={`px-6 py-2.5 rounded-[8px] text-[14px] font-bold transition-all shadow-sm flex items-center ${isPending ? 'bg-[#F5F5F5] text-[#A3A3A3] cursor-not-allowed' : 'bg-[#E7364D] text-[#FFFFFF] hover:bg-[#EB5B6E] hover:shadow-[0_4px_15px_rgba(231,54,77,0.3)] hover:-translate-y-0.5'}`}
                                                         >
                                                             <Eye size={16} className="mr-2" /> View & Download E-Ticket
@@ -434,7 +448,7 @@ export default function Orders() {
                                 exit={{ opacity: 0, scale: 0.95 }} 
                                 className="bg-transparent w-full max-w-md relative"
                             >
-                                <button onClick={() => setSelectedTicket(null)} className="absolute -top-12 right-0 text-[#FFFFFF] hover:text-[#E7364D] transition-colors bg-[#333333] p-2 rounded-full z-50 shadow-xl">
+                                <button onClick={handleCloseTicket} className="absolute -top-12 right-0 text-[#FFFFFF] hover:text-[#E7364D] transition-colors bg-[#333333] p-2 rounded-full z-50 shadow-xl">
                                     <X size={24} />
                                 </button>
 

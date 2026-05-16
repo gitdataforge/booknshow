@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
     IndianRupee, TrendingUp, Calendar, Search, 
     CheckCircle2, Clock, AlertCircle, ArrowUpRight, 
-    FileText, Landmark, ChevronDown, DollarSign, X, Download, Loader2, ShieldCheck
+    FileText, Landmark, ChevronDown, DollarSign, X, Download, Loader2, ShieldCheck, MapPin
 } from 'lucide-react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
@@ -26,6 +26,8 @@ import jsPDF from 'jspdf';
  * FEATURE 9: Cryptographic Order ID Truncation
  * FEATURE 10: Fixed Price Clipping (Flex constraints adjusted)
  * FEATURE 11: Fullscreen Professional Branded Receipt Generator
+ * FEATURE 12: Global Fullscreen Modal Trigger Integration
+ * FEATURE 13: Strict Financial Tax & Fee Breakdown Logic
  */
 
 const formatDate = (timestamp) => {
@@ -80,7 +82,8 @@ const AmbientBackground = () => (
 
 export default function Sales() {
     const navigate = useNavigate();
-    const { user, wallet, bankDetails } = useMainStore();
+    // FEATURE 12: Inject setFullscreenModal action from the global store
+    const { user, wallet, bankDetails, setFullscreenModal } = useMainStore();
     
     const [sales, setSales] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -168,6 +171,18 @@ export default function Sales() {
             metrics: { totalRevenue, pendingEscrow, completedPayouts } 
         };
     }, [sales, activeTab, searchQuery, sortBy]);
+
+    // Handle opening the receipt modal and triggering global fullscreen
+    const handleOpenReceipt = (sale) => {
+        setSelectedReceipt(sale);
+        setFullscreenModal(true);
+    };
+
+    // Handle closing the receipt modal and releasing global fullscreen
+    const handleCloseReceipt = () => {
+        setSelectedReceipt(null);
+        setFullscreenModal(false);
+    };
 
     // FEATURE 11: PDF Generator for Receipt
     const handleDownloadReceipt = async () => {
@@ -353,7 +368,7 @@ export default function Sales() {
                                                                 </span>
                                                             )}
                                                             <button 
-                                                                onClick={() => setSelectedReceipt(sale)}
+                                                                onClick={() => handleOpenReceipt(sale)} // Wiring the new function
                                                                 className="text-[13px] text-[#A3A3A3] hover:text-[#E7364D] font-bold flex items-center transition-colors ml-auto md:ml-0"
                                                             >
                                                                 <FileText size={16} className="mr-1.5" /> View Receipt
@@ -361,7 +376,6 @@ export default function Sales() {
                                                         </div>
                                                     </div>
 
-                                                    {/* FEATURE 10: Fixed flex container to prevent cutoff */}
                                                     <div className="w-full md:w-auto md:min-w-[200px] shrink-0 bg-[#F5F5F5] rounded-[8px] border border-[#A3A3A3]/20 p-5 flex flex-col justify-center text-right overflow-hidden">
                                                         <p className="text-[11px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-1">Gross Sale</p>
                                                         <p className="text-[24px] font-black text-[#333333] mb-2 truncate">₹{amount.toLocaleString()}</p>
@@ -418,7 +432,7 @@ export default function Sales() {
                 </div>
             </motion.div>
 
-            {/* FEATURE 11: Fullscreen Professional Branded Receipt Modal */}
+            {/* FEATURE 11 & 13: Fullscreen Professional Branded Receipt Modal with Detailed Tax Logic */}
             <AnimatePresence>
                 {selectedReceipt && (
                     <div className="fixed inset-0 z-[1000] overflow-y-auto bg-[#333333]/90 backdrop-blur-md flex flex-col items-center py-10 px-4">
@@ -429,7 +443,7 @@ export default function Sales() {
                             className="relative w-full max-w-2xl mx-auto my-auto"
                         >
                             <button 
-                                onClick={() => setSelectedReceipt(null)} 
+                                onClick={handleCloseReceipt} 
                                 className="absolute -top-12 right-0 bg-[#FFFFFF] text-[#333333] hover:text-[#E7364D] rounded-full p-2 shadow-lg transition-colors z-50"
                             >
                                 <X size={24} />
@@ -458,8 +472,11 @@ export default function Sales() {
 
                                     <div className="mb-8">
                                         <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-2">Event Details</p>
-                                        <h3 className="text-[20px] font-black text-[#333333] leading-tight mb-2">{selectedReceipt.eventName || selectedReceipt.title || 'Booknshow Event'}</h3>
-                                        <p className="text-[14px] text-[#626262] font-medium flex items-center"><Calendar size={14} className="mr-2"/> {formatDate(selectedReceipt.commence_time || selectedReceipt.eventTimestamp)}</p>
+                                        <h3 className="text-[20px] font-black text-[#333333] leading-tight mb-3">{selectedReceipt.eventName || selectedReceipt.title || 'Booknshow Event'}</h3>
+                                        <div className="flex flex-col md:flex-row gap-4 text-[13px] text-[#626262] font-medium">
+                                            <div className="flex items-center"><Calendar size={14} className="mr-2 text-[#E7364D]"/> {formatDate(selectedReceipt.commence_time || selectedReceipt.eventTimestamp)} {formatTime(selectedReceipt.commence_time || selectedReceipt.eventTimestamp)}</div>
+                                            <div className="flex items-center"><MapPin size={14} className="mr-2 text-[#A3A3A3]"/> {selectedReceipt.eventLoc || 'Venue TBA'}</div>
+                                        </div>
                                     </div>
 
                                     {/* User Details Grid */}
@@ -476,7 +493,7 @@ export default function Sales() {
                                         </div>
                                     </div>
 
-                                    {/* Financial Breakdown */}
+                                    {/* FEATURE 13: Strict Financial Breakdown */}
                                     <div>
                                         <p className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-widest mb-3 border-b border-[#A3A3A3]/20 pb-2">Financial Breakdown</p>
                                         
@@ -486,13 +503,25 @@ export default function Sales() {
                                         </div>
                                         
                                         <div className="flex justify-between items-center py-2">
-                                            <span className="text-[14px] font-bold text-[#626262]">Gross Revenue</span>
+                                            <span className="text-[14px] font-bold text-[#626262]">Gross Sale Amount</span>
                                             <span className="text-[14px] font-bold text-[#333333]">₹{(selectedReceipt.price * selectedReceipt.quantity || 0).toLocaleString()}</span>
                                         </div>
 
+                                        <div className="flex justify-between items-center py-2 mt-2">
+                                            <span className="text-[13px] font-bold text-[#A3A3A3]">Platform Fee Deduction (5%)</span>
+                                            <span className="text-[13px] font-bold text-[#EB5B6E]">- ₹{Math.round((selectedReceipt.price * selectedReceipt.quantity) * 0.05).toLocaleString()}</span>
+                                        </div>
+
+                                        <div className="flex justify-between items-center py-2">
+                                            <span className="text-[13px] font-bold text-[#A3A3A3]">GST on Platform Fee (18%)</span>
+                                            <span className="text-[13px] font-bold text-[#EB5B6E]">- ₹{Math.round(((selectedReceipt.price * selectedReceipt.quantity) * 0.05) * 0.18).toLocaleString()}</span>
+                                        </div>
+
                                         <div className="flex justify-between items-center py-4 mt-4 border-t-2 border-[#333333]">
-                                            <span className="text-[16px] font-black text-[#333333] uppercase tracking-wider">Total Credit</span>
-                                            <span className="text-[24px] font-black text-[#E7364D]">₹{Number(selectedReceipt.totalAmount || selectedReceipt.amountPaid || selectedReceipt.price * selectedReceipt.quantity || 0).toLocaleString()}</span>
+                                            <span className="text-[16px] font-black text-[#333333] uppercase tracking-wider">Net Payout Credit</span>
+                                            <span className="text-[24px] font-black text-[#E7364D]">
+                                                ₹{Math.round((selectedReceipt.price * selectedReceipt.quantity) - ((selectedReceipt.price * selectedReceipt.quantity) * 0.05) - (((selectedReceipt.price * selectedReceipt.quantity) * 0.05) * 0.18)).toLocaleString()}
+                                            </span>
                                         </div>
                                     </div>
 
